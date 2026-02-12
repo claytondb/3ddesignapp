@@ -10,8 +10,8 @@
 
 | Phase | Name | Duration | Status |
 |-------|------|----------|--------|
-| 1 | Foundation | Weeks 1-4 | 🟢 Sprint 1 Complete |
-| 2 | Mesh Tools | Weeks 5-8 | ⚪ Not Started |
+| 1 | Foundation | Weeks 1-4 | ✅ Complete |
+| 2 | Mesh Tools | Weeks 5-8 | 🟡 In Progress |
 | 3 | Alignment & Primitives | Weeks 9-12 | ⚪ Not Started |
 | 4 | 2D Sketching | Weeks 13-18 | ⚪ Not Started |
 | 5 | Surfaces & CAD | Weeks 19-24 | ⚪ Not Started |

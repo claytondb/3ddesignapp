@@ -19,6 +19,8 @@ Toolbar::Toolbar(QWidget *parent)
     setupViewGroup();
     addSeparator();
     setupCreateGroup();
+    addSeparator();
+    setupMeshToolsGroup();
     
     // Add expanding spacer
     QWidget* spacer = new QWidget(this);
@@ -215,6 +217,33 @@ void Toolbar::setupCreateGroup()
     m_actionCreateSketch = createAction(tr("Sketch"), "sketch", tr("2D Sketch (K)"), "K");
     connect(m_actionCreateSketch, &QAction::triggered, this, &Toolbar::createSketchRequested);
     addAction(m_actionCreateSketch);
+}
+
+void Toolbar::setupMeshToolsGroup()
+{
+    // Polygon Reduction
+    m_actionPolygonReduction = createAction(tr("Reduce"), "mesh-reduce", 
+        tr("Polygon Reduction (Ctrl+Shift+R)"), "Ctrl+Shift+R");
+    connect(m_actionPolygonReduction, &QAction::triggered, this, &Toolbar::polygonReductionRequested);
+    addAction(m_actionPolygonReduction);
+
+    // Smoothing
+    m_actionSmoothing = createAction(tr("Smooth"), "mesh-smooth", 
+        tr("Mesh Smoothing (Ctrl+Shift+S)"), "Ctrl+Shift+S");
+    connect(m_actionSmoothing, &QAction::triggered, this, &Toolbar::smoothingRequested);
+    addAction(m_actionSmoothing);
+
+    // Fill Holes
+    m_actionFillHoles = createAction(tr("Fill"), "mesh-fill", 
+        tr("Fill Holes (Ctrl+Shift+H)"), "Ctrl+Shift+H");
+    connect(m_actionFillHoles, &QAction::triggered, this, &Toolbar::fillHolesRequested);
+    addAction(m_actionFillHoles);
+
+    // Clipping Box
+    m_actionClippingBox = createAction(tr("Clip"), "mesh-clip", 
+        tr("Clipping Box (Ctrl+Shift+B)"), "Ctrl+Shift+B");
+    connect(m_actionClippingBox, &QAction::triggered, this, &Toolbar::clippingBoxRequested);
+    addAction(m_actionClippingBox);
 }
 
 void Toolbar::setupSearchWidget()

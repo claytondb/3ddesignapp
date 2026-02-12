@@ -5,10 +5,21 @@
 #include <QMenu>
 #include <QAction>
 
+// Forward declarations for dialogs
+class PolygonReductionDialog;
+class SmoothingDialog;
+class HoleFillDialog;
+class OutlierRemovalDialog;
+class ClippingBoxDialog;
+
 namespace dc3d {
 namespace core {
 class CommandStack;
 }
+}
+
+namespace dc {
+class Viewport;
 }
 
 /**
@@ -61,6 +72,21 @@ public:
      * @param text Description text
      */
     void setRedoEnabled(bool canRedo, const QString& text = QString());
+    
+    /**
+     * @brief Set the viewport for dialog previews
+     * @param viewport The main viewport widget
+     */
+    void setViewport(dc::Viewport* viewport);
+    
+    /**
+     * @brief Access mesh dialogs
+     */
+    PolygonReductionDialog* polygonReductionDialog() const { return m_polygonReductionDialog; }
+    SmoothingDialog* smoothingDialog() const { return m_smoothingDialog; }
+    HoleFillDialog* holeFillDialog() const { return m_holeFillDialog; }
+    OutlierRemovalDialog* outlierRemovalDialog() const { return m_outlierRemovalDialog; }
+    ClippingBoxDialog* clippingBoxDialog() const { return m_clippingBoxDialog; }
 
 signals:
     // File menu signals
@@ -146,6 +172,13 @@ signals:
     void checkForUpdatesRequested();
     void aboutRequested();
 
+private slots:
+    void showPolygonReductionDialog();
+    void showSmoothingDialog();
+    void showHoleFillDialog();
+    void showOutlierRemovalDialog();
+    void showClippingBoxDialog();
+
 private:
     void setupFileMenu();
     void setupEditMenu();
@@ -153,6 +186,7 @@ private:
     void setupMeshMenu();
     void setupCreateMenu();
     void setupHelpMenu();
+    void createMeshDialogs();
 
     QAction* createAction(const QString& text, const QString& shortcut = QString(),
                           const QString& tooltip = QString());
@@ -218,6 +252,17 @@ private:
     QAction* m_actionSmoothing;
     QAction* m_actionFillHoles;
     QAction* m_actionRemoveOutliers;
+    QAction* m_actionClippingBox;
+    
+    // Mesh dialogs
+    PolygonReductionDialog* m_polygonReductionDialog;
+    SmoothingDialog* m_smoothingDialog;
+    HoleFillDialog* m_holeFillDialog;
+    OutlierRemovalDialog* m_outlierRemovalDialog;
+    ClippingBoxDialog* m_clippingBoxDialog;
+    
+    // Viewport reference
+    dc::Viewport* m_viewport;
 
     // Create actions
     QAction* m_actionCreatePlane;

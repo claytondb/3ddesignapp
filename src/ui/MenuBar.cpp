@@ -1,9 +1,20 @@
 #include "MenuBar.h"
 #include "../core/CommandStack.h"
+#include "dialogs/PolygonReductionDialog.h"
+#include "dialogs/SmoothingDialog.h"
+#include "dialogs/HoleFillDialog.h"
+#include "dialogs/OutlierRemovalDialog.h"
+#include "dialogs/ClippingBoxDialog.h"
 #include <QApplication>
 
 MenuBar::MenuBar(QWidget *parent)
     : QMenuBar(parent)
+    , m_polygonReductionDialog(nullptr)
+    , m_smoothingDialog(nullptr)
+    , m_holeFillDialog(nullptr)
+    , m_outlierRemovalDialog(nullptr)
+    , m_clippingBoxDialog(nullptr)
+    , m_viewport(nullptr)
 {
     setupFileMenu();
     setupEditMenu();
@@ -11,6 +22,7 @@ MenuBar::MenuBar(QWidget *parent)
     setupMeshMenu();
     setupCreateMenu();
     setupHelpMenu();
+    createMeshDialogs();
 }
 
 QAction* MenuBar::createAction(const QString& text, const QString& shortcut, const QString& tooltip)
@@ -295,24 +307,28 @@ void MenuBar::setupMeshMenu()
     m_meshMenu = addMenu(tr("&Mesh"));
 
     // Polygon Reduction
-    m_actionPolygonReduction = createAction(tr("&Polygon Reduction..."), "", tr("Reduce polygon count"));
+    m_actionPolygonReduction = createAction(tr("&Polygon Reduction..."), "Ctrl+Shift+R", tr("Reduce polygon count"));
+    connect(m_actionPolygonReduction, &QAction::triggered, this, &MenuBar::showPolygonReductionDialog);
     connect(m_actionPolygonReduction, &QAction::triggered, this, &MenuBar::polygonReductionRequested);
     m_meshMenu->addAction(m_actionPolygonReduction);
 
     // Smoothing
-    m_actionSmoothing = createAction(tr("&Smoothing..."), "", tr("Smooth mesh surface"));
+    m_actionSmoothing = createAction(tr("&Smoothing..."), "Ctrl+Shift+S", tr("Smooth mesh surface"));
+    connect(m_actionSmoothing, &QAction::triggered, this, &MenuBar::showSmoothingDialog);
     connect(m_actionSmoothing, &QAction::triggered, this, &MenuBar::smoothingRequested);
     m_meshMenu->addAction(m_actionSmoothing);
 
     m_meshMenu->addSeparator();
 
     // Fill Holes
-    m_actionFillHoles = createAction(tr("&Fill Holes..."), "", tr("Fill holes in mesh"));
+    m_actionFillHoles = createAction(tr("&Fill Holes..."), "Ctrl+Shift+H", tr("Fill holes in mesh"));
+    connect(m_actionFillHoles, &QAction::triggered, this, &MenuBar::showHoleFillDialog);
     connect(m_actionFillHoles, &QAction::triggered, this, &MenuBar::fillHolesRequested);
     m_meshMenu->addAction(m_actionFillHoles);
 
     // Remove Outliers
     m_actionRemoveOutliers = createAction(tr("&Remove Outliers..."), "", tr("Remove outlier vertices"));
+    connect(m_actionRemoveOutliers, &QAction::triggered, this, &MenuBar::showOutlierRemovalDialog);
     connect(m_actionRemoveOutliers, &QAction::triggered, this, &MenuBar::removeOutliersRequested);
     m_meshMenu->addAction(m_actionRemoveOutliers);
 
@@ -324,9 +340,10 @@ void MenuBar::setupMeshMenu()
     m_meshMenu->addSeparator();
 
     // Clipping Box
-    QAction* clippingBox = createAction(tr("&Clipping Box"), "", tr("Enable clipping box"));
-    connect(clippingBox, &QAction::triggered, this, &MenuBar::clippingBoxRequested);
-    m_meshMenu->addAction(clippingBox);
+    m_actionClippingBox = createAction(tr("&Clipping Box..."), "Ctrl+Shift+B", tr("Enable clipping box"));
+    connect(m_actionClippingBox, &QAction::triggered, this, &MenuBar::showClippingBoxDialog);
+    connect(m_actionClippingBox, &QAction::triggered, this, &MenuBar::clippingBoxRequested);
+    m_meshMenu->addAction(m_actionClippingBox);
 
     // Split Mesh
     QAction* splitMesh = createAction(tr("Spl&it Mesh"), "", tr("Split mesh into parts"));
@@ -565,5 +582,85 @@ void MenuBar::setRedoEnabled(bool canRedo, const QString& text)
         m_actionRedo->setText(tr("&Redo"));
     } else {
         m_actionRedo->setText(tr("&Redo %1").arg(text));
+    }
+}
+
+void MenuBar::setViewport(dc::Viewport* viewport)
+{
+    m_viewport = viewport;
+    
+    // Set viewport on all dialogs
+    if (m_polygonReductionDialog) {
+        m_polygonReductionDialog->setViewport(viewport);
+    }
+    if (m_smoothingDialog) {
+        m_smoothingDialog->setViewport(viewport);
+    }
+    if (m_holeFillDialog) {
+        m_holeFillDialog->setViewport(viewport);
+    }
+    if (m_outlierRemovalDialog) {
+        m_outlierRemovalDialog->setViewport(viewport);
+    }
+    if (m_clippingBoxDialog) {
+        m_clippingBoxDialog->setViewport(viewport);
+    }
+}
+
+void MenuBar::createMeshDialogs()
+{
+    // Create all mesh dialogs (lazy initialization would be better for memory,
+    // but we create them now for simplicity)
+    QWidget* parentWidget = window();
+    
+    m_polygonReductionDialog = new PolygonReductionDialog(parentWidget);
+    m_smoothingDialog = new SmoothingDialog(parentWidget);
+    m_holeFillDialog = new HoleFillDialog(parentWidget);
+    m_outlierRemovalDialog = new OutlierRemovalDialog(parentWidget);
+    m_clippingBoxDialog = new ClippingBoxDialog(parentWidget);
+}
+
+void MenuBar::showPolygonReductionDialog()
+{
+    if (m_polygonReductionDialog) {
+        m_polygonReductionDialog->show();
+        m_polygonReductionDialog->raise();
+        m_polygonReductionDialog->activateWindow();
+    }
+}
+
+void MenuBar::showSmoothingDialog()
+{
+    if (m_smoothingDialog) {
+        m_smoothingDialog->show();
+        m_smoothingDialog->raise();
+        m_smoothingDialog->activateWindow();
+    }
+}
+
+void MenuBar::showHoleFillDialog()
+{
+    if (m_holeFillDialog) {
+        m_holeFillDialog->show();
+        m_holeFillDialog->raise();
+        m_holeFillDialog->activateWindow();
+    }
+}
+
+void MenuBar::showOutlierRemovalDialog()
+{
+    if (m_outlierRemovalDialog) {
+        m_outlierRemovalDialog->show();
+        m_outlierRemovalDialog->raise();
+        m_outlierRemovalDialog->activateWindow();
+    }
+}
+
+void MenuBar::showClippingBoxDialog()
+{
+    if (m_clippingBoxDialog) {
+        m_clippingBoxDialog->show();
+        m_clippingBoxDialog->raise();
+        m_clippingBoxDialog->activateWindow();
     }
 }

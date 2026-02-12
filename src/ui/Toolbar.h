@@ -62,6 +62,12 @@ signals:
     void createSectionRequested();
     void createSketchRequested();
 
+    // Mesh tools
+    void polygonReductionRequested();
+    void smoothingRequested();
+    void fillHolesRequested();
+    void clippingBoxRequested();
+
     // Search
     void searchTextChanged(const QString& text);
 
@@ -71,6 +77,7 @@ private:
     void setupSelectionGroup();
     void setupViewGroup();
     void setupCreateGroup();
+    void setupMeshToolsGroup();
     void setupSearchWidget();
 
     QAction* createAction(const QString& text, const QString& iconName,
@@ -107,6 +114,12 @@ private:
     QAction* m_actionCreateCylinder;
     QAction* m_actionCreateSection;
     QAction* m_actionCreateSketch;
+
+    // Mesh tools actions
+    QAction* m_actionPolygonReduction;
+    QAction* m_actionSmoothing;
+    QAction* m_actionFillHoles;
+    QAction* m_actionClippingBox;
 
     // Search widget
     QLineEdit* m_searchEdit;
