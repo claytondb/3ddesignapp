@@ -7,6 +7,22 @@ set(GEOMETRY_SOURCES
     HalfEdgeMesh.h
     BVH.cpp
     BVH.h
+    NURBSSurface.cpp
+    NURBSSurface.h
+    
+    # Surface operations
+    surfaces/Extrude.cpp
+    surfaces/Extrude.h
+    surfaces/Revolve.cpp
+    surfaces/Revolve.h
+    surfaces/Loft.cpp
+    surfaces/Loft.h
+    surfaces/Sweep.cpp
+    surfaces/Sweep.h
+    surfaces/Pipe.cpp
+    surfaces/Pipe.h
+    surfaces/PlanarSurface.cpp
+    surfaces/PlanarSurface.h
 )
 
 add_library(dc3d_geometry STATIC
