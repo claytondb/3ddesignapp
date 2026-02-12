@@ -1,11 +1,17 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
     <qresource prefix="/">
+        <!-- Shaders -->
+        <file>shaders/mesh.vert</file>
+        <file>shaders/mesh.frag</file>
+        <file>shaders/grid.vert</file>
+        <file>shaders/grid.frag</file>
+        <file>shaders/line.vert</file>
+        <file>shaders/line.frag</file>
+        <file>shaders/selection.vert</file>
+        <file>shaders/selection.frag</file>
+        
         <!-- Icons will be added here -->
         <!-- <file>icons/app_icon.png</file> -->
-        
-        <!-- Shaders will be added here -->
-        <!-- <file>shaders/mesh.vert</file> -->
-        <!-- <file>shaders/mesh.frag</file> -->
     </qresource>
 </RCC>

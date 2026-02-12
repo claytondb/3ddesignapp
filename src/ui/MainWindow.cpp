@@ -4,12 +4,17 @@
 #include "ObjectBrowser.h"
 #include "PropertiesPanel.h"
 #include "StatusBar.h"
+#include "renderer/Viewport.h"
+#include "app/Application.h"
 
 #include <QApplication>
 #include <QSettings>
 #include <QCloseEvent>
 #include <QVBoxLayout>
 #include <QLabel>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QUndoStack>
 
 // Dark theme stylesheet based on STYLE_GUIDE.md
 static const char* DARK_THEME_STYLESHEET = R"(
@@ -488,6 +493,11 @@ QToolTip {
 QStackedWidget {
     background-color: #242424;
 }
+
+/* File Dialog */
+QFileDialog {
+    background-color: #1a1a1a;
+}
 )";
 
 MainWindow::MainWindow(QWidget *parent)
@@ -503,6 +513,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_currentMode("Mesh")
 {
     setupUI();
+    setupConnections();
     loadSettings();
 }
 
@@ -535,21 +546,15 @@ void MainWindow::setupUI()
 
 void MainWindow::setupCentralWidget()
 {
-    // Create viewport placeholder
-    m_viewport = new QWidget(this);
+    // Create OpenGL viewport
+    m_viewport = new dc::Viewport(this);
     m_viewport->setObjectName("Viewport");
-    m_viewport->setStyleSheet("background-color: #1a1a1a;");
-    
-    // Add placeholder label
-    QVBoxLayout* layout = new QVBoxLayout(m_viewport);
-    layout->setAlignment(Qt::AlignCenter);
-    
-    QLabel* placeholder = new QLabel("3D Viewport", m_viewport);
-    placeholder->setStyleSheet("color: #808080; font-size: 24px;");
-    placeholder->setAlignment(Qt::AlignCenter);
-    layout->addWidget(placeholder);
-    
     setCentralWidget(m_viewport);
+    
+    // Connect viewport signals
+    connect(m_viewport, &dc::Viewport::cursorMoved, [this](const QVector3D& pos) {
+        setCursorPosition(pos.x(), pos.y(), pos.z());
+    });
 }
 
 void MainWindow::setupMenuBar()
@@ -603,6 +608,32 @@ void MainWindow::setupStatusBar()
 {
     m_statusBar = new StatusBar(this);
     setStatusBar(m_statusBar);
+}
+
+void MainWindow::setupConnections()
+{
+    // File menu connections
+    connect(m_menuBar, &MenuBar::importMeshRequested, this, &MainWindow::onImportMeshRequested);
+    
+    // View menu connections
+    connect(m_menuBar, &MenuBar::viewFrontRequested, this, &MainWindow::onViewFrontRequested);
+    connect(m_menuBar, &MenuBar::viewBackRequested, this, &MainWindow::onViewBackRequested);
+    connect(m_menuBar, &MenuBar::viewLeftRequested, this, &MainWindow::onViewLeftRequested);
+    connect(m_menuBar, &MenuBar::viewRightRequested, this, &MainWindow::onViewRightRequested);
+    connect(m_menuBar, &MenuBar::viewTopRequested, this, &MainWindow::onViewTopRequested);
+    connect(m_menuBar, &MenuBar::viewBottomRequested, this, &MainWindow::onViewBottomRequested);
+    connect(m_menuBar, &MenuBar::viewIsometricRequested, this, &MainWindow::onViewIsometricRequested);
+    connect(m_menuBar, &MenuBar::zoomToFitRequested, this, &MainWindow::onZoomToFitRequested);
+    connect(m_menuBar, &MenuBar::toggleGridRequested, this, &MainWindow::onToggleGridRequested);
+    
+    // Display mode connections
+    connect(m_menuBar, &MenuBar::displayModeShadedRequested, this, &MainWindow::onDisplayModeShadedRequested);
+    connect(m_menuBar, &MenuBar::displayModeWireframeRequested, this, &MainWindow::onDisplayModeWireframeRequested);
+    connect(m_menuBar, &MenuBar::displayModeShadedWireRequested, this, &MainWindow::onDisplayModeShadedWireRequested);
+    
+    // Edit menu connections
+    connect(m_menuBar, &MenuBar::undoRequested, this, &MainWindow::onUndoRequested);
+    connect(m_menuBar, &MenuBar::redoRequested, this, &MainWindow::onRedoRequested);
 }
 
 void MainWindow::applyStylesheet()
@@ -698,4 +729,135 @@ void MainWindow::setCursorPosition(double x, double y, double z)
 void MainWindow::setFPS(int fps)
 {
     m_statusBar->setFPS(fps);
+}
+
+void MainWindow::importMesh()
+{
+    onImportMeshRequested();
+}
+
+void MainWindow::onSceneChanged()
+{
+    // Update viewport when scene changes
+    if (m_viewport) {
+        m_viewport->update();
+    }
+}
+
+void MainWindow::onImportMeshRequested()
+{
+    QString filter = "Mesh Files (*.stl *.obj *.ply);;STL Files (*.stl);;OBJ Files (*.obj);;PLY Files (*.ply);;All Files (*)";
+    QString filePath = QFileDialog::getOpenFileName(this, tr("Import Mesh"), QString(), filter);
+    
+    if (filePath.isEmpty()) {
+        return;
+    }
+    
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        if (!app->importMesh(filePath)) {
+            QMessageBox::warning(this, tr("Import Error"), 
+                tr("Failed to import mesh file. Check the console for details."));
+        }
+    }
+}
+
+void MainWindow::onViewFrontRequested()
+{
+    if (m_viewport) {
+        m_viewport->setStandardView("front");
+    }
+}
+
+void MainWindow::onViewBackRequested()
+{
+    if (m_viewport) {
+        m_viewport->setStandardView("back");
+    }
+}
+
+void MainWindow::onViewLeftRequested()
+{
+    if (m_viewport) {
+        m_viewport->setStandardView("left");
+    }
+}
+
+void MainWindow::onViewRightRequested()
+{
+    if (m_viewport) {
+        m_viewport->setStandardView("right");
+    }
+}
+
+void MainWindow::onViewTopRequested()
+{
+    if (m_viewport) {
+        m_viewport->setStandardView("top");
+    }
+}
+
+void MainWindow::onViewBottomRequested()
+{
+    if (m_viewport) {
+        m_viewport->setStandardView("bottom");
+    }
+}
+
+void MainWindow::onViewIsometricRequested()
+{
+    if (m_viewport) {
+        m_viewport->setStandardView("isometric");
+    }
+}
+
+void MainWindow::onZoomToFitRequested()
+{
+    if (m_viewport) {
+        m_viewport->fitView();
+    }
+}
+
+void MainWindow::onToggleGridRequested()
+{
+    if (m_viewport) {
+        m_viewport->setGridVisible(!m_viewport->isGridVisible());
+    }
+}
+
+void MainWindow::onDisplayModeShadedRequested()
+{
+    if (m_viewport) {
+        m_viewport->setDisplayMode(dc::DisplayMode::Shaded);
+    }
+}
+
+void MainWindow::onDisplayModeWireframeRequested()
+{
+    if (m_viewport) {
+        m_viewport->setDisplayMode(dc::DisplayMode::Wireframe);
+    }
+}
+
+void MainWindow::onDisplayModeShadedWireRequested()
+{
+    if (m_viewport) {
+        m_viewport->setDisplayMode(dc::DisplayMode::ShadedWireframe);
+    }
+}
+
+void MainWindow::onUndoRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app && app->undoStack()) {
+        app->undoStack()->undo();
+    }
+}
+
+void MainWindow::onRedoRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app && app->undoStack()) {
+        app->undoStack()->redo();
+    }
 }

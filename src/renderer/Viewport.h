@@ -6,15 +6,38 @@
  * - Mouse navigation (orbit, pan, zoom)
  * - Keyboard shortcuts for view presets
  * - Grid and axis rendering
- * - Scene rendering orchestration
+ * - Mesh rendering with shading
+ * - Mouse-based selection (click and box selection)
+ * - Selection highlighting
  */
 
 #pragma once
 
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_4_1_Core>
+#include <QOpenGLVertexArrayObject>
+#include <QOpenGLBuffer>
 #include <QElapsedTimer>
 #include <memory>
+#include <unordered_map>
+#include <cstdint>
+
+namespace dc3d {
+namespace geometry {
+class MeshData;
+}
+namespace core {
+class Selection;
+struct HitInfo;
+enum class SelectionMode;
+enum class SelectionOp;
+}
+namespace renderer {
+class Picking;
+class SelectionRenderer;
+class BoxSelector;
+}
+}
 
 namespace dc {
 
@@ -45,10 +68,24 @@ enum class DisplayMode {
 };
 
 /**
+ * @brief GPU resources for a single mesh
+ */
+struct MeshGPUData {
+    QOpenGLVertexArrayObject vao;
+    QOpenGLBuffer vbo{QOpenGLBuffer::VertexBuffer};
+    QOpenGLBuffer ebo{QOpenGLBuffer::IndexBuffer};
+    uint32_t indexCount = 0;
+    uint32_t vertexCount = 0;
+    QVector3D boundsMin;
+    QVector3D boundsMax;
+    bool valid = false;
+};
+
+/**
  * @brief OpenGL viewport widget for 3D rendering
  * 
  * This widget provides the main 3D view with camera controls,
- * grid rendering, and scene display.
+ * grid rendering, mesh display, and scene lighting.
  */
 class Viewport : public QOpenGLWidget, protected QOpenGLFunctions_4_1_Core {
     Q_OBJECT
@@ -68,6 +105,31 @@ public:
      * @brief Get the camera (mutable)
      */
     Camera& camera() { return *m_camera; }
+    
+    // ---- Mesh Management ----
+    
+    /**
+     * @brief Add a mesh to render
+     * @param id Unique mesh identifier
+     * @param mesh Mesh data to render
+     */
+    void addMesh(uint64_t id, std::shared_ptr<dc3d::geometry::MeshData> mesh);
+    
+    /**
+     * @brief Remove a mesh from rendering
+     * @param id Mesh identifier to remove
+     */
+    void removeMesh(uint64_t id);
+    
+    /**
+     * @brief Clear all meshes
+     */
+    void clearMeshes();
+    
+    /**
+     * @brief Check if a mesh exists
+     */
+    bool hasMesh(uint64_t id) const;
     
     // ---- View Control ----
     
@@ -176,9 +238,13 @@ protected:
 
 private:
     void setupOpenGLState();
+    void setupMeshShader();
     void renderGrid();
-    void renderScene();
+    void renderMeshes();
+    void renderMesh(MeshGPUData& gpuData);
     void updateFPS();
+    void uploadMeshToGPU(uint64_t id, const dc3d::geometry::MeshData& mesh);
+    BoundingBox computeSceneBounds() const;
     
     QVector3D screenToWorld(const QPoint& screenPos, float depth = 0.0f) const;
     QVector3D unprojectMouse(const QPoint& pos) const;
@@ -188,6 +254,11 @@ private:
     
     // Renderers
     std::unique_ptr<GridRenderer> m_gridRenderer;
+    std::unique_ptr<ShaderProgram> m_meshShader;
+    
+    // Mesh storage
+    std::unordered_map<uint64_t, std::shared_ptr<dc3d::geometry::MeshData>> m_meshes;
+    std::unordered_map<uint64_t, std::unique_ptr<MeshGPUData>> m_meshGPUData;
     
     // Navigation state
     NavigationMode m_navMode = NavigationMode::None;

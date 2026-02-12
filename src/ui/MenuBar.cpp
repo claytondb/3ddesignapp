@@ -1,4 +1,5 @@
 #include "MenuBar.h"
+#include "../core/CommandStack.h"
 #include <QApplication>
 
 MenuBar::MenuBar(QWidget *parent)
@@ -103,11 +104,13 @@ void MenuBar::setupEditMenu()
 
     // Undo
     m_actionUndo = createAction(tr("&Undo"), "Ctrl+Z", tr("Undo the last action"));
+    m_actionUndo->setEnabled(false);  // Disabled until commands are executed
     connect(m_actionUndo, &QAction::triggered, this, &MenuBar::undoRequested);
     m_editMenu->addAction(m_actionUndo);
 
     // Redo
     m_actionRedo = createAction(tr("&Redo"), "Ctrl+Y", tr("Redo the last undone action"));
+    m_actionRedo->setEnabled(false);  // Disabled until undo is performed
     connect(m_actionRedo, &QAction::triggered, this, &MenuBar::redoRequested);
     m_editMenu->addAction(m_actionRedo);
 
@@ -491,4 +494,76 @@ void MenuBar::updateRecentFiles(const QStringList& files)
         QAction* noRecent = m_recentFilesMenu->addAction(tr("No Recent Files"));
         noRecent->setEnabled(false);
     });
+}
+
+void MenuBar::connectToCommandStack(dc3d::core::CommandStack* commandStack)
+{
+    if (!commandStack) {
+        return;
+    }
+    
+    // Connect undo action to command stack
+    connect(m_actionUndo, &QAction::triggered, commandStack, &dc3d::core::CommandStack::undo);
+    connect(m_actionRedo, &QAction::triggered, commandStack, &dc3d::core::CommandStack::redo);
+    
+    // Update enabled state when stack changes
+    connect(commandStack, &dc3d::core::CommandStack::canUndoChanged, this, [this](bool canUndo) {
+        m_actionUndo->setEnabled(canUndo);
+    });
+    
+    connect(commandStack, &dc3d::core::CommandStack::canRedoChanged, this, [this](bool canRedo) {
+        m_actionRedo->setEnabled(canRedo);
+    });
+    
+    // Update menu text with command description
+    connect(commandStack, &dc3d::core::CommandStack::undoTextChanged, this, [this](const QString& text) {
+        if (text.isEmpty()) {
+            m_actionUndo->setText(tr("&Undo"));
+        } else {
+            m_actionUndo->setText(tr("&Undo %1").arg(text));
+        }
+    });
+    
+    connect(commandStack, &dc3d::core::CommandStack::redoTextChanged, this, [this](const QString& text) {
+        if (text.isEmpty()) {
+            m_actionRedo->setText(tr("&Redo"));
+        } else {
+            m_actionRedo->setText(tr("&Redo %1").arg(text));
+        }
+    });
+    
+    // Set initial state
+    m_actionUndo->setEnabled(commandStack->canUndo());
+    m_actionRedo->setEnabled(commandStack->canRedo());
+    
+    // Set initial text
+    QString undoText = commandStack->undoText();
+    if (!undoText.isEmpty()) {
+        m_actionUndo->setText(tr("&Undo %1").arg(undoText));
+    }
+    
+    QString redoText = commandStack->redoText();
+    if (!redoText.isEmpty()) {
+        m_actionRedo->setText(tr("&Redo %1").arg(redoText));
+    }
+}
+
+void MenuBar::setUndoEnabled(bool canUndo, const QString& text)
+{
+    m_actionUndo->setEnabled(canUndo);
+    if (text.isEmpty()) {
+        m_actionUndo->setText(tr("&Undo"));
+    } else {
+        m_actionUndo->setText(tr("&Undo %1").arg(text));
+    }
+}
+
+void MenuBar::setRedoEnabled(bool canRedo, const QString& text)
+{
+    m_actionRedo->setEnabled(canRedo);
+    if (text.isEmpty()) {
+        m_actionRedo->setText(tr("&Redo"));
+    } else {
+        m_actionRedo->setText(tr("&Redo %1").arg(text));
+    }
 }

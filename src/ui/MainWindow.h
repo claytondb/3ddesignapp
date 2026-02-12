@@ -10,11 +10,15 @@ class ObjectBrowser;
 class PropertiesPanel;
 class StatusBar;
 
+namespace dc {
+class Viewport;
+}
+
 /**
  * @brief Main application window for dc-3ddesignapp
  * 
  * Provides the main window framework with:
- * - Central viewport placeholder
+ * - Central viewport (OpenGL 3D view)
  * - Left dock: Object Browser panel
  * - Right dock: Properties panel
  * - Menu bar and toolbar
@@ -35,8 +39,8 @@ public:
     PropertiesPanel* propertiesPanel() const { return m_propertiesPanel; }
     StatusBar* statusBar() const { return m_statusBar; }
 
-    // Viewport access (placeholder for now)
-    QWidget* viewport() const { return m_viewport; }
+    // Viewport access (real OpenGL viewport)
+    dc::Viewport* viewport() const { return m_viewport; }
 
 public slots:
     // Panel visibility
@@ -54,12 +58,35 @@ public slots:
     void setSelectionInfo(const QString& info);
     void setCursorPosition(double x, double y, double z);
     void setFPS(int fps);
+    
+    // Import operations
+    void importMesh();
+    
+    // Scene updates
+    void onSceneChanged();
 
 signals:
     void modeChanged(const QString& mode);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+
+private slots:
+    void onImportMeshRequested();
+    void onViewFrontRequested();
+    void onViewBackRequested();
+    void onViewLeftRequested();
+    void onViewRightRequested();
+    void onViewTopRequested();
+    void onViewBottomRequested();
+    void onViewIsometricRequested();
+    void onZoomToFitRequested();
+    void onToggleGridRequested();
+    void onDisplayModeShadedRequested();
+    void onDisplayModeWireframeRequested();
+    void onDisplayModeShadedWireRequested();
+    void onUndoRequested();
+    void onRedoRequested();
 
 private:
     void setupUI();
@@ -68,6 +95,7 @@ private:
     void setupDockWidgets();
     void setupStatusBar();
     void setupCentralWidget();
+    void setupConnections();
     void applyStylesheet();
     void loadSettings();
     void saveSettings();
@@ -83,8 +111,8 @@ private:
     QDockWidget* m_objectBrowserDock;
     QDockWidget* m_propertiesDock;
     
-    // Central viewport placeholder
-    QWidget* m_viewport;
+    // Central viewport (OpenGL)
+    dc::Viewport* m_viewport;
     
     // Current mode
     QString m_currentMode;

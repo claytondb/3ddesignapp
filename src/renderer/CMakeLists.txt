@@ -1,12 +1,28 @@
 # Renderer module - OpenGL rendering
 
-add_library(dc3d_renderer STATIC
+set(RENDERER_SOURCES
+    Camera.cpp
+    Camera.h
+    GridRenderer.cpp
+    GridRenderer.h
+    Picking.cpp
+    Picking.h
+    SelectionRenderer.cpp
+    SelectionRenderer.h
+    ShaderProgram.cpp
+    ShaderProgram.h
     Viewport.cpp
+    Viewport.h
+)
+
+add_library(dc3d_renderer STATIC
+    ${RENDERER_SOURCES}
 )
 
 target_include_directories(dc3d_renderer PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
 )
 
 target_link_libraries(dc3d_renderer PUBLIC

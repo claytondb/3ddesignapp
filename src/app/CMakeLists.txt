@@ -3,6 +3,14 @@
 set(APP_SOURCES
     main.cpp
     Application.cpp
+    Application.h
+    ImportCommand.cpp
+    ImportCommand.h
+)
+
+# Resources
+set(RESOURCES
+    ${CMAKE_SOURCE_DIR}/resources/resources.qrc
 )
 
 # Platform-specific executable type
@@ -14,20 +22,24 @@ if(APPLE)
     
     add_executable(${PROJECT_NAME} MACOSX_BUNDLE
         ${APP_SOURCES}
+        ${RESOURCES}
     )
 elseif(WIN32)
     add_executable(${PROJECT_NAME} WIN32
         ${APP_SOURCES}
+        ${RESOURCES}
     )
 else()
     add_executable(${PROJECT_NAME}
         ${APP_SOURCES}
+        ${RESOURCES}
     )
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

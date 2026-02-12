@@ -1,20 +1,106 @@
 /**
  * @file Viewport.cpp
- * @brief Implementation of OpenGL viewport widget
+ * @brief Implementation of OpenGL viewport widget with mesh rendering
  */
 
 #include "Viewport.h"
 #include "Camera.h"
 #include "GridRenderer.h"
 #include "ShaderProgram.h"
+#include "geometry/MeshData.h"
 
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QWheelEvent>
 #include <QDebug>
 #include <QtMath>
+#include <QFile>
 
 namespace dc {
+
+// Embedded mesh shaders (fallback if resource loading fails)
+static const char* MESH_VERTEX_SHADER = R"(
+#version 410 core
+
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 normal;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+uniform mat3 normalMatrix;
+
+out vec3 vWorldPosition;
+out vec3 vWorldNormal;
+out vec3 vViewPosition;
+
+void main() {
+    vec4 worldPos = model * vec4(position, 1.0);
+    vWorldPosition = worldPos.xyz;
+    vWorldNormal = normalize(normalMatrix * normal);
+    
+    vec4 viewPos = view * worldPos;
+    vViewPosition = viewPos.xyz;
+    
+    gl_Position = projection * viewPos;
+}
+)";
+
+static const char* MESH_FRAGMENT_SHADER = R"(
+#version 410 core
+
+in vec3 vWorldPosition;
+in vec3 vWorldNormal;
+in vec3 vViewPosition;
+
+uniform vec3 baseColor;
+uniform vec3 cameraPosition;
+uniform vec3 lightDir;
+uniform vec3 lightColor;
+uniform float ambientStrength;
+
+out vec4 fragColor;
+
+void main() {
+    vec3 normal = normalize(vWorldNormal);
+    
+    // Handle back faces
+    if (!gl_FrontFacing) {
+        normal = -normal;
+    }
+    
+    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+    vec3 lightDirection = normalize(-lightDir);
+    
+    // Ambient
+    vec3 ambient = ambientStrength * baseColor;
+    
+    // Diffuse (Lambert)
+    float diff = max(dot(normal, lightDirection), 0.0);
+    vec3 diffuse = diff * lightColor * baseColor;
+    
+    // Specular (Blinn-Phong)
+    vec3 halfDir = normalize(lightDirection + viewDir);
+    float spec = pow(max(dot(normal, halfDir), 0.0), 32.0);
+    vec3 specular = 0.3 * spec * lightColor;
+    
+    // Fill light from opposite side
+    vec3 fillLightDir = normalize(vec3(1.0, 0.5, 1.0));
+    float fillDiff = max(dot(normal, fillLightDir), 0.0);
+    vec3 fill = 0.15 * fillDiff * baseColor;
+    
+    // Combine
+    vec3 color = ambient + diffuse + specular + fill;
+    
+    // Tone mapping
+    color = color / (color + vec3(1.0));
+    
+    // Gamma correction
+    color = pow(color, vec3(1.0 / 2.2));
+    
+    fragColor = vec4(color, 1.0);
+}
+)";
 
 Viewport::Viewport(QWidget* parent)
     : QOpenGLWidget(parent)
@@ -47,6 +133,17 @@ Viewport::Viewport(QWidget* parent)
 Viewport::~Viewport()
 {
     makeCurrent();
+    
+    // Clean up mesh GPU data
+    for (auto& pair : m_meshGPUData) {
+        if (pair.second && pair.second->valid) {
+            pair.second->vbo.destroy();
+            pair.second->ebo.destroy();
+            pair.second->vao.destroy();
+        }
+    }
+    m_meshGPUData.clear();
+    
     m_gridRenderer->cleanup();
     doneCurrent();
 }
@@ -60,6 +157,7 @@ void Viewport::initializeGL()
     qDebug() << "Renderer:" << reinterpret_cast<const char*>(glGetString(GL_RENDERER));
     
     setupOpenGLState();
+    setupMeshShader();
     
     // Initialize grid renderer
     if (!m_gridRenderer->initialize()) {
@@ -107,6 +205,19 @@ void Viewport::setupOpenGLState()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
+void Viewport::setupMeshShader()
+{
+    m_meshShader = std::make_unique<ShaderProgram>();
+    
+    // Try loading from resources first
+    if (!m_meshShader->loadFromResources(":/shaders/mesh.vert", ":/shaders/mesh.frag")) {
+        qDebug() << "Could not load shaders from resources, using embedded shaders";
+        if (!m_meshShader->loadFromSource(MESH_VERTEX_SHADER, MESH_FRAGMENT_SHADER)) {
+            qWarning() << "Failed to compile mesh shader:" << m_meshShader->errorLog();
+        }
+    }
+}
+
 void Viewport::paintGL()
 {
     // Clear buffers
@@ -115,8 +226,8 @@ void Viewport::paintGL()
     // Render grid
     renderGrid();
     
-    // Render scene objects
-    renderScene();
+    // Render meshes
+    renderMeshes();
     
     // Update FPS counter
     updateFPS();
@@ -142,10 +253,122 @@ void Viewport::renderGrid()
     }
 }
 
-void Viewport::renderScene()
+void Viewport::renderMeshes()
 {
-    // TODO: Render scene objects from SceneManager
-    // This will be implemented when scene management is added
+    if (m_meshGPUData.empty() || !m_meshShader || !m_meshShader->isValid()) {
+        return;
+    }
+    
+    m_meshShader->bind();
+    
+    // Set common uniforms
+    QMatrix4x4 model;
+    model.setToIdentity();
+    QMatrix4x4 view = m_camera->viewMatrix();
+    QMatrix4x4 projection = m_camera->projectionMatrix();
+    QMatrix3x3 normalMatrix = model.normalMatrix();
+    
+    m_meshShader->setUniform("model", model);
+    m_meshShader->setUniform("view", view);
+    m_meshShader->setUniform("projection", projection);
+    m_meshShader->setUniform("normalMatrix", normalMatrix);
+    m_meshShader->setUniform("cameraPosition", m_camera->position());
+    
+    // Lighting
+    m_meshShader->setUniform("lightDir", QVector3D(-0.5f, -0.7f, -0.5f));
+    m_meshShader->setUniform("lightColor", QVector3D(1.0f, 1.0f, 1.0f));
+    m_meshShader->setUniform("ambientStrength", 0.2f);
+    
+    // Material color
+    m_meshShader->setUniform("baseColor", QVector3D(0.7f, 0.7f, 0.75f));
+    
+    // Render based on display mode
+    switch (m_displayMode) {
+        case DisplayMode::Shaded:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glEnable(GL_CULL_FACE);
+            for (auto& pair : m_meshGPUData) {
+                if (pair.second && pair.second->valid) {
+                    renderMesh(*pair.second);
+                }
+            }
+            break;
+            
+        case DisplayMode::Wireframe:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glDisable(GL_CULL_FACE);
+            glLineWidth(1.0f);
+            m_meshShader->setUniform("baseColor", QVector3D(0.3f, 0.6f, 0.9f));
+            for (auto& pair : m_meshGPUData) {
+                if (pair.second && pair.second->valid) {
+                    renderMesh(*pair.second);
+                }
+            }
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glEnable(GL_CULL_FACE);
+            break;
+            
+        case DisplayMode::ShadedWireframe:
+            // First pass: shaded
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glEnable(GL_CULL_FACE);
+            for (auto& pair : m_meshGPUData) {
+                if (pair.second && pair.second->valid) {
+                    renderMesh(*pair.second);
+                }
+            }
+            
+            // Second pass: wireframe overlay
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glDisable(GL_CULL_FACE);
+            glEnable(GL_POLYGON_OFFSET_LINE);
+            glPolygonOffset(-1.0f, -1.0f);
+            glLineWidth(1.0f);
+            m_meshShader->setUniform("baseColor", QVector3D(0.1f, 0.1f, 0.1f));
+            for (auto& pair : m_meshGPUData) {
+                if (pair.second && pair.second->valid) {
+                    renderMesh(*pair.second);
+                }
+            }
+            glDisable(GL_POLYGON_OFFSET_LINE);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glEnable(GL_CULL_FACE);
+            break;
+            
+        case DisplayMode::XRay:
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glDisable(GL_CULL_FACE);
+            m_meshShader->setUniform("baseColor", QVector3D(0.5f, 0.7f, 0.9f));
+            for (auto& pair : m_meshGPUData) {
+                if (pair.second && pair.second->valid) {
+                    renderMesh(*pair.second);
+                }
+            }
+            glEnable(GL_CULL_FACE);
+            break;
+            
+        case DisplayMode::DeviationMap:
+            // Fall back to shaded for now
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            for (auto& pair : m_meshGPUData) {
+                if (pair.second && pair.second->valid) {
+                    renderMesh(*pair.second);
+                }
+            }
+            break;
+    }
+    
+    m_meshShader->release();
+}
+
+void Viewport::renderMesh(MeshGPUData& gpuData)
+{
+    if (!gpuData.valid) return;
+    
+    gpuData.vao.bind();
+    glDrawElements(GL_TRIANGLES, gpuData.indexCount, GL_UNSIGNED_INT, nullptr);
+    gpuData.vao.release();
 }
 
 void Viewport::updateFPS()
@@ -158,6 +381,188 @@ void Viewport::updateFPS()
         m_frameCount = 0;
         m_lastFPSUpdate = elapsed;
     }
+}
+
+// ---- Mesh Management ----
+
+void Viewport::addMesh(uint64_t id, std::shared_ptr<dc3d::geometry::MeshData> mesh)
+{
+    if (!mesh) {
+        qWarning() << "Viewport::addMesh - null mesh";
+        return;
+    }
+    
+    m_meshes[id] = mesh;
+    
+    // Upload to GPU if OpenGL is initialized
+    if (m_initialized) {
+        makeCurrent();
+        uploadMeshToGPU(id, *mesh);
+        doneCurrent();
+        update();
+    }
+    
+    qDebug() << "Viewport::addMesh - Added mesh" << id 
+             << "with" << mesh->vertexCount() << "vertices";
+}
+
+void Viewport::removeMesh(uint64_t id)
+{
+    auto meshIt = m_meshes.find(id);
+    if (meshIt != m_meshes.end()) {
+        m_meshes.erase(meshIt);
+    }
+    
+    auto gpuIt = m_meshGPUData.find(id);
+    if (gpuIt != m_meshGPUData.end()) {
+        if (m_initialized) {
+            makeCurrent();
+            if (gpuIt->second && gpuIt->second->valid) {
+                gpuIt->second->vbo.destroy();
+                gpuIt->second->ebo.destroy();
+                gpuIt->second->vao.destroy();
+            }
+            doneCurrent();
+        }
+        m_meshGPUData.erase(gpuIt);
+    }
+    
+    update();
+    qDebug() << "Viewport::removeMesh - Removed mesh" << id;
+}
+
+void Viewport::clearMeshes()
+{
+    if (m_initialized) {
+        makeCurrent();
+        for (auto& pair : m_meshGPUData) {
+            if (pair.second && pair.second->valid) {
+                pair.second->vbo.destroy();
+                pair.second->ebo.destroy();
+                pair.second->vao.destroy();
+            }
+        }
+        doneCurrent();
+    }
+    
+    m_meshes.clear();
+    m_meshGPUData.clear();
+    update();
+}
+
+bool Viewport::hasMesh(uint64_t id) const
+{
+    return m_meshes.find(id) != m_meshes.end();
+}
+
+void Viewport::uploadMeshToGPU(uint64_t id, const dc3d::geometry::MeshData& mesh)
+{
+    if (mesh.isEmpty()) {
+        qWarning() << "Viewport::uploadMeshToGPU - empty mesh";
+        return;
+    }
+    
+    auto gpuData = std::make_unique<MeshGPUData>();
+    
+    // Create and bind VAO
+    gpuData->vao.create();
+    gpuData->vao.bind();
+    
+    // Interleave vertex data: position (3) + normal (3) = 6 floats per vertex
+    const auto& vertices = mesh.vertices();
+    const auto& normals = mesh.normals();
+    const auto& indices = mesh.indices();
+    
+    bool hasNormals = mesh.hasNormals();
+    size_t floatsPerVertex = hasNormals ? 6 : 3;
+    std::vector<float> interleavedData(vertices.size() * floatsPerVertex);
+    
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        size_t offset = i * floatsPerVertex;
+        interleavedData[offset + 0] = vertices[i].x;
+        interleavedData[offset + 1] = vertices[i].y;
+        interleavedData[offset + 2] = vertices[i].z;
+        
+        if (hasNormals) {
+            interleavedData[offset + 3] = normals[i].x;
+            interleavedData[offset + 4] = normals[i].y;
+            interleavedData[offset + 5] = normals[i].z;
+        }
+    }
+    
+    // Create and fill VBO
+    gpuData->vbo.create();
+    gpuData->vbo.bind();
+    gpuData->vbo.allocate(interleavedData.data(), 
+                          static_cast<int>(interleavedData.size() * sizeof(float)));
+    
+    // Set up vertex attributes
+    int stride = static_cast<int>(floatsPerVertex * sizeof(float));
+    
+    // Position attribute (location 0)
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+    
+    // Normal attribute (location 1)
+    if (hasNormals) {
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, 
+                              reinterpret_cast<void*>(3 * sizeof(float)));
+    }
+    
+    // Create and fill EBO (index buffer)
+    gpuData->ebo.create();
+    gpuData->ebo.bind();
+    gpuData->ebo.allocate(indices.data(), 
+                          static_cast<int>(indices.size() * sizeof(uint32_t)));
+    
+    gpuData->indexCount = static_cast<uint32_t>(indices.size());
+    gpuData->vertexCount = static_cast<uint32_t>(vertices.size());
+    
+    // Store bounds
+    const auto& bounds = mesh.boundingBox();
+    gpuData->boundsMin = QVector3D(bounds.min.x, bounds.min.y, bounds.min.z);
+    gpuData->boundsMax = QVector3D(bounds.max.x, bounds.max.y, bounds.max.z);
+    
+    gpuData->vao.release();
+    gpuData->valid = true;
+    
+    m_meshGPUData[id] = std::move(gpuData);
+    
+    qDebug() << "Viewport::uploadMeshToGPU - Uploaded mesh" << id 
+             << "with" << mesh.vertexCount() << "vertices,"
+             << mesh.faceCount() << "faces";
+}
+
+BoundingBox Viewport::computeSceneBounds() const
+{
+    BoundingBox bounds;
+    bounds.min = QVector3D(std::numeric_limits<float>::max(),
+                           std::numeric_limits<float>::max(),
+                           std::numeric_limits<float>::max());
+    bounds.max = QVector3D(std::numeric_limits<float>::lowest(),
+                           std::numeric_limits<float>::lowest(),
+                           std::numeric_limits<float>::lowest());
+    
+    bool hasBounds = false;
+    for (const auto& pair : m_meshGPUData) {
+        if (pair.second && pair.second->valid) {
+            bounds.min.setX(std::min(bounds.min.x(), pair.second->boundsMin.x()));
+            bounds.min.setY(std::min(bounds.min.y(), pair.second->boundsMin.y()));
+            bounds.min.setZ(std::min(bounds.min.z(), pair.second->boundsMin.z()));
+            bounds.max.setX(std::max(bounds.max.x(), pair.second->boundsMax.x()));
+            bounds.max.setY(std::max(bounds.max.y(), pair.second->boundsMax.y()));
+            bounds.max.setZ(std::max(bounds.max.z(), pair.second->boundsMax.z()));
+            hasBounds = true;
+        }
+    }
+    
+    if (!hasBounds) {
+        bounds.min = QVector3D(-10, -10, -10);
+        bounds.max = QVector3D(10, 10, 10);
+    }
+    
+    return bounds;
 }
 
 // ---- Mouse Events ----
@@ -174,7 +579,6 @@ void Viewport::mousePressEvent(QMouseEvent* event)
         }
         setCursor(Qt::ClosedHandCursor);
     } else if (event->button() == Qt::RightButton) {
-        // Could be used for context menu or zoom
         m_navMode = NavigationMode::Zoom;
         setCursor(Qt::SizeVerCursor);
     }
@@ -217,7 +621,6 @@ void Viewport::mouseMoveEvent(QMouseEvent* event)
             break;
             
         case NavigationMode::None:
-            // Update cursor position for status bar
             {
                 QVector3D worldPos = unprojectMouse(event->pos());
                 emit cursorMoved(worldPos);
@@ -230,8 +633,7 @@ void Viewport::mouseMoveEvent(QMouseEvent* event)
 
 void Viewport::wheelEvent(QWheelEvent* event)
 {
-    // Zoom with scroll wheel
-    float delta = event->angleDelta().y() / 120.0f;  // Standard wheel delta
+    float delta = event->angleDelta().y() / 120.0f;
     m_camera->zoom(delta);
     
     emit cameraChanged();
@@ -243,7 +645,6 @@ void Viewport::wheelEvent(QWheelEvent* event)
 
 void Viewport::keyPressEvent(QKeyEvent* event)
 {
-    // Track modifier keys
     if (event->key() == Qt::Key_Shift) {
         m_shiftPressed = true;
         if (m_navMode == NavigationMode::Orbit) {
@@ -255,7 +656,6 @@ void Viewport::keyPressEvent(QKeyEvent* event)
         m_altPressed = true;
     }
     
-    // View shortcuts
     switch (event->key()) {
         case Qt::Key_F:
             fitView();
@@ -266,7 +666,6 @@ void Viewport::keyPressEvent(QKeyEvent* event)
             update();
             break;
             
-        // Display mode shortcuts
         case Qt::Key_1:
             setDisplayMode(DisplayMode::Shaded);
             break;
@@ -281,32 +680,6 @@ void Viewport::keyPressEvent(QKeyEvent* event)
             break;
         case Qt::Key_5:
             setDisplayMode(DisplayMode::DeviationMap);
-            break;
-            
-        // Numpad views
-        case Qt::Key_1 + Qt::KeypadModifier:
-            if (m_ctrlPressed) {
-                setStandardView("back");
-            } else {
-                setStandardView("front");
-            }
-            break;
-        case Qt::Key_3 + Qt::KeypadModifier:
-            if (m_ctrlPressed) {
-                setStandardView("left");
-            } else {
-                setStandardView("right");
-            }
-            break;
-        case Qt::Key_7 + Qt::KeypadModifier:
-            if (m_ctrlPressed) {
-                setStandardView("bottom");
-            } else {
-                setStandardView("top");
-            }
-            break;
-        case Qt::Key_0 + Qt::KeypadModifier:
-            setStandardView("isometric");
             break;
             
         default:
@@ -340,7 +713,6 @@ void Viewport::focusInEvent(QFocusEvent* event)
 
 void Viewport::focusOutEvent(QFocusEvent* event)
 {
-    // Reset modifier state when focus is lost
     m_shiftPressed = false;
     m_ctrlPressed = false;
     m_altPressed = false;
@@ -378,13 +750,8 @@ void Viewport::setStandardView(const QString& viewName)
 
 void Viewport::fitView()
 {
-    // Default bounds if no scene
-    BoundingBox defaultBounds;
-    defaultBounds.min = QVector3D(-10, -10, -10);
-    defaultBounds.max = QVector3D(10, 10, 10);
-    
-    // TODO: Get actual scene bounds from SceneManager
-    fitView(defaultBounds);
+    BoundingBox bounds = computeSceneBounds();
+    fitView(bounds);
 }
 
 void Viewport::fitView(const BoundingBox& bounds)
@@ -439,20 +806,17 @@ void Viewport::setBackgroundColor(const QColor& color)
 
 QVector3D Viewport::screenToWorld(const QPoint& screenPos, float depth) const
 {
-    // Get viewport dimensions
     float x = static_cast<float>(screenPos.x());
-    float y = static_cast<float>(height() - screenPos.y());  // Flip Y
+    float y = static_cast<float>(height() - screenPos.y());
     float w = static_cast<float>(width());
     float h = static_cast<float>(height());
     
-    // Convert to NDC
     float ndcX = (2.0f * x / w) - 1.0f;
     float ndcY = (2.0f * y / h) - 1.0f;
     float ndcZ = 2.0f * depth - 1.0f;
     
     QVector4D clipCoords(ndcX, ndcY, ndcZ, 1.0f);
     
-    // Inverse view-projection
     QMatrix4x4 invVP = m_camera->viewProjectionMatrix().inverted();
     QVector4D worldCoords = invVP * clipCoords;
     
@@ -465,14 +829,12 @@ QVector3D Viewport::screenToWorld(const QPoint& screenPos, float depth) const
 
 QVector3D Viewport::unprojectMouse(const QPoint& pos) const
 {
-    // Project onto XZ plane (Y=0)
     QVector3D nearPoint = screenToWorld(pos, 0.0f);
     QVector3D farPoint = screenToWorld(pos, 1.0f);
     
     QVector3D ray = (farPoint - nearPoint).normalized();
     QVector3D origin = nearPoint;
     
-    // Intersect with Y=0 plane
     if (qFuzzyIsNull(ray.y())) {
         return QVector3D();
     }

@@ -5,6 +5,12 @@
 #include <QMenu>
 #include <QAction>
 
+namespace dc3d {
+namespace core {
+class CommandStack;
+}
+}
+
 /**
  * @brief Application menu bar for dc-3ddesignapp
  * 
@@ -28,9 +34,33 @@ public:
     QAction* actionSaveAs() const { return m_actionSaveAs; }
     QAction* actionUndo() const { return m_actionUndo; }
     QAction* actionRedo() const { return m_actionRedo; }
+    QAction* actionDelete() const { return m_actionDelete; }
 
     // Update recent files menu
     void updateRecentFiles(const QStringList& files);
+    
+    /**
+     * @brief Connect undo/redo actions to a command stack
+     * @param commandStack The command stack to connect to
+     * 
+     * This sets up automatic enable/disable of undo/redo menu items
+     * and updates the menu text to show the command description.
+     */
+    void connectToCommandStack(dc3d::core::CommandStack* commandStack);
+    
+    /**
+     * @brief Update undo action state
+     * @param canUndo Whether undo is available
+     * @param text Description text (e.g., "Import Mesh")
+     */
+    void setUndoEnabled(bool canUndo, const QString& text = QString());
+    
+    /**
+     * @brief Update redo action state
+     * @param canRedo Whether redo is available
+     * @param text Description text
+     */
+    void setRedoEnabled(bool canRedo, const QString& text = QString());
 
 signals:
     // File menu signals

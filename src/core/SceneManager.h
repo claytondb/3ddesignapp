@@ -1,6 +1,6 @@
 /**
  * @file SceneManager.h
- * @brief Scene graph management
+ * @brief Scene graph management with mesh storage
  * 
  * Manages the hierarchical scene structure containing meshes,
  * CAD shapes, sketches, and annotations.
@@ -10,11 +10,17 @@
 #define DC3D_CORE_SCENEMANAGER_H
 
 #include <QObject>
+#include <QString>
 #include <memory>
 #include <vector>
-#include <string>
+#include <unordered_map>
+#include <cstdint>
 
 namespace dc3d {
+namespace geometry {
+class MeshData;
+}
+
 namespace core {
 
 /**
@@ -39,11 +45,33 @@ private:
 };
 
 /**
+ * @class MeshNode
+ * @brief Scene node containing mesh data
+ */
+class MeshNode : public SceneNode
+{
+public:
+    MeshNode(uint64_t id, const QString& name, std::shared_ptr<geometry::MeshData> mesh);
+    ~MeshNode() override = default;
+    
+    uint64_t id() const { return m_id; }
+    std::shared_ptr<geometry::MeshData> mesh() const { return m_mesh; }
+    QString displayName() const { return m_displayName; }
+    void setDisplayName(const QString& name) { m_displayName = name; }
+    
+private:
+    uint64_t m_id;
+    QString m_displayName;
+    std::shared_ptr<geometry::MeshData> m_mesh;
+};
+
+/**
  * @class SceneManager
  * @brief Manages the scene graph and provides access to scene nodes
  * 
  * Responsibilities:
  * - Owns the scene root node
+ * - Manages mesh storage and lifecycle
  * - Provides node lookup by ID/name
  * - Emits signals when scene changes
  */
@@ -54,6 +82,8 @@ class SceneManager : public QObject
 public:
     explicit SceneManager(QObject* parent = nullptr);
     ~SceneManager() override;
+    
+    // ---- Scene Operations ----
     
     /**
      * @brief Clear all nodes from the scene
@@ -66,19 +96,100 @@ public:
     size_t nodeCount() const { return m_nodes.size(); }
     
     /**
-     * @brief Add a node to the scene
+     * @brief Add a generic node to the scene
      * @param node The node to add (ownership transferred)
      */
     void addNode(std::unique_ptr<SceneNode> node);
+    
+    // ---- Mesh Management ----
+    
+    /**
+     * @brief Add a mesh to the scene
+     * @param id Unique mesh identifier
+     * @param name Display name for the mesh
+     * @param mesh The mesh data (shared ownership)
+     */
+    void addMesh(uint64_t id, const QString& name, std::shared_ptr<geometry::MeshData> mesh);
+    
+    /**
+     * @brief Remove a mesh from the scene
+     * @param id Mesh identifier to remove
+     */
+    void removeMesh(uint64_t id);
+    
+    /**
+     * @brief Get a mesh by ID
+     * @param id Mesh identifier
+     * @return Mesh data or nullptr if not found
+     */
+    std::shared_ptr<geometry::MeshData> getMesh(uint64_t id) const;
+    
+    /**
+     * @brief Get a mesh node by ID
+     * @param id Mesh identifier
+     * @return MeshNode or nullptr if not found
+     */
+    MeshNode* getMeshNode(uint64_t id) const;
+    
+    /**
+     * @brief Check if a mesh exists
+     * @param id Mesh identifier
+     */
+    bool hasMesh(uint64_t id) const;
+    
+    /**
+     * @brief Get number of meshes in the scene
+     */
+    size_t meshCount() const { return m_meshNodes.size(); }
+    
+    /**
+     * @brief Get all mesh IDs
+     */
+    std::vector<uint64_t> meshIds() const;
+    
+    /**
+     * @brief Set mesh visibility
+     * @param id Mesh identifier
+     * @param visible Visibility state
+     */
+    void setMeshVisible(uint64_t id, bool visible);
+    
+    /**
+     * @brief Get mesh visibility
+     * @param id Mesh identifier
+     * @return Visibility state (false if mesh not found)
+     */
+    bool isMeshVisible(uint64_t id) const;
 
 signals:
     /**
      * @brief Emitted when the scene structure changes
      */
     void sceneChanged();
+    
+    /**
+     * @brief Emitted when a mesh is added
+     * @param id Mesh identifier
+     * @param name Mesh display name
+     */
+    void meshAdded(uint64_t id, const QString& name);
+    
+    /**
+     * @brief Emitted when a mesh is removed
+     * @param id Mesh identifier
+     */
+    void meshRemoved(uint64_t id);
+    
+    /**
+     * @brief Emitted when mesh visibility changes
+     * @param id Mesh identifier
+     * @param visible New visibility state
+     */
+    void meshVisibilityChanged(uint64_t id, bool visible);
 
 private:
     std::vector<std::unique_ptr<SceneNode>> m_nodes;
+    std::unordered_map<uint64_t, std::unique_ptr<MeshNode>> m_meshNodes;
 };
 
 } // namespace core
