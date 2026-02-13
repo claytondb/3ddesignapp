@@ -14,7 +14,6 @@
 #include <QObject>
 #include <QVector3D>
 #include <QMatrix4x4>
-#include <QPlane3D>
 #include <memory>
 #include <vector>
 

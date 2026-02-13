@@ -111,9 +111,12 @@ if(NOT glm_FOUND)
     find_path(GLM_INCLUDE_DIR glm/glm.hpp
         PATHS
             ${GLM_DIR}
+            ${GLMINCLUDE_DIRS}
             $ENV{GLM_DIR}
             /usr/include
             /usr/local/include
+            /opt/homebrew/include
+            /opt/homebrew/opt/glm/include
             C:/glm
     )
     if(GLM_INCLUDE_DIR)
@@ -124,6 +127,13 @@ if(NOT glm_FOUND)
     endif()
 else()
     message(STATUS "GLM found via package")
+    # Ensure glm include dir is available
+    if(TARGET glm::glm)
+        get_target_property(GLM_INCLUDE_DIR glm::glm INTERFACE_INCLUDE_DIRECTORIES)
+        if(GLM_INCLUDE_DIR)
+            include_directories(${GLM_INCLUDE_DIR})
+        endif()
+    endif()
 endif()
 
 # ============================================================================

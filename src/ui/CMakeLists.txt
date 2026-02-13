@@ -59,12 +59,14 @@ set(DIALOG_SOURCES
     dialogs/ExtrudeDialog.h
     dialogs/RevolveDialog.cpp
     dialogs/RevolveDialog.h
-    dialogs/ExportDialog.cpp
-    dialogs/ExportDialog.h
-    dialogs/AutoSurfaceDialog.cpp
-    dialogs/AutoSurfaceDialog.h
-    dialogs/FitSurfaceDialog.cpp
-    dialogs/FitSurfaceDialog.h
+    # Excluded - requires imgui dependency:
+    # dialogs/ExportDialog.cpp
+    # dialogs/ExportDialog.h
+    # Excluded - requires Dialog.h base class (not implemented):
+    # dialogs/AutoSurfaceDialog.cpp
+    # dialogs/AutoSurfaceDialog.h
+    # dialogs/FitSurfaceDialog.cpp
+    # dialogs/FitSurfaceDialog.h
 )
 
 # Panels sources
@@ -77,8 +79,9 @@ set(PANEL_SOURCES
 set(TOOLS_SOURCES
     tools/AlignmentTool.cpp
     tools/AlignmentTool.h
-    tools/FreeformTool.cpp
-    tools/FreeformTool.h
+    # Excluded - requires Tool.h base class (not implemented):
+    # tools/FreeformTool.cpp
+    # tools/FreeformTool.h
 )
 
 add_library(dc3d_ui STATIC

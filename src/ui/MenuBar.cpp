@@ -5,6 +5,7 @@
 #include "dialogs/HoleFillDialog.h"
 #include "dialogs/OutlierRemovalDialog.h"
 #include "dialogs/ClippingBoxDialog.h"
+#include <QActionGroup>
 #include <QApplication>
 
 MenuBar::MenuBar(QWidget *parent)
