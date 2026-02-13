@@ -147,7 +147,7 @@ private:
     // Quad mesh generation (instant meshes style)
     void computeOrientationField();
     void computePositionField();
-    void extractQuadMesh();
+    void extractQuadMesh(int targetPatchCount = 0);
     void alignToFeatures();
     
     // Optimization

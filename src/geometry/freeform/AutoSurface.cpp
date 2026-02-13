@@ -119,8 +119,8 @@ void AutoSurface::detectSharpEdges(float angleThreshold) {
             int i0 = indices[faceIdx * 3];
             int i1 = indices[faceIdx * 3 + 1];
             int i2 = indices[faceIdx * 3 + 2];
-            glm::vec3 e1 = vertices[i1].position - vertices[i0].position;
-            glm::vec3 e2 = vertices[i2].position - vertices[i0].position;
+            glm::vec3 e1 = vertices[i1] - vertices[i0];
+            glm::vec3 e2 = vertices[i2] - vertices[i0];
             return glm::normalize(glm::cross(e1, e2));
         };
         
@@ -133,7 +133,7 @@ void AutoSurface::detectSharpEdges(float angleThreshold) {
             fe.vertex0 = v0;
             fe.vertex1 = v1;
             fe.sharpness = 1.0f - (dot + 1.0f) * 0.5f; // Map [-1,1] to [1,0]
-            fe.direction = glm::normalize(vertices[v1].position - vertices[v0].position);
+            fe.direction = glm::normalize(vertices[v1] - vertices[v0]);
             m_featureEdges.push_back(fe);
         }
     }
@@ -154,7 +154,7 @@ void AutoSurface::detectCorners() {
         if (count >= 3) { // Corner where 3+ feature edges meet
             FeaturePoint fp;
             fp.vertexIdx = vertexIdx;
-            fp.position = vertices[vertexIdx].position;
+            fp.position = vertices[vertexIdx];
             fp.importance = static_cast<float>(count) / 3.0f;
             fp.targetValence = count; // Match feature edge count
             m_featurePoints.push_back(fp);
@@ -178,6 +178,7 @@ void AutoSurface::computePrincipalCurvatures() {
 std::pair<glm::vec3, glm::vec3> AutoSurface::computePrincipalDirections(int vertexIdx) const {
     // Simplified principal direction estimation using neighboring vertices
     const auto& vertices = m_inputMesh->vertices();
+    const auto& normals = m_inputMesh->normals();
     const auto& indices = m_inputMesh->indices();
     
     // Find one-ring neighbors
@@ -200,13 +201,13 @@ std::pair<glm::vec3, glm::vec3> AutoSurface::computePrincipalDirections(int vert
     }
     
     // Compute covariance matrix in tangent plane
-    glm::vec3 center = vertices[vertexIdx].position;
-    glm::vec3 normal = vertices[vertexIdx].normal;
+    glm::vec3 center = vertices[vertexIdx];
+    glm::vec3 normal = (static_cast<size_t>(vertexIdx) < normals.size()) ? normals[vertexIdx] : glm::vec3(0, 1, 0);
     
 #ifdef HAVE_EIGEN
     Eigen::Matrix3f cov = Eigen::Matrix3f::Zero();
     for (int n : neighbors) {
-        glm::vec3 diff = vertices[n].position - center;
+        glm::vec3 diff = vertices[n] - center;
         // Project to tangent plane
         diff = diff - glm::dot(diff, normal) * normal;
         
@@ -268,7 +269,7 @@ void AutoSurface::classifyFeaturePoints() {
             if (!exists) {
                 FeaturePoint fp;
                 fp.vertexIdx = static_cast<int>(i);
-                fp.position = vertices[i].position;
+                fp.position = vertices[i];
                 // Fix: Guard against division by zero when maxCurv is zero
                 if (maxCurv > 1e-6f) {
                     fp.importance = curvatures[i] / maxCurv;
@@ -311,6 +312,7 @@ void AutoSurface::computeOrientationField() {
     // This guides the quad edge directions
     
     const auto& vertices = m_inputMesh->vertices();
+    const auto& normals = m_inputMesh->normals();
     const auto& indices = m_inputMesh->indices();
     int numFaces = static_cast<int>(indices.size() / 3);
     
@@ -349,7 +351,7 @@ void AutoSurface::computeOrientationField() {
                 float bestDot = glm::dot(dir, ref);
                 glm::vec3 bestDir = dir;
                 
-                glm::vec3 normal = vertices[i].normal;
+                glm::vec3 normal = (i < normals.size()) ? normals[i] : glm::vec3(0, 1, 0);
                 glm::vec3 rotated = glm::cross(normal, dir);
                 if (glm::dot(rotated, ref) > bestDot) {
                     bestDot = glm::dot(rotated, ref);
@@ -459,7 +461,7 @@ void AutoSurface::computePositionField() {
 #else
     // Fallback without Eigen: simple planar projection
     for (int i = 0; i < n; ++i) {
-        const auto& pos = vertices[i].position;
+        const auto& pos = vertices[i];
         // Simple XZ projection as UV
         m_positionField[i] = glm::vec2(pos.x, pos.z);
     }
@@ -498,7 +500,7 @@ void AutoSurface::extractQuadMesh(int targetPatchCount) {
     for (const auto& [key, verts] : cellVertices) {
         glm::vec3 avgPos(0);
         for (int v : verts) {
-            avgPos += vertices[v].position;
+            avgPos += vertices[v];
         }
         avgPos /= static_cast<float>(verts.size());
         
@@ -723,7 +725,7 @@ AutoSurfaceParams suggestParameters(const TriangleMesh& mesh) {
     
     // Estimate complexity
     int verts = mesh.vertexCount();
-    int tris = mesh.triangleCount();
+    int tris = mesh.faceCount();
     
     // Adjust patch count based on complexity
     params.targetPatchCount = std::max(50, std::min(500, static_cast<int>(std::sqrt(verts) * 5)));
