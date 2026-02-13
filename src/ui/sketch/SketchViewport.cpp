@@ -5,7 +5,7 @@
 
 #include "SketchViewport.h"
 #include "SketchMode.h"
-#include "../Viewport.h"
+#include "../../renderer/Viewport.h"
 
 #include <QPainter>
 #include <QPainterPath>

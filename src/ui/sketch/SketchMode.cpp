@@ -10,7 +10,7 @@
 #include "ArcTool.h"
 #include "SplineTool.h"
 #include "DimensionTool.h"
-#include "../Viewport.h"
+#include "../../renderer/Viewport.h"
 
 #include <QKeyEvent>
 #include <QDebug>

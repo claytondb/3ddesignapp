@@ -7,6 +7,7 @@
 #include "SketchMode.h"
 
 #include <QPainter>
+#include <QPushButton>
 #include <QMouseEvent>
 #include <QStyle>
 #include <QStyleOption>
