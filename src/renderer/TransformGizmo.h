@@ -15,11 +15,10 @@
 #include <QVector3D>
 #include <QMatrix4x4>
 #include <QColor>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLVertexArrayObject>
+#include <QOpenGLBuffer>
 #include <memory>
-
-class QOpenGLShaderProgram;
-class QOpenGLVertexArrayObject;
-class QOpenGLBuffer;
 
 namespace dc {
 
@@ -48,6 +47,7 @@ enum class GizmoMode {
  */
 class TransformGizmo : public QObject {
     Q_OBJECT
+    Q_DISABLE_COPY(TransformGizmo)
     
 public:
     explicit TransformGizmo(QObject* parent = nullptr);
