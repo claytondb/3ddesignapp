@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
+#include <atomic>
 
 namespace dc {
 namespace sketch {
@@ -292,7 +293,8 @@ private:
     std::vector<SketchEntity::Ptr> m_entities;
     std::unordered_map<uint64_t, size_t> m_entityIndex;  // ID to vector index
     
-    static uint64_t s_nextId;
+    // FIX: Thread-safe ID generation using atomic
+    static std::atomic<uint64_t> s_nextId;
     
     /**
      * @brief Rebuild the entity index after modifications

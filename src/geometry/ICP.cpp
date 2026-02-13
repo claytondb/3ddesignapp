@@ -379,17 +379,45 @@ glm::mat4 ICP::computePointToPointTransform(
     }
     
     // SVD using power iteration (simplified)
+    // FIX: Added convergence checking and better starting vectors
     glm::mat3 HtH = glm::transpose(H) * H;
     
     glm::vec3 v1(1, 0, 0), v2(0, 1, 0), v3(0, 0, 1);
-    for (int i = 0; i < 30; ++i) {
-        v1 = glm::normalize(HtH * v1);
+    const float convergenceThreshold = 1e-8f;
+    const int maxIterations = 50;
+    
+    // Power iteration for dominant eigenvector with convergence check
+    for (int i = 0; i < maxIterations; ++i) {
+        glm::vec3 v1_new = HtH * v1;
+        float len = glm::length(v1_new);
+        if (len < 1e-10f) break;
+        v1_new = v1_new / len;
+        
+        // Check convergence
+        float change = glm::length(v1_new - v1);
+        v1 = v1_new;
+        if (change < convergenceThreshold) break;
     }
+    
+    // Gram-Schmidt for v2 with convergence check
     v2 = v2 - glm::dot(v2, v1) * v1;
-    for (int i = 0; i < 30; ++i) {
-        v2 = HtH * v2;
+    if (glm::length(v2) < 1e-6f) {
+        // v2 was parallel to v1, pick perpendicular vector
+        v2 = (std::abs(v1.x) < 0.9f) ? glm::vec3(1, 0, 0) : glm::vec3(0, 1, 0);
         v2 = v2 - glm::dot(v2, v1) * v1;
-        if (glm::length(v2) > 1e-6f) v2 = glm::normalize(v2);
+    }
+    v2 = glm::normalize(v2);
+    
+    for (int i = 0; i < maxIterations; ++i) {
+        glm::vec3 v2_new = HtH * v2;
+        v2_new = v2_new - glm::dot(v2_new, v1) * v1;
+        float len = glm::length(v2_new);
+        if (len < 1e-10f) break;
+        v2_new = v2_new / len;
+        
+        float change = glm::length(v2_new - v2);
+        v2 = v2_new;
+        if (change < convergenceThreshold) break;
     }
     v3 = glm::cross(v1, v2);
     

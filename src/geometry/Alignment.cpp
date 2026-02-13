@@ -360,24 +360,45 @@ glm::mat4 Alignment::computeRigidTransform(
     glm::mat3 HtH = glm::transpose(H) * H;
     
     // Power iteration to find eigenvectors
+    // FIX: Added convergence checking and better handling of edge cases
     glm::vec3 v1(1.0f, 0.0f, 0.0f);
     glm::vec3 v2(0.0f, 1.0f, 0.0f);
     glm::vec3 v3(0.0f, 0.0f, 1.0f);
     
-    // Multiple iterations for convergence
-    for (int iter = 0; iter < 50; ++iter) {
-        v1 = HtH * v1;
-        v1 = glm::normalize(v1);
+    const float convergenceThreshold = 1e-8f;
+    const int maxIterations = 50;
+    
+    // Power iteration with convergence check
+    for (int iter = 0; iter < maxIterations; ++iter) {
+        glm::vec3 v1_new = HtH * v1;
+        float len = glm::length(v1_new);
+        if (len < 1e-10f) break;
+        v1_new = v1_new / len;
+        
+        float change = glm::length(v1_new - v1);
+        v1 = v1_new;
+        if (change < convergenceThreshold) break;
     }
     
-    // Gram-Schmidt for v2
+    // Gram-Schmidt for v2 with convergence check
     v2 = v2 - glm::dot(v2, v1) * v1;
-    for (int iter = 0; iter < 50; ++iter) {
-        v2 = HtH * v2;
+    if (glm::length(v2) < 1e-6f) {
+        // v2 was parallel to v1, pick perpendicular vector
+        v2 = (std::abs(v1.x) < 0.9f) ? glm::vec3(1, 0, 0) : glm::vec3(0, 1, 0);
         v2 = v2 - glm::dot(v2, v1) * v1;
-        if (glm::length(v2) > 1e-6f) {
-            v2 = glm::normalize(v2);
-        }
+    }
+    v2 = glm::normalize(v2);
+    
+    for (int iter = 0; iter < maxIterations; ++iter) {
+        glm::vec3 v2_new = HtH * v2;
+        v2_new = v2_new - glm::dot(v2_new, v1) * v1;
+        float len = glm::length(v2_new);
+        if (len < 1e-10f) break;
+        v2_new = v2_new / len;
+        
+        float change = glm::length(v2_new - v2);
+        v2 = v2_new;
+        if (change < convergenceThreshold) break;
     }
     
     // v3 is cross product

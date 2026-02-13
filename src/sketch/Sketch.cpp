@@ -100,7 +100,8 @@ glm::vec3 SketchPlane::projectPoint(const glm::vec3& point) const {
 
 // ==================== Sketch Implementation ====================
 
-uint64_t Sketch::s_nextId = 1;
+// FIX: Thread-safe ID generation using atomic
+std::atomic<uint64_t> Sketch::s_nextId{1};
 
 Sketch::Sketch(const SketchPlane& plane)
     : m_id(s_nextId++)

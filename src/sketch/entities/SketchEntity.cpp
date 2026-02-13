@@ -3,7 +3,8 @@
 namespace dc {
 namespace sketch {
 
-uint64_t SketchEntity::s_nextId = 1;
+// FIX: Thread-safe ID generation using atomic
+std::atomic<uint64_t> SketchEntity::s_nextId{1};
 
 SketchEntity::SketchEntity(SketchEntityType type)
     : m_id(s_nextId++)
