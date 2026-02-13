@@ -145,9 +145,10 @@ void IntegrationController::onMeshAdded(uint64_t id, const QString& name)
         return;
     }
     
-    // SAFETY: Validate mesh has data before passing to other components
-    if (mesh->isEmpty()) {
-        qWarning() << "IntegrationController: mesh is empty:" << name;
+    // CRITICAL FIX: Use isValid() for comprehensive validation to prevent crashes
+    // isEmpty() only checks if vectors are non-empty, isValid() also validates indices
+    if (mesh->isEmpty() || !mesh->isValid()) {
+        qWarning() << "IntegrationController: mesh is empty or invalid:" << name;
         return;
     }
     

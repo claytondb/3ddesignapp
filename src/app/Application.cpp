@@ -284,8 +284,9 @@ bool Application::importMesh(const QString& filePath)
         // Create mesh data
         auto mesh = std::make_shared<geometry::MeshData>(std::move(*result.value));
         
-        if (!mesh || mesh->isEmpty()) {
-            QString error = "Imported mesh is empty or invalid";
+        // CRITICAL FIX: Use isValid() instead of isEmpty() to catch corrupted mesh data
+        if (!mesh || mesh->isEmpty() || !mesh->isValid()) {
+            QString error = "Imported mesh is empty or invalid - data may be corrupted";
             qWarning() << error;
             emit importFailed(error);
             return false;

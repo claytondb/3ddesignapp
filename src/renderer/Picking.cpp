@@ -31,9 +31,10 @@ void Picking::addMesh(uint32_t meshId, const geometry::MeshData* mesh,
         return;
     }
     
-    // SAFETY: Validate mesh has data
-    if (mesh->isEmpty()) {
-        qWarning() << "Picking::addMesh - empty mesh for id" << meshId;
+    // CRITICAL FIX: Use isValid() for comprehensive validation to prevent BVH crash
+    // isEmpty() only checks if vectors are non-empty, isValid() also validates indices
+    if (mesh->isEmpty() || !mesh->isValid()) {
+        qWarning() << "Picking::addMesh - empty or invalid mesh for id" << meshId;
         return;
     }
     

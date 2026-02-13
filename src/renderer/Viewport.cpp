@@ -489,8 +489,9 @@ bool Viewport::hasMesh(uint64_t id) const
 
 void Viewport::uploadMeshToGPU(uint64_t id, const dc3d::geometry::MeshData& mesh)
 {
-    if (mesh.isEmpty()) {
-        qWarning() << "Viewport::uploadMeshToGPU - empty mesh";
+    // CRITICAL FIX: Use isValid() for comprehensive validation to prevent crashes
+    if (mesh.isEmpty() || !mesh.isValid()) {
+        qWarning() << "Viewport::uploadMeshToGPU - empty or invalid mesh";
         return;
     }
     
@@ -556,9 +557,12 @@ void Viewport::uploadMeshToGPU(uint64_t id, const dc3d::geometry::MeshData& mesh
     gpuData->boundsMin = QVector3D(bounds.min.x, bounds.min.y, bounds.min.z);
     gpuData->boundsMax = QVector3D(bounds.max.x, bounds.max.y, bounds.max.z);
     
-    // Unbind VBO and EBO before releasing VAO to prevent corrupting default VAO state
+    // Unbind VBO before releasing VAO (VBO binding is not part of VAO state)
+    // NOTE: Do NOT unbind EBO here! The EBO binding IS part of VAO state.
+    // Unbinding EBO while VAO is bound would remove the index buffer association,
+    // causing glDrawElements to crash when trying to read from address 0.
     gpuData->vbo.release();
-    gpuData->ebo.release();
+    // gpuData->ebo.release();  // REMOVED - would break VAO's EBO binding!
     gpuData->vao.release();
     gpuData->valid = true;
     

@@ -354,7 +354,8 @@ const SelectionMeshInfo* SelectionRenderer::findMesh(uint32_t meshId) const
 
 void SelectionRenderer::createMeshBuffers(SelectionMeshInfo& info)
 {
-    if (!info.mesh || info.mesh->isEmpty()) {
+    // CRITICAL FIX: Use isValid() for comprehensive validation to prevent crashes
+    if (!info.mesh || info.mesh->isEmpty() || !info.mesh->isValid()) {
         return;
     }
     

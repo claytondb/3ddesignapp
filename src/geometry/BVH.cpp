@@ -59,7 +59,9 @@ void BVH::build(const MeshData& mesh)
 {
     clear();
     
-    if (mesh.isEmpty()) {
+    // CRITICAL FIX: Use isValid() instead of isEmpty() to catch corrupted mesh data
+    // isEmpty() only checks if vectors are non-empty, but doesn't validate indices
+    if (mesh.isEmpty() || !mesh.isValid()) {
         return;
     }
     
@@ -72,6 +74,8 @@ void BVH::build(const MeshData& mesh)
         return;
     }
     
+    size_t vertexCount = m_vertices.size();
+    
     // Build primitive info list
     std::vector<PrimitiveInfo> primitiveInfo(numTriangles);
     
@@ -79,6 +83,13 @@ void BVH::build(const MeshData& mesh)
         uint32_t i0 = m_indices[i * 3 + 0];
         uint32_t i1 = m_indices[i * 3 + 1];
         uint32_t i2 = m_indices[i * 3 + 2];
+        
+        // CRITICAL FIX: Bounds check to prevent crash on corrupted mesh data
+        if (i0 >= vertexCount || i1 >= vertexCount || i2 >= vertexCount) {
+            // Clear and return - mesh is corrupted
+            clear();
+            return;
+        }
         
         const glm::vec3& v0 = m_vertices[i0];
         const glm::vec3& v1 = m_vertices[i1];

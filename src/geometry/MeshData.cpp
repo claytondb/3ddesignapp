@@ -170,15 +170,26 @@ void MeshData::computeNormals() {
         return;
     }
     
+    // CRITICAL FIX: Validate mesh before computing normals to prevent crashes
+    if (!isValid()) {
+        return;
+    }
+    
     // Initialize normals to zero
     normals_.assign(vertices_.size(), glm::vec3(0.0f));
     
     // Accumulate face normals for each vertex
     size_t numFaces = indices_.size() / 3;
+    size_t vertexCount = vertices_.size();
     for (size_t f = 0; f < numFaces; ++f) {
         uint32_t i0 = indices_[f * 3 + 0];
         uint32_t i1 = indices_[f * 3 + 1];
         uint32_t i2 = indices_[f * 3 + 2];
+        
+        // CRITICAL FIX: Bounds check to prevent crash on corrupted mesh data
+        if (i0 >= vertexCount || i1 >= vertexCount || i2 >= vertexCount) {
+            continue;  // Skip invalid face
+        }
         
         const glm::vec3& v0 = vertices_[i0];
         const glm::vec3& v1 = vertices_[i1];

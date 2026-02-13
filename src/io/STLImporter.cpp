@@ -368,6 +368,12 @@ geometry::Result<geometry::MeshData> STLImporter::importASCII(
     
     mesh.shrinkToFit();
     
+    // CRITICAL FIX: Validate ASCII mesh before returning to catch any corruption
+    if (!mesh.isValid()) {
+        return geometry::Result<geometry::MeshData>::failure(
+            "Imported ASCII STL mesh is invalid - corrupted data detected");
+    }
+    
     if (progress) {
         progress(1.0f);
     }
@@ -476,6 +482,12 @@ geometry::Result<geometry::MeshData> STLImporter::importBinary(
     }
     
     mesh.shrinkToFit();
+    
+    // CRITICAL FIX: Validate binary mesh before returning to catch any corruption
+    if (!mesh.isValid()) {
+        return geometry::Result<geometry::MeshData>::failure(
+            "Imported binary STL mesh is invalid - corrupted data detected");
+    }
     
     if (progress) {
         progress(1.0f);
