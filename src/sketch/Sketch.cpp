@@ -4,6 +4,7 @@
 #include <queue>
 #include <set>
 #include <unordered_set>
+#include <functional>
 
 namespace dc {
 namespace sketch {

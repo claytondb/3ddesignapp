@@ -7,6 +7,7 @@
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include <glm/gtc/constants.hpp>
 
 // Note: OpenGL headers would normally be included here
 // For now, we provide the implementation structure

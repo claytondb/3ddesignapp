@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <fstream>
+#include <map>
 #include <glm/glm.hpp>
 
 namespace dc {
