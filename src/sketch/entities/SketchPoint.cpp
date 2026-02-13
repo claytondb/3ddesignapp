@@ -1,6 +1,7 @@
 #include "SketchPoint.h"
 
 namespace dc {
+namespace sketch {
 
 SketchPoint::SketchPoint(const glm::dvec2& position)
     : SketchEntity(SketchEntityType::Point)
@@ -58,4 +59,5 @@ void SketchPoint::getBoundingBox(glm::dvec2& minPt, glm::dvec2& maxPt) const {
     maxPt = m_position;
 }
 
+} // namespace sketch
 } // namespace dc

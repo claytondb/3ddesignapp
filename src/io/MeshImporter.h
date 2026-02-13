@@ -11,6 +11,7 @@
 #include <string>
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace dc3d {
 namespace geometry {

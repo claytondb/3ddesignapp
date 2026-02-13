@@ -3,6 +3,7 @@
 #include "SketchEntity.h"
 
 namespace dc {
+namespace sketch {
 
 /**
  * @brief A reference point entity in a sketch
@@ -44,4 +45,5 @@ private:
     glm::dvec2 m_position;
 };
 
+} // namespace sketch
 } // namespace dc
