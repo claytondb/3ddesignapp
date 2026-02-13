@@ -1,14 +1,16 @@
 #include "Toolbar.h"
 #include <QMenu>
 #include <QWidgetAction>
+#include <QMap>
+#include <QStyle>
 
 Toolbar::Toolbar(QWidget *parent)
     : QToolBar(tr("Main Toolbar"), parent)
 {
     setObjectName("MainToolbar");
     setMovable(false);
-    setIconSize(QSize(20, 20));
-    setToolButtonStyle(Qt::ToolButtonIconOnly);
+    setIconSize(QSize(24, 24));
+    setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
 
     setupFileGroup();
     addSeparator();
@@ -34,12 +36,49 @@ QAction* Toolbar::createAction(const QString& text, const QString& iconName,
                                 const QString& tooltip, const QString& shortcut)
 {
     QAction* action = new QAction(text, this);
-    action->setToolTip(tooltip);
+    action->setToolTip(tooltip + (shortcut.isEmpty() ? "" : " (" + shortcut + ")"));
     action->setStatusTip(tooltip);
     
-    // Use placeholder icon text if no icon resource
-    // In production, would use: action->setIcon(QIcon(":/icons/" + iconName + ".svg"));
-    action->setText(text.left(2)); // First 2 chars as placeholder
+    // Try loading custom icon first, fallback to Qt standard icons
+    QIcon icon = QIcon(":/icons/" + iconName + ".svg");
+    if (icon.isNull()) {
+        // Map icon names to Qt standard icons
+        static const QMap<QString, QStyle::StandardPixmap> iconMap = {
+            {"file-new", QStyle::SP_FileIcon},
+            {"folder-open", QStyle::SP_DirOpenIcon},
+            {"save", QStyle::SP_DialogSaveButton},
+            {"import", QStyle::SP_ArrowDown},
+            {"undo", QStyle::SP_ArrowBack},
+            {"redo", QStyle::SP_ArrowForward},
+            {"select-pointer", QStyle::SP_ArrowUp},
+            {"select-box", QStyle::SP_FileDialogContentsView},
+            {"select-lasso", QStyle::SP_FileDialogDetailedView},
+            {"select-brush", QStyle::SP_DialogResetButton},
+            {"view-shaded", QStyle::SP_DesktopIcon},
+            {"view-wireframe", QStyle::SP_TitleBarNormalButton},
+            {"view-shaded-wire", QStyle::SP_TitleBarMaxButton},
+            {"view-xray", QStyle::SP_TitleBarShadeButton},
+            {"primitive-plane", QStyle::SP_FileDialogNewFolder},
+            {"primitive-cylinder", QStyle::SP_DriveHDIcon},
+            {"section", QStyle::SP_ToolBarHorizontalExtensionButton},
+            {"sketch", QStyle::SP_FileDialogListView},
+            {"mesh-reduce", QStyle::SP_BrowserReload},
+            {"mesh-smooth", QStyle::SP_MediaVolume},
+            {"mesh-fill", QStyle::SP_MediaVolumeMuted},
+            {"mesh-clip", QStyle::SP_DialogDiscardButton}
+        };
+        
+        if (iconMap.contains(iconName)) {
+            icon = style()->standardIcon(iconMap[iconName]);
+        }
+    }
+    
+    if (!icon.isNull()) {
+        action->setIcon(icon);
+    }
+    
+    // Keep full text for display under icon
+    action->setText(text);
     
     if (!shortcut.isEmpty()) {
         action->setShortcut(QKeySequence(shortcut));
@@ -54,7 +93,27 @@ QToolButton* Toolbar::createMenuButton(const QString& text, const QString& iconN
     QToolButton* button = new QToolButton(this);
     button->setToolTip(tooltip);
     button->setPopupMode(QToolButton::MenuButtonPopup);
-    button->setText(text.left(2));
+    button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    
+    // Try loading custom icon first, fallback to Qt standard icons
+    QIcon icon = QIcon(":/icons/" + iconName + ".svg");
+    if (icon.isNull()) {
+        static const QMap<QString, QStyle::StandardPixmap> iconMap = {
+            {"folder-open", QStyle::SP_DirOpenIcon},
+            {"import", QStyle::SP_ArrowDown},
+            {"undo", QStyle::SP_ArrowBack},
+            {"redo", QStyle::SP_ArrowForward}
+        };
+        
+        if (iconMap.contains(iconName)) {
+            icon = style()->standardIcon(iconMap[iconName]);
+        }
+    }
+    
+    if (!icon.isNull()) {
+        button->setIcon(icon);
+    }
+    button->setText(text);
     return button;
 }
 

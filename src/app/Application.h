@@ -117,6 +117,13 @@ public:
      * @brief Generate unique mesh ID
      */
     uint64_t generateMeshId();
+    
+    /**
+     * @brief Create a primitive and add to scene
+     * @param type Type of primitive: "sphere", "cube", "cylinder", "cone", "plane", "torus"
+     * @return true on success
+     */
+    bool createPrimitive(const QString& type);
 
 signals:
     /**

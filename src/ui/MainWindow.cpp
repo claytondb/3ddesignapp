@@ -634,6 +634,12 @@ void MainWindow::setupConnections()
     // Edit menu connections
     connect(m_menuBar, &MenuBar::undoRequested, this, &MainWindow::onUndoRequested);
     connect(m_menuBar, &MenuBar::redoRequested, this, &MainWindow::onRedoRequested);
+    
+    // Primitive creation connections
+    connect(m_menuBar, &MenuBar::createSphereRequested, this, &MainWindow::onCreateSphereRequested);
+    connect(m_menuBar, &MenuBar::createCylinderRequested, this, &MainWindow::onCreateCylinderRequested);
+    connect(m_menuBar, &MenuBar::createConeRequested, this, &MainWindow::onCreateConeRequested);
+    connect(m_menuBar, &MenuBar::createPlaneRequested, this, &MainWindow::onCreatePlaneRequested);
 }
 
 void MainWindow::applyStylesheet()
@@ -859,5 +865,60 @@ void MainWindow::onRedoRequested()
     auto* app = dc3d::Application::instance();
     if (app && app->undoStack()) {
         app->undoStack()->redo();
+    }
+}
+
+void MainWindow::onCreateSphereRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        if (!app->createPrimitive("sphere")) {
+            QMessageBox::warning(this, tr("Create Error"), 
+                tr("Failed to create sphere primitive."));
+        }
+    }
+}
+
+void MainWindow::onCreateCubeRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        if (!app->createPrimitive("cube")) {
+            QMessageBox::warning(this, tr("Create Error"), 
+                tr("Failed to create cube primitive."));
+        }
+    }
+}
+
+void MainWindow::onCreateCylinderRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        if (!app->createPrimitive("cylinder")) {
+            QMessageBox::warning(this, tr("Create Error"), 
+                tr("Failed to create cylinder primitive."));
+        }
+    }
+}
+
+void MainWindow::onCreateConeRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        if (!app->createPrimitive("cone")) {
+            QMessageBox::warning(this, tr("Create Error"), 
+                tr("Failed to create cone primitive."));
+        }
+    }
+}
+
+void MainWindow::onCreatePlaneRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        if (!app->createPrimitive("plane")) {
+            QMessageBox::warning(this, tr("Create Error"), 
+                tr("Failed to create plane primitive."));
+        }
     }
 }

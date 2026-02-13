@@ -7,6 +7,31 @@ PropertiesPanel::PropertiesPanel(QWidget *parent)
     : QWidget(parent)
 {
     setObjectName("PropertiesPanel");
+    
+    // Apply dark theme styling to the entire panel
+    setStyleSheet(R"(
+        QWidget#PropertiesPanel {
+            background-color: #242424;
+        }
+        QScrollArea {
+            background-color: #242424;
+            border: none;
+        }
+        QScrollArea > QWidget > QWidget {
+            background-color: #242424;
+        }
+        QStackedWidget {
+            background-color: #242424;
+        }
+        QLabel {
+            color: #b3b3b3;
+        }
+        QGroupBox {
+            color: #ffffff;
+            background-color: #242424;
+        }
+    )");
+    
     setupUI();
 }
 
@@ -95,8 +120,10 @@ QWidget* PropertiesPanel::createNoSelectionPage()
     QScrollArea* scroll = new QScrollArea();
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setStyleSheet("QScrollArea { background-color: #242424; border: none; }");
     
     QWidget* page = new QWidget();
+    page->setStyleSheet("background-color: #242424;");
     QVBoxLayout* layout = new QVBoxLayout(page);
     layout->setContentsMargins(12, 12, 12, 12);
     layout->setSpacing(8);
@@ -169,8 +196,10 @@ QWidget* PropertiesPanel::createMeshPage()
     QScrollArea* scroll = new QScrollArea();
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setStyleSheet("QScrollArea { background-color: #242424; border: none; }");
     
     QWidget* page = new QWidget();
+    page->setStyleSheet("background-color: #242424;");
     QVBoxLayout* layout = new QVBoxLayout(page);
     layout->setContentsMargins(12, 12, 12, 12);
     layout->setSpacing(8);
@@ -367,6 +396,7 @@ QWidget* PropertiesPanel::createMeshPage()
 QWidget* PropertiesPanel::createPrimitivePage()
 {
     QWidget* page = new QWidget();
+    page->setStyleSheet("background-color: #242424;");
     QVBoxLayout* layout = new QVBoxLayout(page);
     layout->setContentsMargins(12, 12, 12, 12);
     
@@ -386,6 +416,7 @@ QWidget* PropertiesPanel::createPrimitivePage()
 QWidget* PropertiesPanel::createSketchPage()
 {
     QWidget* page = new QWidget();
+    page->setStyleSheet("background-color: #242424;");
     QVBoxLayout* layout = new QVBoxLayout(page);
     layout->setContentsMargins(12, 12, 12, 12);
     
@@ -405,6 +436,7 @@ QWidget* PropertiesPanel::createSketchPage()
 QWidget* PropertiesPanel::createSurfacePage()
 {
     QWidget* page = new QWidget();
+    page->setStyleSheet("background-color: #242424;");
     QVBoxLayout* layout = new QVBoxLayout(page);
     layout->setContentsMargins(12, 12, 12, 12);
     
@@ -424,6 +456,7 @@ QWidget* PropertiesPanel::createSurfacePage()
 QWidget* PropertiesPanel::createBodyPage()
 {
     QWidget* page = new QWidget();
+    page->setStyleSheet("background-color: #242424;");
     QVBoxLayout* layout = new QVBoxLayout(page);
     layout->setContentsMargins(12, 12, 12, 12);
     

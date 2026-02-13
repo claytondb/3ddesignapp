@@ -87,6 +87,13 @@ private slots:
     void onDisplayModeShadedWireRequested();
     void onUndoRequested();
     void onRedoRequested();
+    
+    // Primitive creation
+    void onCreateSphereRequested();
+    void onCreateCubeRequested();
+    void onCreateCylinderRequested();
+    void onCreateConeRequested();
+    void onCreatePlaneRequested();
 
 private:
     void setupUI();

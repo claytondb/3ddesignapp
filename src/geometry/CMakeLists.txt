@@ -11,6 +11,10 @@ set(GEOMETRY_SOURCES
     NURBSSurface.cpp
     NURBSSurface.h
     
+    # Primitive mesh generation
+    PrimitiveGenerator.cpp
+    PrimitiveGenerator.h
+    
     # Mesh processing
     MeshAnalysis.cpp
     MeshAnalysis.h
