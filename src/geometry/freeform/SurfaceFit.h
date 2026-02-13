@@ -5,6 +5,7 @@
 #include <functional>
 #include <string>
 #include <glm/glm.hpp>
+#include "../nurbs/NurbsCurve.h"
 
 namespace dc {
 
@@ -12,7 +13,7 @@ namespace dc {
 class NurbsSurface;
 class TriangleMesh;
 class QuadMesh;
-class NurbsCurve;
+// NurbsCurve is included via header and aliased in dc namespace
 
 /**
  * @brief Boundary condition types for surface fitting

@@ -62,6 +62,23 @@ public:
     glm::vec3 tangent(float t) const;
     
     /**
+     * @brief Evaluate curve derivative at parameter t
+     * @param t Parameter value [0, 1]
+     * @param order Derivative order (1 = tangent, 2 = curvature direction)
+     * @return Derivative vector
+     */
+    glm::vec3 evaluateDerivative(float t, int order) const {
+        if (order == 1) {
+            return tangent(t);
+        }
+        // Higher order: finite difference approximation
+        const float h = 0.001f;
+        glm::vec3 d1_plus = evaluateDerivative(std::min(t + h, 1.0f), order - 1);
+        glm::vec3 d1_minus = evaluateDerivative(std::max(t - h, 0.0f), order - 1);
+        return (d1_plus - d1_minus) / (2.0f * h);
+    }
+    
+    /**
      * @brief Get curve degree
      */
     int degree() const { return m_degree; }
