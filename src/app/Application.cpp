@@ -175,15 +175,8 @@ bool Application::importMesh(const QString& filePath)
         mesh->computeNormals();
     }
     
-    // Use integration controller to add mesh (this connects to viewport, picking, browser)
-    if (m_integrationController) {
-        m_integrationController->addMesh(meshId, meshName, mesh);
-    } else {
-        // Fallback: add directly to scene manager
-        m_sceneManager->addMesh(meshId, meshName, mesh);
-    }
-    
     // Create and execute import command (for undo support)
+    // Note: push() calls redo() which adds mesh via IntegrationController
     ImportCommand* cmd = new ImportCommand(meshId, meshName, mesh, this);
     m_undoStack->push(cmd);
     

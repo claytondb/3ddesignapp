@@ -1,15 +1,25 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
     <qresource prefix="/">
-        <!-- Shaders -->
+        <!-- Mesh Shaders -->
         <file>shaders/mesh.vert</file>
         <file>shaders/mesh.frag</file>
+        
+        <!-- Grid Shaders -->
         <file>shaders/grid.vert</file>
         <file>shaders/grid.frag</file>
+        
+        <!-- Line Shaders -->
         <file>shaders/line.vert</file>
         <file>shaders/line.frag</file>
+        
+        <!-- Selection Shaders -->
         <file>shaders/selection.vert</file>
         <file>shaders/selection.frag</file>
+        
+        <!-- Deviation Map Shaders -->
+        <file>shaders/deviation.vert</file>
+        <file>shaders/deviation.frag</file>
         
         <!-- Icons will be added here -->
         <!-- <file>icons/app_icon.png</file> -->

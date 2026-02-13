@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "../Command.h"
 #include "../../geometry/MeshData.h"
 #include "../../geometry/MeshDecimation.h"
 #include "../../geometry/MeshSmoothing.h"
@@ -27,33 +28,21 @@ namespace core {
 class Document;
 class SceneObject;
 
+// Use CommandPtr from Command.h
+using CommandPtr = std::unique_ptr<Command>;
+
 /**
- * @brief Base class for all undoable commands
+ * @brief Extended interface for mesh edit commands with additional capabilities
  */
-class Command {
+class MeshCommand : public Command {
 public:
-    virtual ~Command() = default;
-    
-    /// Execute the command
-    virtual bool execute() = 0;
-    
-    /// Undo the command
-    virtual void undo() = 0;
+    virtual ~MeshCommand() = default;
     
     /// Redo the command (default: call execute)
     virtual void redo() { execute(); }
     
-    /// Get human-readable description
-    virtual std::string description() const = 0;
-    
     /// Get command category (for grouping in history)
-    virtual std::string category() const { return "Edit"; }
-    
-    /// Check if command can be merged with another
-    virtual bool canMergeWith(const Command& other) const { return false; }
-    
-    /// Merge with another command (returns true if successful)
-    virtual bool mergeWith(const Command& other) { return false; }
+    virtual QString category() const { return QStringLiteral("Edit"); }
     
     /// Get estimated memory usage of stored data
     virtual size_t memoryUsage() const { return sizeof(*this); }
@@ -62,16 +51,11 @@ public:
     std::chrono::steady_clock::time_point timestamp() const { return timestamp_; }
     
 protected:
-    Command() : timestamp_(std::chrono::steady_clock::now()) {}
+    MeshCommand() : timestamp_(std::chrono::steady_clock::now()) {}
     
 private:
     std::chrono::steady_clock::time_point timestamp_;
 };
-
-/**
- * @brief Smart pointer type for commands
- */
-using CommandPtr = std::unique_ptr<Command>;
 
 /**
  * @brief Generic mesh edit command that stores before/after mesh state
@@ -100,7 +84,7 @@ using CommandPtr = std::unique_ptr<Command>;
  *     }
  * @endcode
  */
-class MeshEditCommand : public Command {
+class MeshEditCommand : public MeshCommand {
 public:
     using EditFunction = std::function<bool(geometry::MeshData&)>;
     
@@ -113,7 +97,7 @@ public:
      */
     static CommandPtr create(
         geometry::MeshData& mesh,
-        const std::string& name,
+        const QString& name,
         EditFunction operation);
     
     /**
@@ -125,15 +109,15 @@ public:
      */
     static CommandPtr create(
         SceneObject& object,
-        const std::string& name,
+        const QString& name,
         EditFunction operation);
     
-    bool execute() override;
+    void execute() override;
     void undo() override;
     void redo() override;
     
-    std::string description() const override { return name_; }
-    std::string category() const override { return "Mesh Edit"; }
+    QString description() const override { return name_; }
+    QString category() const override { return QStringLiteral("Mesh Edit"); }
     
     size_t memoryUsage() const override;
     
@@ -146,11 +130,11 @@ public:
 private:
     MeshEditCommand(
         geometry::MeshData& mesh,
-        const std::string& name,
+        const QString& name,
         EditFunction operation);
     
     geometry::MeshData& mesh_;
-    std::string name_;
+    QString name_;
     EditFunction operation_;
     
     geometry::MeshData beforeMesh_;
@@ -165,17 +149,17 @@ private:
 /**
  * @brief Command for mesh decimation
  */
-class DecimateCommand : public Command {
+class DecimateCommand : public MeshCommand {
 public:
     DecimateCommand(
         geometry::MeshData& mesh,
         const geometry::DecimationOptions& options);
     
-    bool execute() override;
+    void execute() override;
     void undo() override;
     
-    std::string description() const override;
-    std::string category() const override { return "Mesh Edit"; }
+    QString description() const override;
+    QString category() const override { return QStringLiteral("Mesh Edit"); }
     size_t memoryUsage() const override;
     
     /// Get decimation result statistics
@@ -191,21 +175,21 @@ private:
 /**
  * @brief Command for mesh smoothing
  */
-class SmoothCommand : public Command {
+class SmoothCommand : public MeshCommand {
 public:
     SmoothCommand(
         geometry::MeshData& mesh,
         const geometry::SmoothingOptions& options);
     
-    bool execute() override;
+    void execute() override;
     void undo() override;
     
-    std::string description() const override;
-    std::string category() const override { return "Mesh Edit"; }
+    QString description() const override;
+    QString category() const override { return QStringLiteral("Mesh Edit"); }
     size_t memoryUsage() const override;
     
-    bool canMergeWith(const Command& other) const override;
-    bool mergeWith(const Command& other) override;
+    bool canMergeWith(const Command* other) const override;
+    bool mergeWith(const Command* other) override;
     
     /// Get smoothing result statistics
     const geometry::SmoothingResult& result() const { return result_; }
@@ -220,7 +204,7 @@ private:
 /**
  * @brief Command for mesh repair operations
  */
-class RepairCommand : public Command {
+class RepairCommand : public MeshCommand {
 public:
     enum class Operation {
         RemoveOutliers,
@@ -236,11 +220,11 @@ public:
         Operation operation,
         float parameter = 0.0f);
     
-    bool execute() override;
+    void execute() override;
     void undo() override;
     
-    std::string description() const override;
-    std::string category() const override { return "Mesh Repair"; }
+    QString description() const override;
+    QString category() const override { return QStringLiteral("Mesh Repair"); }
     size_t memoryUsage() const override;
     
     /// Get repair result
@@ -257,17 +241,17 @@ private:
 /**
  * @brief Command for mesh subdivision
  */
-class SubdivideCommand : public Command {
+class SubdivideCommand : public MeshCommand {
 public:
     SubdivideCommand(
         geometry::MeshData& mesh,
         const geometry::SubdivisionOptions& options);
     
-    bool execute() override;
+    void execute() override;
     void undo() override;
     
-    std::string description() const override;
-    std::string category() const override { return "Mesh Edit"; }
+    QString description() const override;
+    QString category() const override { return QStringLiteral("Mesh Edit"); }
     size_t memoryUsage() const override;
     
     /// Get subdivision result
@@ -287,9 +271,9 @@ private:
 /**
  * @brief Command that combines multiple commands into one undoable action
  */
-class CompoundCommand : public Command {
+class CompoundCommand : public MeshCommand {
 public:
-    CompoundCommand(const std::string& name);
+    CompoundCommand(const QString& name);
     
     /// Add a command to the compound
     void addCommand(CommandPtr cmd);
@@ -297,16 +281,16 @@ public:
     /// Get number of sub-commands
     size_t commandCount() const { return commands_.size(); }
     
-    bool execute() override;
+    void execute() override;
     void undo() override;
     void redo() override;
     
-    std::string description() const override { return name_; }
-    std::string category() const override { return "Compound"; }
+    QString description() const override { return name_; }
+    QString category() const override { return QStringLiteral("Compound"); }
     size_t memoryUsage() const override;
     
 private:
-    std::string name_;
+    QString name_;
     std::vector<CommandPtr> commands_;
     size_t executedCount_ = 0;
 };

@@ -290,6 +290,9 @@ SmoothingResult MeshSmoother::smooth(
     std::vector<glm::vec3> newPositions(vertices.size());
     std::vector<glm::vec3> bValues;  // For HC smoothing
     
+    // FIX: Track total displacement locally to avoid uninitialized struct member issue
+    float localTotalDisplacement = 0.0f;
+    
     for (int iter = 0; iter < options.iterations; ++iter) {
         // Progress callback
         if (progress) {
@@ -326,7 +329,7 @@ SmoothingResult MeshSmoother::smooth(
                 for (size_t i = 0; i < vertices.size(); ++i) {
                     if (!fixedVertices.count(static_cast<uint32_t>(i))) {
                         float disp = glm::length(newPositions[i] - vertices[i]);
-                        result.totalDisplacement += disp;
+                        localTotalDisplacement += disp;  // FIX: Use local variable
                         result.maxDisplacement = std::max(result.maxDisplacement, disp);
                         if (disp > 1e-10f) ++result.verticesMoved;
                     }
@@ -365,7 +368,7 @@ SmoothingResult MeshSmoother::smooth(
                 // Apply and measure
                 for (size_t i = 0; i < vertices.size(); ++i) {
                     float disp = glm::length(newPositions[i] - vertices[i]);
-                    result.totalDisplacement += disp;
+                    localTotalDisplacement += disp;  // FIX: Use local variable
                     result.maxDisplacement = std::max(result.maxDisplacement, disp);
                     if (disp > 1e-10f) ++result.verticesMoved;
                     vertices[i] = newPositions[i];
@@ -418,7 +421,7 @@ SmoothingResult MeshSmoother::smooth(
                 // Apply
                 for (size_t i = 0; i < vertices.size(); ++i) {
                     float disp = glm::length(newPositions[i] - vertices[i]);
-                    result.totalDisplacement += disp;
+                    localTotalDisplacement += disp;  // FIX: Use local variable
                     result.maxDisplacement = std::max(result.maxDisplacement, disp);
                     if (disp > 1e-10f) ++result.verticesMoved;
                     vertices[i] = newPositions[i];
@@ -434,8 +437,9 @@ SmoothingResult MeshSmoother::smooth(
     mesh.computeNormals();
     
     // Compute average
+    // FIX: Use local total displacement variable
     if (result.verticesMoved > 0) {
-        result.averageDisplacement = result.totalDisplacement / result.verticesMoved;
+        result.averageDisplacement = localTotalDisplacement / result.verticesMoved;
     }
     
     return result;

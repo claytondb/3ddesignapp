@@ -309,13 +309,11 @@ void MenuBar::setupMeshMenu()
     // Polygon Reduction
     m_actionPolygonReduction = createAction(tr("&Polygon Reduction..."), "Ctrl+Shift+R", tr("Reduce polygon count"));
     connect(m_actionPolygonReduction, &QAction::triggered, this, &MenuBar::showPolygonReductionDialog);
-    connect(m_actionPolygonReduction, &QAction::triggered, this, &MenuBar::polygonReductionRequested);
     m_meshMenu->addAction(m_actionPolygonReduction);
 
     // Smoothing
     m_actionSmoothing = createAction(tr("&Smoothing..."), "Ctrl+Shift+S", tr("Smooth mesh surface"));
     connect(m_actionSmoothing, &QAction::triggered, this, &MenuBar::showSmoothingDialog);
-    connect(m_actionSmoothing, &QAction::triggered, this, &MenuBar::smoothingRequested);
     m_meshMenu->addAction(m_actionSmoothing);
 
     m_meshMenu->addSeparator();
@@ -323,13 +321,11 @@ void MenuBar::setupMeshMenu()
     // Fill Holes
     m_actionFillHoles = createAction(tr("&Fill Holes..."), "Ctrl+Shift+H", tr("Fill holes in mesh"));
     connect(m_actionFillHoles, &QAction::triggered, this, &MenuBar::showHoleFillDialog);
-    connect(m_actionFillHoles, &QAction::triggered, this, &MenuBar::fillHolesRequested);
     m_meshMenu->addAction(m_actionFillHoles);
 
     // Remove Outliers
     m_actionRemoveOutliers = createAction(tr("&Remove Outliers..."), "", tr("Remove outlier vertices"));
     connect(m_actionRemoveOutliers, &QAction::triggered, this, &MenuBar::showOutlierRemovalDialog);
-    connect(m_actionRemoveOutliers, &QAction::triggered, this, &MenuBar::removeOutliersRequested);
     m_meshMenu->addAction(m_actionRemoveOutliers);
 
     // De-feature
@@ -342,7 +338,6 @@ void MenuBar::setupMeshMenu()
     // Clipping Box
     m_actionClippingBox = createAction(tr("&Clipping Box..."), "Ctrl+Shift+B", tr("Enable clipping box"));
     connect(m_actionClippingBox, &QAction::triggered, this, &MenuBar::showClippingBoxDialog);
-    connect(m_actionClippingBox, &QAction::triggered, this, &MenuBar::clippingBoxRequested);
     m_meshMenu->addAction(m_actionClippingBox);
 
     // Split Mesh
@@ -612,6 +607,9 @@ void MenuBar::createMeshDialogs()
     // Create all mesh dialogs (lazy initialization would be better for memory,
     // but we create them now for simplicity)
     QWidget* parentWidget = window();
+    if (!parentWidget) {
+        parentWidget = this;  // Fallback to MenuBar as parent if window() is null
+    }
     
     m_polygonReductionDialog = new PolygonReductionDialog(parentWidget);
     m_smoothingDialog = new SmoothingDialog(parentWidget);

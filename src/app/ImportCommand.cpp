@@ -6,9 +6,9 @@
 #include "ImportCommand.h"
 #include "Application.h"
 #include "core/SceneManager.h"
+#include "core/IntegrationController.h"
 #include "geometry/MeshData.h"
 #include "ui/MainWindow.h"
-#include "ui/ObjectBrowser.h"
 #include "renderer/Viewport.h"
 
 #include <QDebug>
@@ -40,31 +40,25 @@ void ImportCommand::redo()
     
     qDebug() << "ImportCommand::redo - Adding mesh:" << m_meshName;
     
-    // Add mesh to scene manager
-    auto* sceneManager = m_app->sceneManager();
-    if (sceneManager) {
-        sceneManager->addMesh(m_meshId, m_meshName, m_mesh);
+    // Use IntegrationController to add mesh - this properly connects to:
+    // SceneManager, Viewport, Picking, and ObjectBrowser via signals
+    auto* integrationController = m_app->integrationController();
+    if (integrationController) {
+        integrationController->addMesh(m_meshId, m_meshName, m_mesh);
+    } else {
+        // Fallback: add directly to scene manager (not recommended)
+        auto* sceneManager = m_app->sceneManager();
+        if (sceneManager) {
+            sceneManager->addMesh(m_meshId, m_meshName, m_mesh);
+        }
     }
     
-    // Update viewport to render the mesh
+    // Fit view to show the new mesh
     auto* mainWindow = m_app->mainWindow();
     if (mainWindow) {
         auto* viewport = mainWindow->viewport();
         if (viewport) {
-            viewport->addMesh(m_meshId, m_mesh);
-            viewport->fitView();  // Fit view to show the new mesh
-        }
-        
-        // Add to object browser (only on first redo, otherwise scene signals handle it)
-        if (m_firstRedo) {
-            emit m_app->meshImported(m_meshName, m_meshId);
-            m_firstRedo = false;
-        } else {
-            // Re-add to object browser on redo
-            auto* objectBrowser = mainWindow->objectBrowser();
-            if (objectBrowser) {
-                objectBrowser->addMesh(m_meshName, QString::number(m_meshId));
-            }
+            viewport->fitView();
         }
         
         // Update status
@@ -84,26 +78,21 @@ void ImportCommand::undo()
     
     qDebug() << "ImportCommand::undo - Removing mesh:" << m_meshName;
     
-    // Remove mesh from scene manager
-    auto* sceneManager = m_app->sceneManager();
-    if (sceneManager) {
-        sceneManager->removeMesh(m_meshId);
+    // Use IntegrationController to remove mesh - this properly removes from:
+    // SceneManager, Viewport, Picking, ObjectBrowser, and Selection
+    auto* integrationController = m_app->integrationController();
+    if (integrationController) {
+        integrationController->removeMesh(m_meshId);
+    } else {
+        // Fallback: remove directly from scene manager (not recommended)
+        auto* sceneManager = m_app->sceneManager();
+        if (sceneManager) {
+            sceneManager->removeMesh(m_meshId);
+        }
     }
     
-    // Remove from viewport
     auto* mainWindow = m_app->mainWindow();
     if (mainWindow) {
-        auto* viewport = mainWindow->viewport();
-        if (viewport) {
-            viewport->removeMesh(m_meshId);
-        }
-        
-        // Remove from object browser
-        auto* objectBrowser = mainWindow->objectBrowser();
-        if (objectBrowser) {
-            objectBrowser->removeItem(QString::number(m_meshId));
-        }
-        
         mainWindow->setStatusMessage(QString("Undone: Import %1").arg(m_meshName));
     }
 }

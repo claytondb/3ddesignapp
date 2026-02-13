@@ -39,7 +39,54 @@ TransformGizmo::TransformGizmo(QObject* parent)
 {
 }
 
-TransformGizmo::~TransformGizmo() = default;
+TransformGizmo::~TransformGizmo()
+{
+    // Note: cleanup() should only be called explicitly when OpenGL context is current.
+    // The owner must call cleanup() before destruction to avoid OpenGL calls
+    // without a valid context, which causes undefined behavior or crashes.
+}
+
+void TransformGizmo::cleanup()
+{
+    if (!m_initialized) {
+        return;
+    }
+    
+    // Clean up translate gizmo resources
+    if (m_translateVBO) {
+        m_translateVBO->destroy();
+        m_translateVBO.reset();
+    }
+    if (m_translateVAO) {
+        m_translateVAO->destroy();
+        m_translateVAO.reset();
+    }
+    
+    // Clean up rotate gizmo resources
+    if (m_rotateVBO) {
+        m_rotateVBO->destroy();
+        m_rotateVBO.reset();
+    }
+    if (m_rotateVAO) {
+        m_rotateVAO->destroy();
+        m_rotateVAO.reset();
+    }
+    
+    // Clean up scale gizmo resources
+    if (m_scaleVBO) {
+        m_scaleVBO->destroy();
+        m_scaleVBO.reset();
+    }
+    if (m_scaleVAO) {
+        m_scaleVAO->destroy();
+        m_scaleVAO.reset();
+    }
+    
+    // Clean up shader
+    m_shader.reset();
+    
+    m_initialized = false;
+}
 
 void TransformGizmo::initialize() {
     if (m_initialized) {

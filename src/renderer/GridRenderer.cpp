@@ -87,7 +87,9 @@ GridRenderer::GridRenderer()
 
 GridRenderer::~GridRenderer()
 {
-    cleanup();
+    // Note: cleanup() should only be called explicitly when OpenGL context is current.
+    // The owner must call cleanup() before destruction to avoid OpenGL calls
+    // without a valid context, which causes undefined behavior or crashes.
 }
 
 bool GridRenderer::initialize()
@@ -294,7 +296,9 @@ void GridRenderer::render(const Camera& camera)
         renderAxes(camera);
     }
     
+    // Restore blending state - must be done regardless of showAxes
     glDisable(GL_BLEND);
+    glLineWidth(1.0f);  // Restore default line width
 }
 
 void GridRenderer::renderAxes(const Camera& camera)

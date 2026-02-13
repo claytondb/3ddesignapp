@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <queue>
+#include <unordered_set>
 
 namespace dc {
 
@@ -141,8 +142,15 @@ std::vector<int> QuadMesh::getVertexFaces(int vertexIdx) const {
     int startHe = m_vertices[vertexIdx].halfEdgeIdx;
     if (startHe == -1) return faces;
     
+    // Fix: Add visited set and iteration limit to prevent infinite loops on corrupted topology
+    std::unordered_set<int> visited;
+    int maxIter = static_cast<int>(m_halfEdges.size()) + 1;
+    int iter = 0;
+    
     int he = startHe;
     do {
+        if (visited.count(he) || ++iter > maxIter) break;
+        visited.insert(he);
         faces.push_back(m_halfEdges[he].faceIdx);
         int twin = m_halfEdges[he].twinIdx;
         if (twin == -1) break;
@@ -157,8 +165,15 @@ std::vector<int> QuadMesh::getVertexNeighbors(int vertexIdx) const {
     int startHe = m_vertices[vertexIdx].halfEdgeIdx;
     if (startHe == -1) return neighbors;
     
+    // Fix: Add visited set and iteration limit to prevent infinite loops on corrupted topology
+    std::unordered_set<int> visited;
+    int maxIter = static_cast<int>(m_halfEdges.size()) + 1;
+    int iter = 0;
+    
     int he = startHe;
     do {
+        if (visited.count(he) || ++iter > maxIter) break;
+        visited.insert(he);
         neighbors.push_back(m_halfEdges[he].vertexIdx);
         int twin = m_halfEdges[he].twinIdx;
         if (twin == -1) break;
@@ -702,8 +717,16 @@ QuadMeshQuality QuadMesh::computeQuality() const {
             glm::vec3 v1 = m_vertices[verts[(i + 1) % verts.size()]].position;
             glm::vec3 v2 = m_vertices[verts[(i + verts.size() - 1) % verts.size()]].position;
             
-            glm::vec3 e1 = glm::normalize(v1 - v0);
-            glm::vec3 e2 = glm::normalize(v2 - v0);
+            // Fix: Check for degenerate edges before normalizing to avoid NaN
+            glm::vec3 d1 = v1 - v0;
+            glm::vec3 d2 = v2 - v0;
+            float len1 = glm::length(d1);
+            float len2 = glm::length(d2);
+            if (len1 < 1e-6f || len2 < 1e-6f) {
+                continue;  // Skip degenerate vertex
+            }
+            glm::vec3 e1 = d1 / len1;
+            glm::vec3 e2 = d2 / len2;
             float angle = std::acos(glm::clamp(glm::dot(e1, e2), -1.0f, 1.0f)) * 180.0f / 3.14159265f;
             
             quality.minAngle = std::min(quality.minAngle, angle);

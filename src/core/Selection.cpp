@@ -146,7 +146,7 @@ SelectionElement Selection::createElementFromHit(const HitInfo& hit) const
             break;
             
         case SelectionMode::Edge:
-            // Encode edge as two vertex indices
+            // Encode edge as two vertex indices using 64-bit to support large meshes
             {
                 uint32_t v1, v2;
                 if (hit.closestEdge == 0) {
@@ -161,7 +161,8 @@ SelectionElement Selection::createElementFromHit(const HitInfo& hit) const
                 }
                 // Ensure consistent ordering
                 if (v1 > v2) std::swap(v1, v2);
-                elem.elementIndex = (v2 << 16) | v1;
+                // Use 64-bit encoding: upper 32 bits = v2, lower 32 bits = v1
+                elem.elementIndex = (static_cast<uint64_t>(v2) << 32) | static_cast<uint64_t>(v1);
             }
             break;
     }
@@ -342,7 +343,8 @@ void Selection::selectEdge(uint32_t meshId, uint32_t v1, uint32_t v2, SelectionO
     
     SelectionElement elem;
     elem.meshId = meshId;
-    elem.elementIndex = (v2 << 16) | v1;
+    // Use 64-bit encoding: upper 32 bits = v2, lower 32 bits = v1 (supports large meshes)
+    elem.elementIndex = (static_cast<uint64_t>(v2) << 32) | static_cast<uint64_t>(v1);
     elem.mode = SelectionMode::Edge;
     
     select(elem, op);

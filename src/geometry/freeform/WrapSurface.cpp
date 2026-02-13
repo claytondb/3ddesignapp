@@ -19,6 +19,14 @@ WrapResult SurfaceWrapper::wrapToMesh(const NurbsSurface& surface,
     
     // Get control points
     auto controlPoints = surface.getControlPoints();
+    
+    // Fix: Check for empty control points before accessing
+    if (controlPoints.empty() || controlPoints[0].empty()) {
+        result.success = false;
+        result.message = "Surface has no control points";
+        return result;
+    }
+    
     auto originalControlPoints = controlPoints;
     
     int nu = static_cast<int>(controlPoints.size());
@@ -459,6 +467,9 @@ void SurfaceWrapper::adjustForContinuity(std::vector<std::vector<glm::vec3>>& co
     
     if (continuityDegree < 1) return;
     
+    // Fix: Boundary check - need at least 2 control points in each direction
+    if (nu < 2 || nv < 2) return;
+    
     // G1 continuity: preserve tangent directions at boundaries
     if (continuityDegree >= 1) {
         // U boundaries
@@ -729,6 +740,11 @@ void MeshAccelerator::buildBVH() {
     // Simple BVH construction
     const auto& vertices = m_mesh.vertices();
     const auto& indices = m_mesh.indices();
+    
+    // Fix: Check for empty mesh before processing
+    if (vertices.empty() || indices.empty()) {
+        return;  // Initialize with empty BVH
+    }
     
     int numTriangles = static_cast<int>(indices.size() / 3);
     

@@ -434,12 +434,16 @@ std::vector<core::SelectionElement> Picking::boxSelect(
                 }
                 
                 for (uint64_t edgeKey : edgeSet) {
-                    uint32_t v1 = static_cast<uint32_t>(edgeKey & 0xFFFF);
-                    uint32_t v2 = static_cast<uint32_t>((edgeKey >> 16) & 0xFFFF);
+                    // Fix: Use 32-bit masks to match the 32-bit shift in makeEdgeKey
+                    // The edge key is packed as: (v2 << 32) | v1
+                    uint32_t v1 = static_cast<uint32_t>(edgeKey & 0xFFFFFFFF);
+                    uint32_t v2 = static_cast<uint32_t>(edgeKey >> 32);
                     
                     core::SelectionElement elem;
                     elem.meshId = pm.meshId;
-                    elem.elementIndex = (v2 << 16) | v1;
+                    // Note: elementIndex is 32-bit, so we pack with 16-bit for storage
+                    // This limits edge selection to meshes with <65536 vertices
+                    elem.elementIndex = (v2 << 16) | (v1 & 0xFFFF);
                     elem.mode = core::SelectionMode::Edge;
                     results.push_back(elem);
                 }

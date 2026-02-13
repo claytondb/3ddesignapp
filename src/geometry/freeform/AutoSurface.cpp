@@ -255,7 +255,12 @@ void AutoSurface::classifyFeaturePoints() {
                 FeaturePoint fp;
                 fp.vertexIdx = static_cast<int>(i);
                 fp.position = vertices[i].position;
-                fp.importance = curvatures[i] / maxCurv;
+                // Fix: Guard against division by zero when maxCurv is zero
+                if (maxCurv > 1e-6f) {
+                    fp.importance = curvatures[i] / maxCurv;
+                } else {
+                    fp.importance = 0.0f;
+                }
                 fp.targetValence = 4; // Regular for curvature features
                 m_featurePoints.push_back(fp);
             }
@@ -405,6 +410,18 @@ void AutoSurface::computePositionField() {
     
     // Solve for UV using sparse solver
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> solver(L);
+    
+    // Fix: Check solver status before using
+    if (solver.info() != Eigen::Success) {
+        // Handle degenerate case - fall back to simple parameterization
+        for (int i = 0; i < n; ++i) {
+            m_positionField[i] = glm::vec2(
+                static_cast<float>(i % 10) / 10.0f,
+                static_cast<float>(i / 10) / 10.0f
+            );
+        }
+        return;
+    }
     
     // Create RHS based on orientation field
     Eigen::VectorXf rhsU = Eigen::VectorXf::Zero(n);

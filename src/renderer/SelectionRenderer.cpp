@@ -20,7 +20,9 @@ SelectionRenderer::SelectionRenderer()
 
 SelectionRenderer::~SelectionRenderer()
 {
-    cleanup();
+    // Note: cleanup() should only be called explicitly when OpenGL context is current.
+    // The owner must call cleanup() before destruction to avoid OpenGL calls
+    // without a valid context, which causes undefined behavior or crashes.
 }
 
 bool SelectionRenderer::initialize()
@@ -44,6 +46,7 @@ bool SelectionRenderer::initialize()
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 8, nullptr, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);  // Unbind VBO before releasing VAO
     glBindVertexArray(0);
     
     // Create point VAO/VBO
@@ -54,6 +57,7 @@ bool SelectionRenderer::initialize()
     glBindBuffer(GL_ARRAY_BUFFER, m_pointVBO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);  // Unbind VBO before releasing VAO
     glBindVertexArray(0);
     
     // Create line VAO/VBO
@@ -64,6 +68,7 @@ bool SelectionRenderer::initialize()
     glBindBuffer(GL_ARRAY_BUFFER, m_lineVBO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);  // Unbind VBO before releasing VAO
     glBindVertexArray(0);
     
     m_initialized = true;

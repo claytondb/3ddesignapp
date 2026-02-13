@@ -1,6 +1,7 @@
 # Geometry module - Mesh and CAD operations
 
 set(GEOMETRY_SOURCES
+    # Core mesh types
     MeshData.cpp
     MeshData.h
     HalfEdgeMesh.cpp
@@ -9,6 +10,28 @@ set(GEOMETRY_SOURCES
     BVH.h
     NURBSSurface.cpp
     NURBSSurface.h
+    
+    # Mesh processing
+    MeshAnalysis.cpp
+    MeshAnalysis.h
+    MeshRepair.cpp
+    MeshRepair.h
+    MeshSmoothing.cpp
+    MeshSmoothing.h
+    MeshDecimation.cpp
+    MeshDecimation.h
+    MeshSubdivision.cpp
+    MeshSubdivision.h
+    
+    # Alignment / Registration
+    Alignment.cpp
+    Alignment.h
+    ICP.cpp
+    ICP.h
+    
+    # Analysis
+    DeviationAnalysis.cpp
+    DeviationAnalysis.h
     
     # Surface operations
     surfaces/Extrude.cpp
@@ -23,6 +46,40 @@ set(GEOMETRY_SOURCES
     surfaces/Pipe.h
     surfaces/PlanarSurface.cpp
     surfaces/PlanarSurface.h
+    
+    # Primitives (fitting)
+    primitives/Plane.cpp
+    primitives/Plane.h
+    primitives/Sphere.cpp
+    primitives/Sphere.h
+    primitives/Cylinder.cpp
+    primitives/Cylinder.h
+    primitives/Cone.cpp
+    primitives/Cone.h
+    primitives/PrimitiveFitter.cpp
+    primitives/PrimitiveFitter.h
+    primitives/SymmetryPlane.cpp
+    primitives/SymmetryPlane.h
+    
+    # Freeform surfaces
+    freeform/AutoSurface.cpp
+    freeform/AutoSurface.h
+    freeform/QuadMesh.cpp
+    freeform/QuadMesh.h
+    freeform/SurfaceFit.cpp
+    freeform/SurfaceFit.h
+    freeform/WrapSurface.cpp
+    freeform/WrapSurface.h
+    
+    # Solid modeling
+    solid/Solid.cpp
+    solid/Solid.h
+    solid/BooleanOps.cpp
+    solid/BooleanOps.h
+    solid/Fillet.cpp
+    solid/Fillet.h
+    solid/Chamfer.cpp
+    solid/Chamfer.h
 )
 
 add_library(dc3d_geometry STATIC
@@ -31,9 +88,29 @@ add_library(dc3d_geometry STATIC
 
 target_include_directories(dc3d_geometry PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/surfaces
+    ${CMAKE_CURRENT_SOURCE_DIR}/primitives
+    ${CMAKE_CURRENT_SOURCE_DIR}/freeform
+    ${CMAKE_CURRENT_SOURCE_DIR}/solid
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src
 )
+
+# GLM is header-only, find it
+find_package(glm CONFIG QUIET)
+if(NOT glm_FOUND)
+    # Fallback: GLM might be installed as system headers
+    find_path(GLM_INCLUDE_DIR glm/glm.hpp
+        PATHS /usr/include /usr/local/include
+    )
+    if(GLM_INCLUDE_DIR)
+        target_include_directories(dc3d_geometry PUBLIC ${GLM_INCLUDE_DIR})
+    else()
+        message(WARNING "GLM not found - geometry module may fail to compile")
+    endif()
+else()
+    target_link_libraries(dc3d_geometry PUBLIC glm::glm)
+endif()
 
 # Link only Qt for now - no circular dependencies
 target_link_libraries(dc3d_geometry PUBLIC

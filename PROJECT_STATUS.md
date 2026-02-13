@@ -1,8 +1,8 @@
 # Project Status — dc-3ddesignapp
 
-**Last Updated:** 2026-02-12 19:56 CST  
-**Current Version:** 1.0.0  
-**Status:** ✅ **Version 1.0 Released**
+**Last Updated:** 2026-02-12 20:00 CST  
+**Current Version:** 1.0.1  
+**Status:** ✅ **Version 1.0.1 — Build System Fixed**
 
 ---
 
@@ -136,6 +136,28 @@ This release delivers a full-featured scan-to-CAD application capable of convert
 - Complete workflow integration
 
 **Deliverables:** 2 files, 880 lines
+
+### Sprint 9 — Build Verification ✅
+- **CMakeLists.txt Updates:** Added all missing source files across 7 modules
+- **New Sketch Module:** Created `src/sketch/CMakeLists.txt` for sketch geometry library
+- **Resource Updates:** Added missing deviation shaders to `resources.qrc`
+- **Build Scripts:** Created `build.sh` (Linux/macOS) and `build.bat` (Windows)
+- **Documentation:** Created comprehensive `BUILD_NOTES.md`
+- **GLM Support:** Added CMake detection for GLM math library
+
+**Files Updated:**
+- `CMakeLists.txt` — Added sketch module
+- `src/core/CMakeLists.txt` — Added Commands/*
+- `src/geometry/CMakeLists.txt` — Added primitives/*, freeform/*, solid/*, processing files
+- `src/io/CMakeLists.txt` — Added STEP/IGES, NativeFormat
+- `src/renderer/CMakeLists.txt` — Added DeviationRenderer, PrimitiveRenderer, TransformGizmo
+- `src/ui/CMakeLists.txt` — Added panels/*, tools/FreeformTool, missing dialogs
+- `src/sketch/CMakeLists.txt` — **New file**
+- `resources/resources.qrc` — Added deviation shaders
+- `build.sh` / `build.bat` — **New files**
+- `BUILD_NOTES.md` — **New file**
+
+**Build Status:** Ready for cross-platform compilation
 
 ---
 

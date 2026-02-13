@@ -391,10 +391,12 @@ bool DecimationState::collapseEdge(uint32_t heIdx, const glm::vec3& newPosition)
     }
     
     // Redirect edges pointing to v1 to point to v0
-    // This is a simplified version - in a full implementation we'd
-    // properly rewire the half-edge structure
-    for (auto& halfEdge : mesh_) {
-        // Note: We can't iterate like this, need different approach
+    // FIX: Properly iterate over half-edges and update references to v1
+    for (size_t i = 0; i < mesh_.halfEdgeCount(); ++i) {
+        auto& he = mesh_.halfEdge(static_cast<uint32_t>(i));
+        if (he.vertex == v1) {
+            he.vertex = v0;
+        }
     }
     
     // Update version to invalidate old queue entries

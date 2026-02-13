@@ -21,7 +21,11 @@ namespace {
 struct Vec3Hash {
     size_t cellSize;
     
-    Vec3Hash(float tolerance) : cellSize(static_cast<size_t>(1.0f / tolerance)) {}
+    // FIX: Clamp to reasonable range to prevent overflow with very small tolerances
+    Vec3Hash(float tolerance) {
+        float inv = 1.0f / std::max(tolerance, 1e-7f);
+        cellSize = static_cast<size_t>(std::min(inv, 1e7f));
+    }
     
     size_t operator()(const glm::vec3& v) const {
         auto ix = static_cast<int64_t>(std::floor(v.x * cellSize));

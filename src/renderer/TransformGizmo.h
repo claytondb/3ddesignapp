@@ -61,6 +61,12 @@ public:
     void initialize();
     
     /**
+     * @brief Clean up OpenGL resources
+     * @note Must be called while OpenGL context is current, before destruction
+     */
+    void cleanup();
+    
+    /**
      * @brief Render the gizmo
      * @param view View matrix
      * @param projection Projection matrix

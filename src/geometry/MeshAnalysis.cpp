@@ -9,6 +9,11 @@
 #include <numeric>
 #include <queue>
 
+// FIX: Define M_PI for portability (not guaranteed by C++ standard)
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 namespace dc3d {
 namespace geometry {
 

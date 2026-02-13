@@ -57,6 +57,8 @@ QGroupBox* PropertiesPanel::createCollapsibleGroup(const QString& title)
 QWidget* PropertiesPanel::createSpinBoxRow(const QString& label, QDoubleSpinBox* spinBox,
                                             const QString& suffix)
 {
+    if (!spinBox) return nullptr;  // Null check to prevent crash
+    
     QWidget* row = new QWidget();
     QHBoxLayout* layout = new QHBoxLayout(row);
     layout->setContentsMargins(0, 0, 0, 0);

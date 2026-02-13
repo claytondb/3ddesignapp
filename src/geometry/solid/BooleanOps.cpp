@@ -28,7 +28,7 @@ BSPNode::Plane BSPNode::Plane::fromPoints(const glm::vec3& a, const glm::vec3& b
 }
 
 std::unique_ptr<BSPNode> BSPNode::build(std::vector<SolidFace>& faces,
-                                        const std::vector<SolidVertex>& vertices,
+                                        std::vector<SolidVertex>& vertices,
                                         float epsilon) {
     if (faces.empty()) return nullptr;
     
@@ -37,22 +37,30 @@ std::unique_ptr<BSPNode> BSPNode::build(std::vector<SolidFace>& faces,
     
     // Use first face as splitting plane
     const auto& firstFace = faces[0];
-    if (firstFace.vertices.size() >= 3) {
+    // CRITICAL FIX: Validate vertex indices before accessing vertices array
+    if (firstFace.vertices.size() >= 3 &&
+        firstFace.vertices[0] < vertices.size() &&
+        firstFace.vertices[1] < vertices.size() &&
+        firstFace.vertices[2] < vertices.size()) {
         const glm::vec3& a = vertices[firstFace.vertices[0]].position;
         const glm::vec3& b = vertices[firstFace.vertices[1]].position;
         const glm::vec3& c = vertices[firstFace.vertices[2]].position;
         node->plane_ = Plane::fromPoints(a, b, c);
+    } else {
+        // Invalid face - cannot build node
+        return nullptr;
     }
     
     std::vector<SolidFace> frontFaces, backFaces;
     std::vector<SolidFace> coplanarFront, coplanarBack;
     
-    // Mutable copy of vertices for splitting
-    std::vector<SolidVertex> newVertices = vertices;
+    // HIGH FIX: Pass vertices by reference so new split vertices are preserved
+    // No longer create a local copy that would be lost
     
     for (const auto& face : faces) {
-        node->splitFace(face, newVertices, coplanarFront, coplanarBack,
-                       frontFaces, backFaces, newVertices);
+        // HIGH FIX: Use vertices directly (passed by reference) so new split vertices are preserved
+        node->splitFace(face, vertices, coplanarFront, coplanarBack,
+                       frontFaces, backFaces, vertices);
     }
     
     // Add coplanar faces to this node
@@ -61,12 +69,12 @@ std::unique_ptr<BSPNode> BSPNode::build(std::vector<SolidFace>& faces,
     node->coplanarFaces_.insert(node->coplanarFaces_.end(),
                                coplanarBack.begin(), coplanarBack.end());
     
-    // Recursively build children
+    // Recursively build children - pass vertices by reference to preserve split vertices
     if (!frontFaces.empty()) {
-        node->front_ = build(frontFaces, newVertices, epsilon);
+        node->front_ = build(frontFaces, vertices, epsilon);
     }
     if (!backFaces.empty()) {
-        node->back_ = build(backFaces, newVertices, epsilon);
+        node->back_ = build(backFaces, vertices, epsilon);
     }
     
     return node;
@@ -469,6 +477,16 @@ std::vector<std::vector<glm::vec3>> BooleanOps::findIntersectionCurves(
             if (faceA.isTriangle() && faceB.isTriangle()) {
                 std::vector<glm::vec3> intersectionPoints;
                 
+                // CRITICAL FIX: Validate vertex indices before accessing
+                if (faceA.vertices[0] >= solidA.vertexCount() ||
+                    faceA.vertices[1] >= solidA.vertexCount() ||
+                    faceA.vertices[2] >= solidA.vertexCount() ||
+                    faceB.vertices[0] >= solidB.vertexCount() ||
+                    faceB.vertices[1] >= solidB.vertexCount() ||
+                    faceB.vertices[2] >= solidB.vertexCount()) {
+                    continue;  // Skip faces with invalid vertex indices
+                }
+                
                 const auto& a0 = solidA.vertex(faceA.vertices[0]).position;
                 const auto& a1 = solidA.vertex(faceA.vertices[1]).position;
                 const auto& a2 = solidA.vertex(faceA.vertices[2]).position;
@@ -523,6 +541,13 @@ bool BooleanOps::isPointInside(const Solid& solid, const glm::vec3& point) {
     
     for (const auto& face : solid.faces()) {
         if (!face.isTriangle()) continue;  // Only handle triangles for simplicity
+        
+        // CRITICAL FIX: Validate vertex indices before accessing
+        if (face.vertices[0] >= solid.vertexCount() ||
+            face.vertices[1] >= solid.vertexCount() ||
+            face.vertices[2] >= solid.vertexCount()) {
+            continue;  // Skip faces with invalid vertex indices
+        }
         
         const auto& v0 = solid.vertex(face.vertices[0]).position;
         const auto& v1 = solid.vertex(face.vertices[1]).position;

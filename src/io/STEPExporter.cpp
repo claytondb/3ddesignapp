@@ -81,6 +81,9 @@ bool STEPExporter::exportModel(const Model& model, const std::string& filename, 
         return false;
     }
     
+    // HIGH FIX: Enable exception-based error handling for file operations
+    m_file.exceptions(std::ios::failbit | std::ios::badbit);
+    
     try {
         writeHeader(filename);
         
@@ -113,8 +116,21 @@ bool STEPExporter::exportModel(const Model& model, const std::string& filename, 
         writeDataSection();
         writeFooter();
         
+        // HIGH FIX: Check stream state after all writes
+        if (!m_file.good()) {
+            m_errorMessage = "File write error - stream in bad state after export";
+            m_file.close();
+            return false;
+        }
+        
         m_file.close();
         return true;
+    }
+    catch (const std::ios_base::failure& e) {
+        // HIGH FIX: Handle I/O failures (disk full, permission errors, etc.)
+        m_errorMessage = std::string("File I/O error: ") + e.what();
+        m_file.close();
+        return false;
     }
     catch (const std::exception& e) {
         m_errorMessage = std::string("Export error: ") + e.what();

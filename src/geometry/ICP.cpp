@@ -72,6 +72,13 @@ int KDTree::findNearest(const glm::vec3& query, float maxDistance) const {
     return findNearest(query, dist, normal, maxDistance);
 }
 
+glm::vec3 KDTree::getPoint(int index) const {
+    if (index < 0 || static_cast<size_t>(index) >= points_.size()) {
+        return glm::vec3(0.0f);
+    }
+    return points_[index];
+}
+
 int KDTree::findNearest(const glm::vec3& query, float& outDistance, glm::vec3& outNormal,
                         float maxDistance) const {
     if (!root_) {
@@ -268,7 +275,7 @@ std::vector<Correspondence> ICP::findCorrespondences(
             corr.sourceIndex = static_cast<int>(i);
             corr.targetIndex = targetIdx;
             corr.sourcePoint = sourcePoints[i];
-            corr.targetPoint = sourcePoints[i]; // Will be updated from tree
+            corr.targetPoint = targetTree.getPoint(targetIdx);  // FIX: Get actual target point from KD-tree
             corr.targetNormal = normal;
             corr.distance = distance;
             correspondences.push_back(corr);

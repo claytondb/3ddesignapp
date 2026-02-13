@@ -1,27 +1,3 @@
-# Sketch UI module sources
-
-set(SKETCH_SOURCES
-    SketchMode.cpp
-    SketchToolbox.cpp
-    SketchViewport.cpp
-    SketchTool.cpp
-    LineTool.cpp
-    ArcTool.cpp
-    SplineTool.cpp
-    DimensionTool.cpp
-)
-
-set(SKETCH_HEADERS
-    SketchMode.h
-    SketchToolbox.h
-    SketchViewport.h
-    SketchTool.h
-    LineTool.h
-    ArcTool.h
-    SplineTool.h
-    DimensionTool.h
-)
-
-# Add to parent scope
-set(UI_SKETCH_SOURCES ${SKETCH_SOURCES} PARENT_SCOPE)
-set(UI_SKETCH_HEADERS ${SKETCH_HEADERS} PARENT_SCOPE)
+# Sketch UI module - included by parent CMakeLists.txt
+# This file exists for compatibility but sources are built in the parent
+message(STATUS "Sketch UI module included from ui/CMakeLists.txt")

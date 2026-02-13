@@ -197,17 +197,26 @@ size_t MeshRepair::keepLargestComponent(MeshData& mesh) {
         if (!keepFaces.count(static_cast<uint32_t>(fi))) continue;
         
         uint32_t newIndices[3];
+        bool validFace = true;
         for (int i = 0; i < 3; ++i) {
             uint32_t vi = indices[fi * 3 + i];
+            // FIX: Add bounds checking for vertex index
+            if (vi >= vertices.size()) {
+                validFace = false;
+                break;
+            }
             if (vertexMap[vi] == INVALID_INDEX) {
                 vertexMap[vi] = static_cast<uint32_t>(newMesh.vertices().size());
                 newMesh.vertices().push_back(vertices[vi]);
-                if (!normals.empty()) {
+                if (!normals.empty() && vi < normals.size()) {
                     newMesh.normals().push_back(normals[vi]);
                 }
             }
             newIndices[i] = vertexMap[vi];
         }
+        
+        // FIX: Skip invalid faces
+        if (!validFace) continue;
         
         newMesh.addFace(newIndices[0], newIndices[1], newIndices[2]);
     }

@@ -403,11 +403,22 @@ geometry::Result<geometry::MeshData> STLImporter::importBinary(
     
     // Sanity check for triangle count (prevent bad allocations)
     constexpr size_t MAX_TRIANGLES = 100000000;  // 100M triangles max
-    if (triangleCount > MAX_TRIANGLES) {
+    // Check for overflow before multiplication (CRITICAL FIX: Integer overflow prevention)
+    if (triangleCount > MAX_TRIANGLES || triangleCount > SIZE_MAX / 3) {
         return geometry::Result<geometry::MeshData>::failure(
-            "Triangle count exceeds maximum supported (" + 
+            "Triangle count exceeds maximum supported or causes overflow (" + 
             std::to_string(triangleCount) + " > " + std::to_string(MAX_TRIANGLES) + ")");
     }
+    
+    // Validate file has enough data for declared triangle count (CRITICAL FIX: File size validation)
+    size_t expectedSize = STL_HEADER_SIZE + 4 + (static_cast<size_t>(triangleCount) * STL_TRIANGLE_SIZE);
+    stream.seekg(0, std::ios::end);
+    auto actualFileSize = stream.tellg();
+    if (actualFileSize < 0 || static_cast<size_t>(actualFileSize) < expectedSize) {
+        return geometry::Result<geometry::MeshData>::failure(
+            "File truncated - insufficient data for declared triangle count");
+    }
+    stream.seekg(STL_HEADER_SIZE + 4);  // Reset to start of triangle data
     
     bool reportProgress = progress && triangleCount > options.progressThreshold;
     

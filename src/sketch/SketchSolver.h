@@ -6,6 +6,8 @@
 #include <memory>
 #include <functional>
 #include <unordered_map>
+#include <atomic>
+#include <optional>
 
 namespace dc {
 namespace sketch {
@@ -62,6 +64,9 @@ public:
     // Constraint value (for dimensional constraints)
     float value = 0.0f;
     
+    // Target position for FixedPoint constraints (FIX: proper storage instead of abusing refs)
+    std::optional<glm::vec2> targetPosition;
+    
     // Whether constraint is driving or driven
     bool isDriving = true;
     
@@ -77,7 +82,8 @@ private:
     uint64_t m_id;
     ConstraintType m_type;
     
-    static uint64_t s_nextId;
+    // FIX: Thread-safe ID generation using atomic
+    static std::atomic<uint64_t> s_nextId;
 };
 
 /**

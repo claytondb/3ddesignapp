@@ -16,6 +16,9 @@ namespace io {
 
 namespace {
 
+// Maximum list size to prevent DoS attacks (CRITICAL FIX)
+constexpr int64_t MAX_LIST_SIZE = 10000000;  // 10M elements max
+
 // Trim whitespace from string
 std::string trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t\r\n");
@@ -568,6 +571,11 @@ geometry::Result<geometry::MeshData> PLYImporter::readBinary(
                     if (prop.isList) {
                         // Skip list properties in vertex (unusual)
                         int64_t listSize = readBinaryAsInt(stream, prop.listSizeType, needSwap);
+                        // CRITICAL FIX: Bounds check for list size to prevent DoS
+                        if (listSize < 0 || listSize > MAX_LIST_SIZE) {
+                            return geometry::Result<geometry::MeshData>::failure(
+                                "Invalid list size in binary PLY: " + std::to_string(listSize));
+                        }
                         for (int64_t i = 0; i < listSize; ++i) {
                             readBinaryAsDouble(stream, prop.listElementType, needSwap);
                         }
@@ -616,6 +624,11 @@ geometry::Result<geometry::MeshData> PLYImporter::readBinary(
                     const auto& prop = element.properties[p];
                     if (prop.isList) {
                         int64_t listSize = readBinaryAsInt(stream, prop.listSizeType, needSwap);
+                        // CRITICAL FIX: Bounds check for list size
+                        if (listSize < 0 || listSize > MAX_LIST_SIZE) {
+                            return geometry::Result<geometry::MeshData>::failure(
+                                "Invalid list size in binary PLY: " + std::to_string(listSize));
+                        }
                         for (int64_t i = 0; i < listSize; ++i) {
                             readBinaryAsDouble(stream, prop.listElementType, needSwap);
                         }
@@ -627,9 +640,10 @@ geometry::Result<geometry::MeshData> PLYImporter::readBinary(
                 // Read face list
                 int64_t vertexCount = readBinaryAsInt(stream, faceListSizeType, needSwap);
                 
-                if (vertexCount < 3) {
+                // CRITICAL FIX: Bounds check for vertex count
+                if (vertexCount < 3 || vertexCount > MAX_LIST_SIZE) {
                     return geometry::Result<geometry::MeshData>::failure(
-                        "Face " + std::to_string(f) + " has fewer than 3 vertices");
+                        "Face " + std::to_string(f) + " has invalid vertex count: " + std::to_string(vertexCount));
                 }
                 
                 std::vector<uint32_t> indices(vertexCount);
@@ -648,6 +662,11 @@ geometry::Result<geometry::MeshData> PLYImporter::readBinary(
                     const auto& prop = element.properties[p];
                     if (prop.isList) {
                         int64_t listSize = readBinaryAsInt(stream, prop.listSizeType, needSwap);
+                        // CRITICAL FIX: Bounds check for list size
+                        if (listSize < 0 || listSize > MAX_LIST_SIZE) {
+                            return geometry::Result<geometry::MeshData>::failure(
+                                "Invalid list size in binary PLY: " + std::to_string(listSize));
+                        }
                         for (int64_t i = 0; i < listSize; ++i) {
                             readBinaryAsDouble(stream, prop.listElementType, needSwap);
                         }
@@ -681,6 +700,11 @@ geometry::Result<geometry::MeshData> PLYImporter::readBinary(
                 for (const auto& prop : element.properties) {
                     if (prop.isList) {
                         int64_t listSize = readBinaryAsInt(stream, prop.listSizeType, needSwap);
+                        // CRITICAL FIX: Bounds check for list size
+                        if (listSize < 0 || listSize > MAX_LIST_SIZE) {
+                            return geometry::Result<geometry::MeshData>::failure(
+                                "Invalid list size in binary PLY: " + std::to_string(listSize));
+                        }
                         for (int64_t j = 0; j < listSize; ++j) {
                             readBinaryAsDouble(stream, prop.listElementType, needSwap);
                         }

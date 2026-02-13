@@ -2,6 +2,7 @@
 #include <cmath>
 #include <algorithm>
 #include <stdexcept>
+#include <limits>
 
 namespace dc {
 namespace sketch {
@@ -10,7 +11,8 @@ constexpr float PI = 3.14159265358979323846f;
 
 // ==================== Constraint Implementation ====================
 
-uint64_t Constraint::s_nextId = 1;
+// FIX: Thread-safe ID generation using atomic
+std::atomic<uint64_t> Constraint::s_nextId{1};
 
 Constraint::Constraint(ConstraintType type)
     : m_id(s_nextId++)
@@ -343,7 +345,9 @@ void SketchSolver::evaluateConstraint(const Constraint& constraint,
             if (constraint.refs.size() >= 2) {
                 glm::vec2 p1 = getPointFromRef(constraint.refs[0]);
                 glm::vec2 p2 = getPointFromRef(constraint.refs[1]);
-                float dist = glm::length(p2 - p1);
+                // FIX: Add epsilon to prevent numerical instability when points are coincident
+                // The derivative of sqrt(x) at x=0 is infinite, so we clamp to small positive value
+                float dist = std::max(glm::length(p2 - p1), 1e-10f);
                 residuals.push_back(dist - constraint.value);
             }
             break;
@@ -356,10 +360,18 @@ void SketchSolver::evaluateConstraint(const Constraint& constraint,
                 auto line1 = std::dynamic_pointer_cast<SketchLine>(e1);
                 auto line2 = std::dynamic_pointer_cast<SketchLine>(e2);
                 if (line1 && line2) {
-                    glm::vec2 d1 = line1->direction();
-                    glm::vec2 d2 = line2->direction();
-                    // Cross product should be zero for parallel
-                    residuals.push_back(d1.x * d2.y - d1.y * d2.x);
+                    // FIX: Check for zero-length lines to prevent incorrect constraint satisfaction
+                    // Zero-length lines return arbitrary direction (1,0), which would incorrectly
+                    // satisfy parallel constraints
+                    if (line1->length() < 1e-10f || line2->length() < 1e-10f) {
+                        // Push NaN to indicate degenerate constraint - solver will fail gracefully
+                        residuals.push_back(std::numeric_limits<float>::quiet_NaN());
+                    } else {
+                        glm::vec2 d1 = line1->direction();
+                        glm::vec2 d2 = line2->direction();
+                        // Cross product should be zero for parallel
+                        residuals.push_back(d1.x * d2.y - d1.y * d2.x);
+                    }
                 }
             }
             break;
@@ -372,10 +384,18 @@ void SketchSolver::evaluateConstraint(const Constraint& constraint,
                 auto line1 = std::dynamic_pointer_cast<SketchLine>(e1);
                 auto line2 = std::dynamic_pointer_cast<SketchLine>(e2);
                 if (line1 && line2) {
-                    glm::vec2 d1 = line1->direction();
-                    glm::vec2 d2 = line2->direction();
-                    // Dot product should be zero for perpendicular
-                    residuals.push_back(d1.x * d2.x + d1.y * d2.y);
+                    // FIX: Check for zero-length lines to prevent incorrect constraint satisfaction
+                    // Zero-length lines return arbitrary direction (1,0), which would incorrectly
+                    // satisfy perpendicular constraints
+                    if (line1->length() < 1e-10f || line2->length() < 1e-10f) {
+                        // Push NaN to indicate degenerate constraint - solver will fail gracefully
+                        residuals.push_back(std::numeric_limits<float>::quiet_NaN());
+                    } else {
+                        glm::vec2 d1 = line1->direction();
+                        glm::vec2 d2 = line2->direction();
+                        // Dot product should be zero for perpendicular
+                        residuals.push_back(d1.x * d2.x + d1.y * d2.y);
+                    }
                 }
             }
             break;
@@ -415,34 +435,92 @@ void SketchSolver::evaluateConstraint(const Constraint& constraint,
         case ConstraintType::FixedPoint: {
             if (constraint.refs.size() >= 1) {
                 glm::vec2 p = getPointFromRef(constraint.refs[0]);
-                // Value encodes the fixed position (we'd need a better way to store this)
-                // For now, use refs[1] if available, or (value, 0)
-                glm::vec2 target(constraint.value, 0.0f);
-                if (constraint.refs.size() >= 2) {
-                    target = glm::vec2(constraint.refs[1].entityId, constraint.refs[1].pointIndex);
+                // FIX: Use proper targetPosition field instead of abusing refs structure
+                // This fixes data corruption from casting floats to uint64_t (undefined behavior
+                // for negative values) and the missing scale factor of 1000
+                if (constraint.targetPosition.has_value()) {
+                    glm::vec2 target = constraint.targetPosition.value();
+                    residuals.push_back(p.x - target.x);
+                    residuals.push_back(p.y - target.y);
+                } else {
+                    // Fallback: fix at origin if no target specified
+                    residuals.push_back(p.x);
+                    residuals.push_back(p.y);
                 }
-                residuals.push_back(p.x - target.x);
-                residuals.push_back(p.y - target.y);
             }
             break;
         }
         
         case ConstraintType::Tangent: {
-            // Tangent constraint is more complex - simplified version
+            // FIX: Handle all entity type combinations for tangent constraint
+            // Previously only line-circle was handled; missing combinations caused
+            // solver to be under-constrained
             if (constraint.refs.size() >= 2) {
-                // For line-circle tangent
                 auto e1 = m_sketch->getEntity(constraint.refs[0].entityId);
                 auto e2 = m_sketch->getEntity(constraint.refs[1].entityId);
                 
-                auto line = std::dynamic_pointer_cast<SketchLine>(e1);
-                auto circle = std::dynamic_pointer_cast<SketchCircle>(e2);
+                auto line1 = std::dynamic_pointer_cast<SketchLine>(e1);
+                auto line2 = std::dynamic_pointer_cast<SketchLine>(e2);
+                auto circle1 = std::dynamic_pointer_cast<SketchCircle>(e1);
+                auto circle2 = std::dynamic_pointer_cast<SketchCircle>(e2);
+                auto arc1 = std::dynamic_pointer_cast<SketchArc>(e1);
+                auto arc2 = std::dynamic_pointer_cast<SketchArc>(e2);
                 
-                if (line && circle) {
-                    // Distance from center to line should equal radius
-                    glm::vec2 lineDir = line->direction();
-                    glm::vec2 toCenter = circle->getCenter() - line->getStart();
-                    float dist = std::abs(toCenter.x * lineDir.y - toCenter.y * lineDir.x);
-                    residuals.push_back(dist - circle->getRadius());
+                // Helper lambda to compute distance from point to line
+                auto pointToLineDist = [](const glm::vec2& point, const SketchLine& line) -> float {
+                    glm::vec2 lineDir = line.direction();
+                    glm::vec2 toPoint = point - line.getStart();
+                    return std::abs(toPoint.x * lineDir.y - toPoint.y * lineDir.x);
+                };
+                
+                // Case 1: Line-Circle tangent
+                if (line1 && circle2) {
+                    float dist = pointToLineDist(circle2->getCenter(), *line1);
+                    residuals.push_back(dist - circle2->getRadius());
+                }
+                // Case 2: Circle-Line tangent (reversed order)
+                else if (circle1 && line2) {
+                    float dist = pointToLineDist(circle1->getCenter(), *line2);
+                    residuals.push_back(dist - circle1->getRadius());
+                }
+                // Case 3: Line-Arc tangent
+                else if (line1 && arc2) {
+                    float dist = pointToLineDist(arc2->getCenter(), *line1);
+                    residuals.push_back(dist - arc2->getRadius());
+                }
+                // Case 4: Arc-Line tangent (reversed order)
+                else if (arc1 && line2) {
+                    float dist = pointToLineDist(arc1->getCenter(), *line2);
+                    residuals.push_back(dist - arc1->getRadius());
+                }
+                // Case 5: Circle-Circle tangent (internal or external)
+                else if (circle1 && circle2) {
+                    float centerDist = glm::length(circle2->getCenter() - circle1->getCenter());
+                    float r1 = circle1->getRadius();
+                    float r2 = circle2->getRadius();
+                    // For external tangent: dist = r1 + r2
+                    // For internal tangent: dist = |r1 - r2|
+                    // We use external tangent as default; internal would need separate constraint type
+                    residuals.push_back(centerDist - (r1 + r2));
+                }
+                // Case 6: Arc-Circle tangent
+                else if (arc1 && circle2) {
+                    float centerDist = glm::length(circle2->getCenter() - arc1->getCenter());
+                    residuals.push_back(centerDist - (arc1->getRadius() + circle2->getRadius()));
+                }
+                // Case 7: Circle-Arc tangent (reversed order)
+                else if (circle1 && arc2) {
+                    float centerDist = glm::length(arc2->getCenter() - circle1->getCenter());
+                    residuals.push_back(centerDist - (circle1->getRadius() + arc2->getRadius()));
+                }
+                // Case 8: Arc-Arc tangent
+                else if (arc1 && arc2) {
+                    float centerDist = glm::length(arc2->getCenter() - arc1->getCenter());
+                    residuals.push_back(centerDist - (arc1->getRadius() + arc2->getRadius()));
+                }
+                // Unhandled combination (e.g., spline tangents) - push NaN to signal error
+                else {
+                    residuals.push_back(std::numeric_limits<float>::quiet_NaN());
                 }
             }
             break;
@@ -455,7 +533,10 @@ void SketchSolver::evaluateConstraint(const Constraint& constraint,
 
 void SketchSolver::buildJacobian(std::vector<std::vector<float>>& jacobian, 
                                   int numEqs, int numVars) {
-    const float h = 1e-7f;  // Finite difference step
+    // FIX: Changed from 1e-7f to 1e-5f for better numerical stability with single precision
+    // For float, 1e-7f is near machine epsilon (~7 decimal digits precision)
+    // so x + h - x may not equal h due to cancellation errors
+    const float h = 1e-5f;  // Finite difference step
     
     jacobian.resize(numEqs);
     for (auto& row : jacobian) {
@@ -533,7 +614,10 @@ bool SketchSolver::solveLinearSystem(const std::vector<std::vector<float>>& J,
         std::swap(A[i], A[maxRow]);
         std::swap(b[i], b[maxRow]);
         
-        if (std::abs(A[i][i]) < 1e-12f) {
+        // FIX: Changed tolerance from 1e-12f to 1e-6f
+        // For single precision floats, 1e-12f is well below machine epsilon (~1e-7f)
+        // so this condition would rarely trigger even for near-singular matrices
+        if (std::abs(A[i][i]) < 1e-6f) {
             continue;  // Skip singular row
         }
         
@@ -549,7 +633,8 @@ bool SketchSolver::solveLinearSystem(const std::vector<std::vector<float>>& J,
     
     // Back substitution
     for (int i = n - 1; i >= 0; --i) {
-        if (std::abs(A[i][i]) < 1e-12f) {
+        // FIX: Same tolerance fix as above - use 1e-6f for single precision floats
+        if (std::abs(A[i][i]) < 1e-6f) {
             dx[i] = 0.0f;
             continue;
         }
@@ -718,8 +803,11 @@ uint64_t SketchSolver::addTangent(uint64_t entity1Id, uint64_t entity2Id) {
 uint64_t SketchSolver::addFixedPoint(uint64_t entityId, int pointIndex, const glm::vec2& position) {
     auto c = Constraint::create(ConstraintType::FixedPoint);
     c->refs.push_back({entityId, pointIndex});
-    // Store position in a hacky way - ideally we'd have a better structure
-    c->refs.push_back({static_cast<uint64_t>(position.x * 1000), static_cast<int>(position.y * 1000)});
+    // FIX: Use proper targetPosition field instead of abusing refs structure
+    // The old code cast float*1000 to uint64_t which:
+    // 1. Has undefined behavior for negative floats
+    // 2. Lost the scale factor when reading back (didn't divide by 1000)
+    c->targetPosition = position;
     return addConstraint(c);
 }
 

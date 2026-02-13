@@ -136,8 +136,9 @@ public:
     
     /**
      * @brief Set the selection manager for rendering highlights
+     * @note Uses weak_ptr to avoid dangling pointer if Selection is destroyed
      */
-    void setSelection(dc3d::core::Selection* selection) { m_selection = selection; }
+    void setSelection(std::shared_ptr<dc3d::core::Selection> selection) { m_selection = selection; }
     
     // ---- View Control ----
     
@@ -280,8 +281,8 @@ private:
     std::unique_ptr<ShaderProgram> m_meshShader;
     std::unique_ptr<dc3d::renderer::SelectionRenderer> m_selectionRenderer;
     
-    // Selection reference (set externally)
-    dc3d::core::Selection* m_selection = nullptr;
+    // Selection reference (weak_ptr to avoid dangling pointer issues)
+    std::weak_ptr<dc3d::core::Selection> m_selection;
     
     // Mesh storage
     std::unordered_map<uint64_t, std::shared_ptr<dc3d::geometry::MeshData>> m_meshes;

@@ -375,8 +375,13 @@ DeviationStats DeviationAnalysis::computeStats(
     std::vector<float> sorted = absDeviations;
     std::sort(sorted.begin(), sorted.end());
     
+    // FIX: Add explicit bounds checking for percentile calculation
     auto percentile = [&sorted](float p) -> float {
-        size_t idx = static_cast<size_t>(p * (sorted.size() - 1));
+        if (sorted.empty()) return 0.0f;
+        size_t idx = std::min(
+            static_cast<size_t>(p * (sorted.size() - 1)),
+            sorted.size() - 1
+        );
         return sorted[idx];
     };
     

@@ -111,13 +111,13 @@ private:
 
     // Draft angle controls
     QGroupBox* m_draftGroup;
-    QCheckBox* m_enableDraft;
+    QCheckBox* m_enableDraft = nullptr;  // Initialize to nullptr (unused, m_draftGroup->setCheckable used instead)
     QDoubleSpinBox* m_draftAngleSpinbox;
     QComboBox* m_draftDirectionCombo;
 
     // Two-sided controls
     QGroupBox* m_twoSidedGroup;
-    QCheckBox* m_twoSidedCheck;
+    QCheckBox* m_twoSidedCheck = nullptr;  // Initialize to nullptr (unused, m_twoSidedGroup->setChecked used instead)
     QDoubleSpinBox* m_ratioSpinbox;
     QLabel* m_ratioLabel;
 

@@ -21,8 +21,9 @@ namespace dc3d {
 namespace core {
 class SceneManager;
 class Selection;
-class IntegrationController;
 }
+
+class IntegrationController;
 
 namespace geometry {
 class MeshData;
@@ -93,7 +94,7 @@ public:
     /**
      * @brief Get the integration controller
      */
-    core::IntegrationController* integrationController() const { return m_integrationController.get(); }
+    IntegrationController* integrationController() const { return m_integrationController.get(); }
     
     /**
      * @brief Get the main window
@@ -134,7 +135,7 @@ private:
     std::unique_ptr<core::SceneManager> m_sceneManager;
     std::unique_ptr<core::Selection> m_selection;
     std::unique_ptr<renderer::Picking> m_picking;
-    std::unique_ptr<core::IntegrationController> m_integrationController;
+    std::unique_ptr<IntegrationController> m_integrationController;
     std::unique_ptr<QUndoStack> m_undoStack;
     MainWindow* m_mainWindow = nullptr;
     bool m_initialized = false;

@@ -43,9 +43,8 @@ void ImportMeshCommand::execute()
         return;
     }
     
-    // If already in scene (redo case), just restore visibility/add back
-    if (m_isInScene && m_nodeId != 0) {
-        m_sceneManager->restoreNode(m_nodeId);
+    // If already in scene, nothing to do
+    if (m_isInScene) {
         return;
     }
     
@@ -56,10 +55,11 @@ void ImportMeshCommand::execute()
         }
     }
     
-    // Add mesh to scene
+    // Add mesh to scene (works for both first execution and redo)
     QFileInfo fileInfo(m_filePath);
     QString nodeName = fileInfo.baseName();
     
+    // For redo case, m_meshData was restored in undo(), so we can reuse it
     m_nodeId = m_sceneManager->addMeshNode(nodeName.toStdString(), std::move(m_meshData));
     
     if (m_nodeId != 0) {

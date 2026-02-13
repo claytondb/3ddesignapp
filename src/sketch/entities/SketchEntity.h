@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include <atomic>
 
 namespace dc {
 namespace sketch {
@@ -154,7 +155,8 @@ protected:
     bool m_isSelected = false;
     
 private:
-    static uint64_t s_nextId;
+    // FIX: Thread-safe ID generation using atomic
+    static std::atomic<uint64_t> s_nextId;
 };
 
 } // namespace sketch

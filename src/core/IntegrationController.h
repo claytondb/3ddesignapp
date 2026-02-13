@@ -17,6 +17,8 @@
 #include <memory>
 #include <cstdint>
 
+#include "Selection.h"  // Required for SelectionMode enum
+
 class MainWindow;
 class ObjectBrowser;
 class PropertiesPanel;

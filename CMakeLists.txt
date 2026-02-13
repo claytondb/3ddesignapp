@@ -102,6 +102,7 @@ include_directories(
 # ============================================================================
 add_subdirectory(src/core)
 add_subdirectory(src/geometry)
+add_subdirectory(src/sketch)
 add_subdirectory(src/io)
 add_subdirectory(src/renderer)
 add_subdirectory(src/ui)

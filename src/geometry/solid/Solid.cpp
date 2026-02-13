@@ -6,6 +6,7 @@
 #include "Solid.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <queue>
 #include <stack>
@@ -17,8 +18,12 @@
 namespace dc3d {
 namespace geometry {
 
-// Static ID generator
-SolidId Solid::nextId_ = 1;
+// Static ID generator - now thread-safe with atomic
+static std::atomic<SolidId> nextId_{1};
+
+SolidId Solid::generateNextId() {
+    return nextId_.fetch_add(1, std::memory_order_relaxed);
+}
 
 // ===================
 // SolidFace Implementation
@@ -37,7 +42,7 @@ bool SolidFace::isPlanar(float tolerance) const {
 // ===================
 
 Solid::Solid() {
-    id_ = nextId_++;
+    id_ = generateNextId();
 }
 
 Result<Solid> Solid::fromMesh(const MeshData& mesh, ProgressCallback progress) {
@@ -52,7 +57,7 @@ Result<Solid> Solid::fromMesh(const MeshData& mesh, ProgressCallback progress) {
     solid.vertices_.reserve(mesh.positions.size());
     for (size_t i = 0; i < mesh.positions.size(); ++i) {
         SolidVertex v;
-        v.id = solid.nextId_++;
+        v.id = generateNextId();
         v.position = mesh.positions[i];
         if (i < mesh.normals.size()) {
             v.normal = mesh.normals[i];
@@ -70,7 +75,7 @@ Result<Solid> Solid::fromMesh(const MeshData& mesh, ProgressCallback progress) {
     
     for (size_t i = 0; i < numTriangles; ++i) {
         SolidFace face;
-        face.id = solid.nextId_++;
+        face.id = generateNextId();
         face.vertices = {
             mesh.indices[i * 3],
             mesh.indices[i * 3 + 1],
@@ -137,14 +142,14 @@ Solid Solid::createBox(const glm::vec3& size, const glm::vec3& center) {
     };
     
     for (int i = 0; i < 8; ++i) {
-        solid.vertices_[i].id = solid.nextId_++;
+        solid.vertices_[i].id = generateNextId();
         solid.vertices_[i].position = corners[i];
     }
     
     // 6 faces (each as 2 triangles for consistency, but stored as quads)
     // Front face (z+)
     SolidFace front;
-    front.id = solid.nextId_++;
+    front.id = generateNextId();
     front.vertices = {4, 5, 6, 7};
     front.normal = glm::vec3(0, 0, 1);
     front.surfaceType = SolidFace::SurfaceType::Planar;
@@ -152,7 +157,7 @@ Solid Solid::createBox(const glm::vec3& size, const glm::vec3& center) {
     
     // Back face (z-)
     SolidFace back;
-    back.id = solid.nextId_++;
+    back.id = generateNextId();
     back.vertices = {1, 0, 3, 2};
     back.normal = glm::vec3(0, 0, -1);
     back.surfaceType = SolidFace::SurfaceType::Planar;
@@ -160,7 +165,7 @@ Solid Solid::createBox(const glm::vec3& size, const glm::vec3& center) {
     
     // Right face (x+)
     SolidFace right;
-    right.id = solid.nextId_++;
+    right.id = generateNextId();
     right.vertices = {5, 1, 2, 6};
     right.normal = glm::vec3(1, 0, 0);
     right.surfaceType = SolidFace::SurfaceType::Planar;
@@ -168,7 +173,7 @@ Solid Solid::createBox(const glm::vec3& size, const glm::vec3& center) {
     
     // Left face (x-)
     SolidFace left;
-    left.id = solid.nextId_++;
+    left.id = generateNextId();
     left.vertices = {0, 4, 7, 3};
     left.normal = glm::vec3(-1, 0, 0);
     left.surfaceType = SolidFace::SurfaceType::Planar;
@@ -176,7 +181,7 @@ Solid Solid::createBox(const glm::vec3& size, const glm::vec3& center) {
     
     // Top face (y+)
     SolidFace top;
-    top.id = solid.nextId_++;
+    top.id = generateNextId();
     top.vertices = {3, 7, 6, 2};
     top.normal = glm::vec3(0, 1, 0);
     top.surfaceType = SolidFace::SurfaceType::Planar;
@@ -184,7 +189,7 @@ Solid Solid::createBox(const glm::vec3& size, const glm::vec3& center) {
     
     // Bottom face (y-)
     SolidFace bottom;
-    bottom.id = solid.nextId_++;
+    bottom.id = generateNextId();
     bottom.vertices = {0, 1, 5, 4};
     bottom.normal = glm::vec3(0, -1, 0);
     bottom.surfaceType = SolidFace::SurfaceType::Planar;
@@ -204,14 +209,14 @@ Solid Solid::createCylinder(float radius, float height, int segments,
     
     // Bottom center (index 0)
     SolidVertex bottomCenter;
-    bottomCenter.id = solid.nextId_++;
+    bottomCenter.id = generateNextId();
     bottomCenter.position = center + glm::vec3(0, -halfH, 0);
     bottomCenter.normal = glm::vec3(0, -1, 0);
     solid.vertices_.push_back(bottomCenter);
     
     // Top center (index 1)
     SolidVertex topCenter;
-    topCenter.id = solid.nextId_++;
+    topCenter.id = generateNextId();
     topCenter.position = center + glm::vec3(0, halfH, 0);
     topCenter.normal = glm::vec3(0, 1, 0);
     solid.vertices_.push_back(topCenter);
@@ -224,13 +229,13 @@ Solid Solid::createCylinder(float radius, float height, int segments,
         
         // Bottom circle vertex (indices 2 to segments+1)
         SolidVertex vBot;
-        vBot.id = solid.nextId_++;
+        vBot.id = generateNextId();
         vBot.position = center + glm::vec3(x, -halfH, z);
         solid.vertices_.push_back(vBot);
         
         // Top circle vertex (indices segments+2 to 2*segments+1)
         SolidVertex vTop;
-        vTop.id = solid.nextId_++;
+        vTop.id = generateNextId();
         vTop.position = center + glm::vec3(x, halfH, z);
         solid.vertices_.push_back(vTop);
     }
@@ -239,7 +244,7 @@ Solid Solid::createCylinder(float radius, float height, int segments,
     // Bottom cap (triangles fanning from center)
     for (int i = 0; i < segments; ++i) {
         SolidFace face;
-        face.id = solid.nextId_++;
+        face.id = generateNextId();
         int curr = 2 + i * 2;          // Current bottom vertex
         int next = 2 + ((i + 1) % segments) * 2;  // Next bottom vertex
         face.vertices = {0, (uint32_t)next, (uint32_t)curr};
@@ -251,7 +256,7 @@ Solid Solid::createCylinder(float radius, float height, int segments,
     // Top cap
     for (int i = 0; i < segments; ++i) {
         SolidFace face;
-        face.id = solid.nextId_++;
+        face.id = generateNextId();
         int curr = 3 + i * 2;          // Current top vertex
         int next = 3 + ((i + 1) % segments) * 2;  // Next top vertex
         face.vertices = {1, (uint32_t)curr, (uint32_t)next};
@@ -269,14 +274,14 @@ Solid Solid::createCylinder(float radius, float height, int segments,
         
         // First triangle
         SolidFace f1;
-        f1.id = solid.nextId_++;
+        f1.id = generateNextId();
         f1.vertices = {(uint32_t)botCurr, (uint32_t)botNext, (uint32_t)topNext};
         f1.surfaceType = SolidFace::SurfaceType::Cylindrical;
         solid.faces_.push_back(f1);
         
         // Second triangle
         SolidFace f2;
-        f2.id = solid.nextId_++;
+        f2.id = generateNextId();
         f2.vertices = {(uint32_t)botCurr, (uint32_t)topNext, (uint32_t)topCurr};
         f2.surfaceType = SolidFace::SurfaceType::Cylindrical;
         solid.faces_.push_back(f2);
@@ -296,7 +301,7 @@ Solid Solid::createSphere(float radius, int segments, const glm::vec3& center) {
     // Create vertices
     // Top pole
     SolidVertex topPole;
-    topPole.id = solid.nextId_++;
+    topPole.id = generateNextId();
     topPole.position = center + glm::vec3(0, radius, 0);
     topPole.normal = glm::vec3(0, 1, 0);
     solid.vertices_.push_back(topPole);
@@ -313,7 +318,7 @@ Solid Solid::createSphere(float radius, int segments, const glm::vec3& center) {
             float z = ringRadius * std::sin(theta);
             
             SolidVertex v;
-            v.id = solid.nextId_++;
+            v.id = generateNextId();
             v.position = center + glm::vec3(x, y, z);
             v.normal = glm::normalize(glm::vec3(x, y, z));
             solid.vertices_.push_back(v);
@@ -322,7 +327,7 @@ Solid Solid::createSphere(float radius, int segments, const glm::vec3& center) {
     
     // Bottom pole
     SolidVertex bottomPole;
-    bottomPole.id = solid.nextId_++;
+    bottomPole.id = generateNextId();
     bottomPole.position = center + glm::vec3(0, -radius, 0);
     bottomPole.normal = glm::vec3(0, -1, 0);
     solid.vertices_.push_back(bottomPole);
@@ -331,7 +336,7 @@ Solid Solid::createSphere(float radius, int segments, const glm::vec3& center) {
     // Top cap triangles
     for (int lon = 0; lon < lonSegments; ++lon) {
         SolidFace face;
-        face.id = solid.nextId_++;
+        face.id = generateNextId();
         int next = 1 + (lon + 1) % lonSegments;
         face.vertices = {0, (uint32_t)(1 + lon), (uint32_t)next};
         face.surfaceType = SolidFace::SurfaceType::Spherical;
@@ -348,14 +353,14 @@ Solid Solid::createSphere(float radius, int segments, const glm::vec3& center) {
             
             // First triangle
             SolidFace f1;
-            f1.id = solid.nextId_++;
+            f1.id = generateNextId();
             f1.vertices = {(uint32_t)curr, (uint32_t)currBelow, (uint32_t)next};
             f1.surfaceType = SolidFace::SurfaceType::Spherical;
             solid.faces_.push_back(f1);
             
             // Second triangle
             SolidFace f2;
-            f2.id = solid.nextId_++;
+            f2.id = generateNextId();
             f2.vertices = {(uint32_t)next, (uint32_t)currBelow, (uint32_t)nextBelow};
             f2.surfaceType = SolidFace::SurfaceType::Spherical;
             solid.faces_.push_back(f2);
@@ -367,7 +372,7 @@ Solid Solid::createSphere(float radius, int segments, const glm::vec3& center) {
     int lastRing = (latSegments - 2) * lonSegments + 1;
     for (int lon = 0; lon < lonSegments; ++lon) {
         SolidFace face;
-        face.id = solid.nextId_++;
+        face.id = generateNextId();
         int next = lastRing + (lon + 1) % lonSegments;
         face.vertices = {(uint32_t)(lastRing + lon), bottomIdx, (uint32_t)next};
         face.surfaceType = SolidFace::SurfaceType::Spherical;
@@ -388,14 +393,14 @@ Solid Solid::createCone(float baseRadius, float topRadius, float height,
     
     // Bottom center
     SolidVertex bottomCenter;
-    bottomCenter.id = solid.nextId_++;
+    bottomCenter.id = generateNextId();
     bottomCenter.position = center + glm::vec3(0, -halfH, 0);
     bottomCenter.normal = glm::vec3(0, -1, 0);
     solid.vertices_.push_back(bottomCenter);
     
     // Top center or apex
     SolidVertex topCenter;
-    topCenter.id = solid.nextId_++;
+    topCenter.id = generateNextId();
     topCenter.position = center + glm::vec3(0, halfH, 0);
     topCenter.normal = glm::vec3(0, 1, 0);
     solid.vertices_.push_back(topCenter);
@@ -408,14 +413,14 @@ Solid Solid::createCone(float baseRadius, float topRadius, float height,
         
         // Bottom circle
         SolidVertex vBot;
-        vBot.id = solid.nextId_++;
+        vBot.id = generateNextId();
         vBot.position = center + glm::vec3(x * baseRadius, -halfH, z * baseRadius);
         solid.vertices_.push_back(vBot);
         
         // Top circle (only if frustum)
         if (hasTopCap) {
             SolidVertex vTop;
-            vTop.id = solid.nextId_++;
+            vTop.id = generateNextId();
             vTop.position = center + glm::vec3(x * topRadius, halfH, z * topRadius);
             solid.vertices_.push_back(vTop);
         }
@@ -424,7 +429,7 @@ Solid Solid::createCone(float baseRadius, float topRadius, float height,
     // Bottom cap
     for (int i = 0; i < segments; ++i) {
         SolidFace face;
-        face.id = solid.nextId_++;
+        face.id = generateNextId();
         int stride = hasTopCap ? 2 : 1;
         int curr = 2 + i * stride;
         int next = 2 + ((i + 1) % segments) * stride;
@@ -438,7 +443,7 @@ Solid Solid::createCone(float baseRadius, float topRadius, float height,
     if (hasTopCap) {
         for (int i = 0; i < segments; ++i) {
             SolidFace face;
-            face.id = solid.nextId_++;
+            face.id = generateNextId();
             int curr = 3 + i * 2;
             int next = 3 + ((i + 1) % segments) * 2;
             face.vertices = {1, (uint32_t)curr, (uint32_t)next};
@@ -460,20 +465,20 @@ Solid Solid::createCone(float baseRadius, float topRadius, float height,
             
             // Two triangles for quad
             SolidFace f1;
-            f1.id = solid.nextId_++;
+            f1.id = generateNextId();
             f1.vertices = {(uint32_t)botCurr, (uint32_t)botNext, (uint32_t)topNext};
             f1.surfaceType = SolidFace::SurfaceType::Conical;
             solid.faces_.push_back(f1);
             
             SolidFace f2;
-            f2.id = solid.nextId_++;
+            f2.id = generateNextId();
             f2.vertices = {(uint32_t)botCurr, (uint32_t)topNext, (uint32_t)topCurr};
             f2.surfaceType = SolidFace::SurfaceType::Conical;
             solid.faces_.push_back(f2);
         } else {
             // Triangle to apex
             SolidFace face;
-            face.id = solid.nextId_++;
+            face.id = generateNextId();
             face.vertices = {(uint32_t)botCurr, (uint32_t)botNext, 1};
             face.surfaceType = SolidFace::SurfaceType::Conical;
             solid.faces_.push_back(face);
@@ -504,7 +509,7 @@ Solid Solid::createTorus(float majorRadius, float minorRadius,
                 minorRadius * std::sin(v) * glm::vec3(0, 1, 0);
             
             SolidVertex vert;
-            vert.id = solid.nextId_++;
+            vert.id = generateNextId();
             vert.position = pos;
             vert.normal = glm::normalize(pos - ringCenter);
             solid.vertices_.push_back(vert);
@@ -525,14 +530,14 @@ Solid Solid::createTorus(float majorRadius, float minorRadius,
             
             // First triangle
             SolidFace f1;
-            f1.id = solid.nextId_++;
+            f1.id = generateNextId();
             f1.vertices = {(uint32_t)v00, (uint32_t)v10, (uint32_t)v11};
             f1.surfaceType = SolidFace::SurfaceType::Toroidal;
             solid.faces_.push_back(f1);
             
             // Second triangle
             SolidFace f2;
-            f2.id = solid.nextId_++;
+            f2.id = generateNextId();
             f2.vertices = {(uint32_t)v00, (uint32_t)v11, (uint32_t)v01};
             f2.surfaceType = SolidFace::SurfaceType::Toroidal;
             solid.faces_.push_back(f2);
@@ -799,6 +804,8 @@ std::vector<uint32_t> Solid::verticesAroundVertex(uint32_t vertexIdx) const {
     
     std::vector<uint32_t> neighbors;
     for (uint32_t edgeIdx : vertices_[vertexIdx].edges) {
+        // CRITICAL FIX: Validate edge index before dereferencing
+        if (edgeIdx >= edges_.size()) continue;
         neighbors.push_back(edges_[edgeIdx].otherVertex(vertexIdx));
     }
     return neighbors;
@@ -883,12 +890,22 @@ std::vector<uint32_t> Solid::findTangentEdges(uint32_t startEdge,
         queue.pop();
         result.push_back(current);
         
+        // HIGH FIX: Validate current edge index
+        if (current >= edges_.size()) continue;
         const auto& edge = edges_[current];
         
         // Check connected edges at both vertices
         for (uint32_t vertIdx : {edge.vertex0, edge.vertex1}) {
+            // HIGH FIX: Validate vertex index before accessing
+            if (vertIdx >= vertices_.size()) continue;
+            
             for (uint32_t adjEdgeIdx : vertices_[vertIdx].edges) {
-                if (visited.count(adjEdgeIdx)) continue;
+                // HIGH FIX: Check visited BEFORE computing angle to prevent duplicates
+                // and validate edge index
+                if (adjEdgeIdx >= edges_.size() || visited.count(adjEdgeIdx)) continue;
+                
+                // Mark as visited immediately to prevent duplicate processing
+                visited.insert(adjEdgeIdx);
                 
                 // Check if edges are tangent (small angle between directions)
                 const auto& adjEdge = edges_[adjEdgeIdx];
@@ -896,7 +913,6 @@ std::vector<uint32_t> Solid::findTangentEdges(uint32_t startEdge,
                 float angle = std::acos(std::min(1.0f, dot));
                 
                 if (angle < angleThreshold || std::abs(angle - glm::pi<float>()) < angleThreshold) {
-                    visited.insert(adjEdgeIdx);
                     queue.push(adjEdgeIdx);
                 }
             }
@@ -1121,7 +1137,7 @@ size_t Solid::identifyShells() {
 
 Solid Solid::clone() const {
     Solid copy = *this;
-    copy.id_ = nextId_++;
+    copy.id_ = generateNextId();
     return copy;
 }
 
@@ -1148,7 +1164,7 @@ void Solid::buildEdges() {
             if (it == edgeLookup_.end()) {
                 // New edge
                 SolidEdge edge;
-                edge.id = nextId_++;
+                edge.id = generateNextId();
                 edge.vertex0 = std::min(v0, v1);
                 edge.vertex1 = std::max(v0, v1);
                 edge.faces.push_back(static_cast<uint32_t>(faceIdx));
@@ -1301,6 +1317,11 @@ Result<Solid> CSGNode::evaluate() const {
             return Result<Solid>::failure("Null solid in primitive node");
         }
         return Result<Solid>::success(solid_->clone());
+    }
+    
+    // CRITICAL FIX: Check for null child nodes before dereferencing
+    if (!left_ || !right_) {
+        return Result<Solid>::failure("Null child node in CSG operation");
     }
     
     // Evaluate children

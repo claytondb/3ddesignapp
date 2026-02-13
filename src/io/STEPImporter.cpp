@@ -187,6 +187,13 @@ ParsedSTEPEntity STEPImporter::parseEntity(const std::string& line)
     ParsedSTEPEntity entity;
     entity.id = 0;
     
+    // HIGH FIX: Limit line length to prevent ReDoS attacks with crafted input
+    constexpr size_t MAX_ENTITY_LINE_LENGTH = 1000000;  // 1MB max per entity line
+    if (line.length() > MAX_ENTITY_LINE_LENGTH) {
+        addWarning("Entity line too long (" + std::to_string(line.length()) + " chars), skipping");
+        return entity;
+    }
+    
     // Parse entity ID: #123 = ENTITY_NAME(params);
     std::regex entityRegex(R"(#(\d+)\s*=\s*([A-Z_0-9]+)\s*\((.*)\)\s*;)");
     std::smatch match;

@@ -10,6 +10,16 @@ set(CORE_SOURCES
     Command.h
     CommandStack.cpp
     CommandStack.h
+    
+    # Commands subdirectory
+    Commands/DeleteCommand.cpp
+    Commands/DeleteCommand.h
+    Commands/ImportMeshCommand.cpp
+    Commands/ImportMeshCommand.h
+    Commands/MeshEditCommand.cpp
+    Commands/MeshEditCommand.h
+    Commands/TransformCommand.cpp
+    Commands/TransformCommand.h
 )
 
 add_library(dc3d_core STATIC
@@ -18,10 +28,12 @@ add_library(dc3d_core STATIC
 
 target_include_directories(dc3d_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/Commands
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src
 )
 
 target_link_libraries(dc3d_core PUBLIC
     Qt6::Core
+    Qt6::Widgets  # For QUndoCommand
 )

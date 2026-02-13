@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-02-12
+
+### 🔧 Build System Fix
+
+This patch release fixes the CMake build configuration to include all source files and properly configure cross-platform builds.
+
+### Fixed
+
+#### CMakeLists.txt Updates
+- **src/core:** Added Commands/* (DeleteCommand, ImportMeshCommand, MeshEditCommand, TransformCommand)
+- **src/geometry:** Added primitives/*, freeform/*, solid/*, and mesh processing files (Alignment, ICP, DeviationAnalysis, MeshAnalysis, MeshRepair, MeshSmoothing, MeshDecimation, MeshSubdivision)
+- **src/io:** Added STEP/IGES importers/exporters, ExportOptions, NativeFormat
+- **src/renderer:** Added DeviationRenderer, PrimitiveRenderer, TransformGizmo
+- **src/ui:** Added panels/AnalysisPanel, tools/FreeformTool, missing dialogs (Export, AutoSurface, FitSurface)
+
+### Added
+
+#### New Sketch Module
+- Created `src/sketch/CMakeLists.txt` for standalone sketch geometry library
+- Properly links sketch entities, solver, and section creator
+
+#### Build Scripts
+- `build.sh` — Linux/macOS build script with automatic Qt6 detection
+- `build.bat` — Windows build script for MSVC
+
+#### Documentation
+- `BUILD_NOTES.md` — Comprehensive build guide with:
+  - Dependency requirements (Qt6, GLM, Open CASCADE, TBB)
+  - Platform-specific instructions
+  - Troubleshooting common issues
+  - IDE setup (VS Code, CLion, Visual Studio)
+
+#### Resources
+- Added deviation shaders to `resources/resources.qrc`
+
+### Technical
+
+- Added GLM detection fallback for systems without CMake package
+- Added Qt6::Widgets dependency for QUndoStack in core module
+- Documented namespace convention (dc3d for core/geometry/io/app, dc for renderer/sketch)
+
+---
+
 ## [1.0.0] - 2026-02-12
 
 ### 🎉 Initial Release

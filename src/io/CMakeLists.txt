@@ -1,6 +1,7 @@
 # I/O module - File format readers and writers
 
 set(IO_SOURCES
+    # Core importers
     MeshImporter.cpp
     MeshImporter.h
     STLImporter.cpp
@@ -9,6 +10,23 @@ set(IO_SOURCES
     OBJImporter.h
     PLYImporter.cpp
     PLYImporter.h
+    
+    # CAD formats (require Open CASCADE)
+    STEPImporter.cpp
+    STEPImporter.h
+    STEPExporter.cpp
+    STEPExporter.h
+    IGESImporter.cpp
+    IGESImporter.h
+    IGESExporter.cpp
+    IGESExporter.h
+    
+    # Export utilities
+    ExportOptions.h
+    
+    # Native project format
+    NativeFormat.cpp
+    NativeFormat.h
 )
 
 add_library(dc3d_io STATIC

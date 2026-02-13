@@ -215,8 +215,18 @@ std::vector<uint32_t> HalfEdgeMesh::vertexNeighbors(uint32_t vertexIdx) const {
     uint32_t startHe = vertices_[vertexIdx].halfEdge;
     if (startHe == INVALID_INDEX) return neighbors;
     
+    // FIX: Add iteration limit to prevent infinite loop on corrupted mesh
+    size_t maxIter = halfEdges_.size();
+    size_t iter = 0;
+    
     uint32_t he = startHe;
     do {
+        // FIX: Check for mesh corruption
+        if (++iter > maxIter) {
+            // Mesh topology is corrupted - break to prevent infinite loop
+            break;
+        }
+        
         // The target of this half-edge is a neighbor
         neighbors.push_back(halfEdges_[he].vertex);
         

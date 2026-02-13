@@ -293,6 +293,12 @@ std::vector<std::string> IGESImporter::parseParameterData(const std::string& dat
         else if (c == 'H' && !current.empty() && std::all_of(current.begin(), current.end(), ::isdigit)) {
             // Hollerith string
             hollerithCount = std::stoi(current);
+            // HIGH FIX: Validate Hollerith count to prevent buffer over-read
+            if (hollerithCount < 0 || i + static_cast<size_t>(hollerithCount) >= data.length()) {
+                // Malformed Hollerith string - treat as regular token and continue
+                current += c;
+                continue;
+            }
             current = std::to_string(hollerithCount) + "H";
             inHollerith = true;
         }

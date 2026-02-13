@@ -196,10 +196,21 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
                     vnIdx = static_cast<int>(normals.size()) + vnIdx + 1;
                 }
                 
-                // Validate indices
+                // HIGH FIX: Validate indices - must be positive after relative conversion
                 if (vIdx <= 0 || vIdx > static_cast<int>(positions.size())) {
                     return geometry::Result<geometry::MeshData>::failure(
                         "Invalid vertex index " + std::to_string(vIdx) + 
+                        " at line " + std::to_string(lineNumber));
+                }
+                // Also validate texture and normal indices if specified
+                if (vtIdx != 0 && (vtIdx < 0 || vtIdx > static_cast<int>(texCoords.size()))) {
+                    return geometry::Result<geometry::MeshData>::failure(
+                        "Invalid texture coordinate index " + std::to_string(vtIdx) + 
+                        " at line " + std::to_string(lineNumber));
+                }
+                if (vnIdx != 0 && (vnIdx < 0 || vnIdx > static_cast<int>(normals.size()))) {
+                    return geometry::Result<geometry::MeshData>::failure(
+                        "Invalid normal index " + std::to_string(vnIdx) + 
                         " at line " + std::to_string(lineNumber));
                 }
                 

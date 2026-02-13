@@ -241,8 +241,10 @@ void Viewport::paintGL()
     renderMeshes();
     
     // Render selection highlights
-    if (m_selectionRenderer && m_selection) {
-        m_selectionRenderer->render(*m_camera, *m_selection);
+    if (m_selectionRenderer) {
+        if (auto selection = m_selection.lock()) {
+            m_selectionRenderer->render(*m_camera, *selection);
+        }
     }
     
     // Render box selection overlay if active
@@ -555,6 +557,9 @@ void Viewport::uploadMeshToGPU(uint64_t id, const dc3d::geometry::MeshData& mesh
     gpuData->boundsMin = QVector3D(bounds.min.x, bounds.min.y, bounds.min.z);
     gpuData->boundsMax = QVector3D(bounds.max.x, bounds.max.y, bounds.max.z);
     
+    // Unbind VBO and EBO before releasing VAO to prevent corrupting default VAO state
+    gpuData->vbo.release();
+    gpuData->ebo.release();
     gpuData->vao.release();
     gpuData->valid = true;
     
@@ -768,6 +773,7 @@ void Viewport::focusOutEvent(QFocusEvent* event)
     m_ctrlPressed = false;
     m_altPressed = false;
     m_navMode = NavigationMode::None;
+    m_isBoxSelecting = false;  // Reset box selection state on focus loss
     setCursor(Qt::ArrowCursor);
     
     QOpenGLWidget::focusOutEvent(event);

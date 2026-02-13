@@ -54,8 +54,8 @@ SketchMode::~SketchMode()
     
     destroyTools();
     
-    delete m_toolbox;
-    delete m_viewportOverlay;
+    delete m_toolbox;  // OK - nullptr parent
+    // Don't delete m_viewportOverlay - it's owned by viewport (Qt parent-child ownership)
 }
 
 // ============================================================================

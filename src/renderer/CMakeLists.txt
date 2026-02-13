@@ -13,6 +13,14 @@ set(RENDERER_SOURCES
     ShaderProgram.h
     Viewport.cpp
     Viewport.h
+    
+    # Additional renderers
+    DeviationRenderer.cpp
+    DeviationRenderer.h
+    PrimitiveRenderer.cpp
+    PrimitiveRenderer.h
+    TransformGizmo.cpp
+    TransformGizmo.h
 )
 
 add_library(dc3d_renderer STATIC

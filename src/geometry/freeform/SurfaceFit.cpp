@@ -209,7 +209,8 @@ SurfaceFitResult SurfaceFitter::fitToCurveNetwork(
     int vCurves = static_cast<int>(curves.size()) - uCurves;
     
     for (int i = 0; i < uCurves; ++i) {
-        float v = static_cast<float>(i) / (uCurves - 1);
+        // Fix: Guard against division by zero when uCurves == 1
+        float v = (uCurves > 1) ? static_cast<float>(i) / (uCurves - 1) : 0.0f;
         for (int j = 0; j <= 20; ++j) {
             float u = static_cast<float>(j) / 20.0f;
             glm::vec3 pt = curves[i]->evaluate(u);

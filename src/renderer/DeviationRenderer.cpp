@@ -572,6 +572,10 @@ void DeviationRenderer::renderLegend(int viewportWidth, int viewportHeight) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
+    // Save current viewport to restore later (fixes multi-viewport scenarios)
+    GLint oldViewport[4];
+    glGetIntegerv(GL_VIEWPORT, oldViewport);
+    
     // Scale and translate the legend geometry
     glViewport(
         static_cast<int>((x + 1.0f) / 2.0f * viewportWidth),
@@ -584,8 +588,8 @@ void DeviationRenderer::renderLegend(int viewportWidth, int viewportHeight) {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 66);  // 33 segments * 2 vertices
     legendVAO_.release();
     
-    // Restore viewport
-    glViewport(0, 0, viewportWidth, viewportHeight);
+    // Restore viewport to original state
+    glViewport(oldViewport[0], oldViewport[1], oldViewport[2], oldViewport[3]);
     
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);

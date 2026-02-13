@@ -74,7 +74,6 @@ private:
     QString m_meshName;
     std::shared_ptr<geometry::MeshData> m_mesh;
     Application* m_app;
-    bool m_firstRedo = true;
 };
 
 } // namespace dc3d

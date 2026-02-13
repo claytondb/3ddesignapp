@@ -26,7 +26,8 @@ SketchToolbox::SketchToolbox(QWidget* parent)
     , m_selectedTool(SketchToolType::None)
 {
     // Window flags for floating toolbox
-    setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    // Note: Removed Qt::WindowStaysOnTopHint to prevent toolbox staying on top of all windows
+    setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
     setAttribute(Qt::WA_TranslucentBackground);
     
     setupUI();

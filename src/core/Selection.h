@@ -45,7 +45,8 @@ enum class SelectionOp {
  */
 struct SelectionElement {
     uint32_t meshId = 0;        ///< ID of the mesh this element belongs to
-    uint32_t elementIndex = 0;  ///< Index within the mesh (face/vertex/edge index)
+    uint64_t elementIndex = 0;  ///< Index within the mesh (face/vertex/edge index)
+                                ///< For edges: upper 32 bits = v2, lower 32 bits = v1
     SelectionMode mode = SelectionMode::Object;  ///< What type of element this is
     
     bool operator<(const SelectionElement& other) const {
@@ -227,7 +228,7 @@ public:
     
     /**
      * @brief Select an edge (stored as vertex pair)
-     * Edge index encoding: lower 16 bits = vertex1, upper 16 bits = vertex2
+     * Edge index encoding: lower 32 bits = vertex1, upper 32 bits = vertex2 (supports large meshes)
      */
     void selectEdge(uint32_t meshId, uint32_t v1, uint32_t v2, SelectionOp op = SelectionOp::Replace);
     

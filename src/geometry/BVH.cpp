@@ -18,7 +18,14 @@ namespace geometry {
 bool AABB::intersect(const Ray& ray, float& tNear, float& tFar) const
 {
     // Slab-based ray-AABB intersection
-    glm::vec3 invDir = 1.0f / ray.direction;
+    // FIX: Handle axis-aligned rays (division by zero)
+    const float eps = 1e-10f;
+    glm::vec3 invDir;
+    for (int i = 0; i < 3; ++i) {
+        invDir[i] = std::abs(ray.direction[i]) > eps ? 
+            1.0f / ray.direction[i] : 
+            std::copysign(1e10f, ray.direction[i]);
+    }
     
     glm::vec3 t0 = (min - ray.origin) * invDir;
     glm::vec3 t1 = (max - ray.origin) * invDir;
@@ -251,10 +258,18 @@ uint32_t BVH::buildRecursive(std::vector<PrimitiveInfo>& prims,
 bool BVH::intersectTriangle(const Ray& ray, uint32_t triIndex,
                             float& t, glm::vec3& bary) const
 {
+    // FIX: Bounds check on triangle and vertex indices
+    if (triIndex * 3 + 2 >= m_indices.size()) return false;
+    
     // Möller–Trumbore intersection algorithm
     uint32_t i0 = m_indices[triIndex * 3 + 0];
     uint32_t i1 = m_indices[triIndex * 3 + 1];
     uint32_t i2 = m_indices[triIndex * 3 + 2];
+    
+    // FIX: Validate vertex indices
+    if (i0 >= m_vertices.size() || i1 >= m_vertices.size() || i2 >= m_vertices.size()) {
+        return false;
+    }
     
     const glm::vec3& v0 = m_vertices[i0];
     const glm::vec3& v1 = m_vertices[i1];

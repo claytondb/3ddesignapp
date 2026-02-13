@@ -83,8 +83,9 @@ void CommandStack::push(CommandPtr command)
     if (m_mergingEnabled && !m_undoStack.empty()) {
         if (m_undoStack.back()->canMergeWith(command.get())) {
             if (m_undoStack.back()->mergeWith(command.get())) {
-                // Merged - re-execute the merged command
-                m_undoStack.back()->execute();
+                // Merged successfully - DO NOT re-execute!
+                // The new command has already been executed externally before being pushed.
+                // The merge only updates the stored state to combine both transformations.
                 emitStateChanges(oldCanUndo, oldCanRedo, oldUndoText, oldRedoText);
                 return;
             }

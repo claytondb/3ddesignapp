@@ -802,7 +802,11 @@ void NativeFormat::writeString(std::vector<uint8_t>& buffer, const std::string& 
 // Binary read helpers
 uint32_t NativeFormat::readUint32(const std::vector<uint8_t>& buffer, size_t& offset)
 {
-    if (offset + 4 > buffer.size()) return 0;
+    // CRITICAL FIX: Throw exception on buffer underflow instead of silently returning 0
+    if (offset + 4 > buffer.size()) {
+        throw std::runtime_error("Buffer underflow in readUint32: offset " + 
+            std::to_string(offset) + " + 4 > size " + std::to_string(buffer.size()));
+    }
     uint32_t value = buffer[offset] |
                      (buffer[offset + 1] << 8) |
                      (buffer[offset + 2] << 16) |
@@ -821,7 +825,11 @@ float NativeFormat::readFloat(const std::vector<uint8_t>& buffer, size_t& offset
 
 double NativeFormat::readDouble(const std::vector<uint8_t>& buffer, size_t& offset)
 {
-    if (offset + 8 > buffer.size()) return 0;
+    // CRITICAL FIX: Throw exception on buffer underflow instead of silently returning 0
+    if (offset + 8 > buffer.size()) {
+        throw std::runtime_error("Buffer underflow in readDouble: offset " + 
+            std::to_string(offset) + " + 8 > size " + std::to_string(buffer.size()));
+    }
     uint64_t bits = static_cast<uint64_t>(buffer[offset]) |
                     (static_cast<uint64_t>(buffer[offset + 1]) << 8) |
                     (static_cast<uint64_t>(buffer[offset + 2]) << 16) |
@@ -857,7 +865,12 @@ glm::dvec3 NativeFormat::readDVec3(const std::vector<uint8_t>& buffer, size_t& o
 std::string NativeFormat::readString(const std::vector<uint8_t>& buffer, size_t& offset)
 {
     uint32_t length = readUint32(buffer, offset);
-    if (offset + length > buffer.size()) return "";
+    // CRITICAL FIX: Throw exception on buffer underflow instead of silently returning empty string
+    if (offset + length > buffer.size()) {
+        throw std::runtime_error("Buffer underflow in readString: offset " + 
+            std::to_string(offset) + " + length " + std::to_string(length) + 
+            " > size " + std::to_string(buffer.size()));
+    }
     std::string str(buffer.begin() + offset, buffer.begin() + offset + length);
     offset += length;
     return str;

@@ -330,6 +330,8 @@ QTreeWidgetItem* ObjectBrowser::findItemById(const QString& id) const
 
 void ObjectBrowser::onItemClicked(QTreeWidgetItem* item, int column)
 {
+    if (!item) return;  // Null check to prevent crash
+    
     if (column == 1) {
         // Visibility toggle clicked
         QString id = item->data(0, Qt::UserRole + 1).toString();

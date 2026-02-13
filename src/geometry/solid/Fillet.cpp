@@ -461,13 +461,30 @@ glm::vec3 Fillet::computeRollingBallCenter(const glm::vec3& edgePoint,
                                            const glm::vec3& normal1,
                                            float radius) {
     // Bisector direction
-    glm::vec3 bisector = glm::normalize(normal0 + normal1);
+    glm::vec3 bisectorSum = normal0 + normal1;
+    float bisectorLen = glm::length(bisectorSum);
+    
+    // HIGH FIX: Handle degenerate case where normals are opposite (180° apart)
+    if (bisectorLen < 0.001f) {
+        // Normals are nearly opposite - use edge point directly
+        // This is a degenerate case (nearly flat or 180° angle)
+        return edgePoint;
+    }
+    
+    glm::vec3 bisector = bisectorSum / bisectorLen;
     
     // Half angle between normals
-    float cosHalfAngle = std::max(0.001f, glm::dot(normal0, bisector));
+    float cosHalfAngle = glm::dot(normal0, bisector);
     
-    // Distance from edge to ball center
-    float distance = radius / cosHalfAngle;
+    // HIGH FIX: Handle case where cosHalfAngle is negative or too small
+    // This can happen when normals point away from each other (> 90° apart)
+    if (std::abs(cosHalfAngle) < 0.001f) {
+        // Degenerate case: nearly parallel faces (close to 180°)
+        return edgePoint;
+    }
+    
+    // Use absolute value to handle both convex and concave edges properly
+    float distance = radius / std::abs(cosHalfAngle);
     
     return edgePoint + bisector * distance;
 }
