@@ -43,7 +43,7 @@ jobs:
       run: |
         mkdir deploy
         cp build/Release/*.exe deploy/ 2>$null || cp build/*.exe deploy/
-        & "$env:Qt6_DIR/../../../bin/windeployqt.exe" --release --no-translations deploy/
+        & "$env:Qt6_DIR/bin/windeployqt.exe" --release --no-translations deploy/
       shell: pwsh
     
     - name: Upload Artifact

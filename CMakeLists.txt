@@ -140,18 +140,16 @@ if(NOT glm_FOUND)
     if(GLM_INCLUDE_DIR)
         message(STATUS "GLM found at: ${GLM_INCLUDE_DIR}")
         include_directories(${GLM_INCLUDE_DIR})
+        set(GLM_FOUND_MANUALLY TRUE)
     else()
         message(FATAL_ERROR "GLM not found. Set GLM_DIR or install GLM.")
     endif()
 else()
     message(STATUS "GLM found via package")
-    # Ensure glm include dir is available
-    if(TARGET glm::glm)
-        get_target_property(GLM_INCLUDE_DIR glm::glm INTERFACE_INCLUDE_DIRECTORIES)
-        if(GLM_INCLUDE_DIR)
-            include_directories(${GLM_INCLUDE_DIR})
-        endif()
-    endif()
+    set(GLM_FOUND_VIA_PACKAGE TRUE)
+    # For subdirectories that need GLM_INCLUDE_DIR, set a marker value
+    # They should use target_link_libraries(... glm::glm) instead
+    set(GLM_INCLUDE_DIR "" CACHE PATH "GLM include directory (empty when using glm::glm target)")
 endif()
 
 # ============================================================================

@@ -34,8 +34,8 @@ target_include_directories(dc3d_sketch PUBLIC
     ${CMAKE_SOURCE_DIR}/src
 )
 
-# GLM is header-only, use global GLM_INCLUDE_DIR from parent CMakeLists.txt
-if(GLM_INCLUDE_DIR)
+# GLM include directory if found manually (not via package)
+if(GLM_INCLUDE_DIR AND NOT GLM_INCLUDE_DIR STREQUAL "")
     target_include_directories(dc3d_sketch PUBLIC ${GLM_INCLUDE_DIR})
 endif()
 
@@ -43,3 +43,8 @@ target_link_libraries(dc3d_sketch PUBLIC
     Qt6::Core
     dc3d_geometry
 )
+
+# Link glm::glm target if found via package
+if(TARGET glm::glm)
+    target_link_libraries(dc3d_sketch PUBLIC glm::glm)
+endif()
