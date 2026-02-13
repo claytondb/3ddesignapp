@@ -27,11 +27,10 @@ jobs:
     - name: Install GLM
       run: |
         git clone --depth 1 https://github.com/g-truc/glm.git C:/glm
-        echo "GLM_DIR=C:/glm" >> $env:GITHUB_ENV
     
     - name: Configure CMake
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" -DGLM_INCLUDE_DIR="C:/glm"
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" -DGLM_DIR="C:/glm"
     
     - name: Build
       run: cmake --build build --config Release --parallel

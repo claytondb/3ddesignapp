@@ -42,6 +42,9 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# GLM requires this for gtx extensions
+add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
+
 # ============================================================================
 # Find Dependencies
 # ============================================================================
@@ -88,6 +91,30 @@ endif()
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
+
+# ============================================================================
+# GLM (header-only math library)
+# ============================================================================
+find_package(glm QUIET)
+if(NOT glm_FOUND)
+    # Try to find GLM in common locations
+    find_path(GLM_INCLUDE_DIR glm/glm.hpp
+        PATHS
+            ${GLM_DIR}
+            $ENV{GLM_DIR}
+            /usr/include
+            /usr/local/include
+            C:/glm
+    )
+    if(GLM_INCLUDE_DIR)
+        message(STATUS "GLM found at: ${GLM_INCLUDE_DIR}")
+        include_directories(${GLM_INCLUDE_DIR})
+    else()
+        message(FATAL_ERROR "GLM not found. Set GLM_DIR or install GLM.")
+    endif()
+else()
+    message(STATUS "GLM found via package")
+endif()
 
 # ============================================================================
 # Include directories
