@@ -81,7 +81,7 @@ public:
     BoundingBox2D boundingBox() const override;
     float length() const override;
     float closestParameter(const glm::vec2& point) const override;
-    Ptr clone() const override;
+    SketchEntity::Ptr clone() const override;
     std::vector<glm::vec2> tessellate(int numSamples = 64) const override;
     
     /**

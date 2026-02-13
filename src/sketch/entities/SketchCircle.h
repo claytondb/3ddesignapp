@@ -64,7 +64,7 @@ public:
     BoundingBox2D boundingBox() const override;
     float length() const override;
     float closestParameter(const glm::vec2& point) const override;
-    Ptr clone() const override;
+    SketchEntity::Ptr clone() const override;
     
     /**
      * @brief Create a new circle
