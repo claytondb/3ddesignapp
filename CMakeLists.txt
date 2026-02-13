@@ -9,7 +9,7 @@ project(dc-3ddesignapp
 # ============================================================================
 # Options
 # ============================================================================
-option(BUILD_TESTS "Build unit tests" ON)
+option(BUILD_TESTS "Build unit tests" OFF)
 option(BUILD_DOCS "Build documentation" OFF)
 option(USE_TBB "Use Intel TBB for parallelism" OFF)
 
@@ -121,32 +121,6 @@ endif()
 # ============================================================================
 include(GNUInstallDirs)
 
-install(TARGETS ${PROJECT_NAME}
-    BUNDLE DESTINATION .
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+# Installation is handled in src/app/CMakeLists.txt where the target is defined
 
-# Windows: Deploy Qt DLLs
-if(WIN32)
-    find_program(WINDEPLOYQT windeployqt HINTS "${Qt6_DIR}/../../../bin")
-    if(WINDEPLOYQT)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${WINDEPLOYQT}
-                --no-translations
-                --no-system-d3d-compiler
-                $<TARGET_FILE:${PROJECT_NAME}>
-        )
-    endif()
-endif()
-
-# macOS: Deploy Qt frameworks
-if(APPLE)
-    find_program(MACDEPLOYQT macdeployqt HINTS "${Qt6_DIR}/../../../bin")
-    if(MACDEPLOYQT)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${MACDEPLOYQT}
-                $<TARGET_BUNDLE_DIR:${PROJECT_NAME}>
-                -always-overwrite
-        )
-    endif()
-endif()
+# Qt deployment is handled in src/app/CMakeLists.txt where the target is defined

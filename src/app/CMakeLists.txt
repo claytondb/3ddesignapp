@@ -52,3 +52,35 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dc3d_renderer
     dc3d_ui
 )
+
+# Installation
+include(GNUInstallDirs)
+install(TARGETS ${PROJECT_NAME}
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# Windows: Deploy Qt DLLs
+if(WIN32)
+    find_program(WINDEPLOYQT windeployqt HINTS "${Qt6_DIR}/../../../bin")
+    if(WINDEPLOYQT)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${WINDEPLOYQT}
+                --no-translations
+                --no-system-d3d-compiler
+                $<TARGET_FILE:${PROJECT_NAME}>
+        )
+    endif()
+endif()
+
+# macOS: Deploy Qt frameworks
+if(APPLE)
+    find_program(MACDEPLOYQT macdeployqt HINTS "${Qt6_DIR}/../../../bin")
+    if(MACDEPLOYQT)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${MACDEPLOYQT}
+                $<TARGET_BUNDLE_DIR:${PROJECT_NAME}>
+                -always-overwrite
+        )
+    endif()
+endif()
