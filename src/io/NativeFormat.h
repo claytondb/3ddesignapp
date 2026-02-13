@@ -186,11 +186,10 @@ public:
         std::vector<uint8_t> data;
     };
     
+    static constexpr uint32_t ARCHIVE_MAGIC = 0x41524348;  // "ARCH"
+    
     bool write(const std::string& filename, const std::vector<Entry>& entries);
     bool read(const std::string& filename, std::vector<Entry>& entries);
-    
-private:
-    static constexpr uint32_t ARCHIVE_MAGIC = 0x41524348;  // "ARCH"
 };
 
 } // namespace dc

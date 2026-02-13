@@ -11,6 +11,7 @@
 #include "geometry/MeshData.h"
 #include "core/Selection.h"
 
+#include <algorithm>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QWheelEvent>

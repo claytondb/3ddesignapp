@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <QVector3D>
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_4_1_Core>
 #include <QOpenGLVertexArrayObject>

@@ -1,9 +1,10 @@
 #include "STEPImporter.h"
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 #include <cctype>
-#include <cmath>
 #include <regex>
 
 namespace dc {

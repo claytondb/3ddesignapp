@@ -65,7 +65,12 @@ jobs:
         echo "Qt6_DIR=$(brew --prefix qt@6)/lib/cmake/Qt6" >> $GITHUB_ENV
     
     - name: Configure CMake
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$Qt6_DIR;$(brew --prefix)/opt/glm;$(brew --prefix)/opt/eigen"
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_PREFIX_PATH="$Qt6_DIR" \
+          -DCMAKE_INCLUDE_PATH="/opt/homebrew/include;/usr/local/include" \
+          -DGLM_INCLUDE_DIRS="$(brew --prefix glm)/include" \
+          -DEigen3_DIR="$(brew --prefix eigen)/share/eigen3/cmake"
     
     - name: Build
       run: cmake --build build --config Release --parallel
