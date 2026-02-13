@@ -7,8 +7,11 @@
 #include <cmath>
 #include <queue>
 #include <chrono>
+
+#ifdef HAVE_EIGEN
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+#endif
 
 namespace dc {
 
@@ -200,6 +203,7 @@ std::pair<glm::vec3, glm::vec3> AutoSurface::computePrincipalDirections(int vert
     glm::vec3 center = vertices[vertexIdx].position;
     glm::vec3 normal = vertices[vertexIdx].normal;
     
+#ifdef HAVE_EIGEN
     Eigen::Matrix3f cov = Eigen::Matrix3f::Zero();
     for (int n : neighbors) {
         glm::vec3 diff = vertices[n].position - center;
@@ -221,6 +225,16 @@ std::pair<glm::vec3, glm::vec3> AutoSurface::computePrincipalDirections(int vert
     
     return {glm::vec3(ev1.x(), ev1.y(), ev1.z()),
             glm::vec3(ev2.x(), ev2.y(), ev2.z())};
+#else
+    // Fallback without Eigen: use simple tangent frame from normal
+    glm::vec3 up(0, 1, 0);
+    if (std::abs(glm::dot(normal, up)) > 0.99f) {
+        up = glm::vec3(1, 0, 0);
+    }
+    glm::vec3 tangent1 = glm::normalize(glm::cross(normal, up));
+    glm::vec3 tangent2 = glm::cross(normal, tangent1);
+    return {tangent1, tangent2};
+#endif
 }
 
 void AutoSurface::classifyFeaturePoints() {
@@ -377,6 +391,7 @@ void AutoSurface::computePositionField() {
     // Initialize with a Laplacian-based parameterization
     int n = static_cast<int>(vertices.size());
     
+#ifdef HAVE_EIGEN
     // Build graph Laplacian
     Eigen::SparseMatrix<float> L(n, n);
     std::vector<Eigen::Triplet<float>> triplets;
@@ -411,7 +426,7 @@ void AutoSurface::computePositionField() {
     // Solve for UV using sparse solver
     Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> solver(L);
     
-    // Fix: Check solver status before using
+    // Check solver status before using
     if (solver.info() != Eigen::Success) {
         // Handle degenerate case - fall back to simple parameterization
         for (int i = 0; i < n; ++i) {
@@ -441,6 +456,14 @@ void AutoSurface::computePositionField() {
     for (int i = 0; i < n; ++i) {
         m_positionField[i] = glm::vec2(u(i), v(i));
     }
+#else
+    // Fallback without Eigen: simple planar projection
+    for (int i = 0; i < n; ++i) {
+        const auto& pos = vertices[i].position;
+        // Simple XZ projection as UV
+        m_positionField[i] = glm::vec2(pos.x, pos.z);
+    }
+#endif
 }
 
 void AutoSurface::extractQuadMesh(int targetPatchCount) {

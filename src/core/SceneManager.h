@@ -15,6 +15,7 @@
 #include <vector>
 #include <unordered_map>
 #include <cstdint>
+#include <glm/glm.hpp>
 
 namespace dc3d {
 namespace geometry {
@@ -162,6 +163,26 @@ public:
     bool isMeshVisible(uint64_t id) const;
     
     // ---- Node Management (for undo/redo support) ----
+    
+    /**
+     * @brief Add a mesh node to the scene
+     * @param node The mesh node to add (ownership transferred)
+     */
+    void addMeshNode(std::unique_ptr<MeshNode> node);
+    
+    /**
+     * @brief Detach a mesh node from the scene without destroying it
+     * @param id Mesh node identifier
+     * @return The detached mesh node, or nullptr if not found
+     */
+    std::unique_ptr<MeshNode> detachMeshNode(uint64_t id);
+    
+    /**
+     * @brief Set transformation for a node
+     * @param nodeId Node identifier
+     * @param transform 4x4 transformation matrix
+     */
+    void setNodeTransform(uint64_t nodeId, const glm::mat4& transform);
     
     /**
      * @brief Restore a previously detached node

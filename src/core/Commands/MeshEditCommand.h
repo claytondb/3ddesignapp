@@ -273,7 +273,7 @@ private:
  */
 class CompoundCommand : public MeshCommand {
 public:
-    CompoundCommand(const QString& name);
+    explicit CompoundCommand(const QString& name);
     
     /// Add a command to the compound
     void addCommand(CommandPtr cmd);
@@ -322,10 +322,10 @@ public:
     bool canRedo() const { return !redoStack_.empty(); }
     
     /// Get description of command to undo
-    std::string undoDescription() const;
+    QString undoDescription() const;
     
     /// Get description of command to redo
-    std::string redoDescription() const;
+    QString redoDescription() const;
     
     /// Clear all history
     void clear();

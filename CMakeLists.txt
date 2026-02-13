@@ -85,6 +85,16 @@ if(USE_TBB)
     endif()
 endif()
 
+# Optional: Eigen3 for advanced algorithms
+find_package(Eigen3 QUIET)
+if(Eigen3_FOUND OR EIGEN3_FOUND)
+    add_compile_definitions(HAVE_EIGEN)
+    include_directories(${EIGEN3_INCLUDE_DIR})
+    message(STATUS "Eigen3 found - advanced algorithms enabled")
+else()
+    message(STATUS "Eigen3 not found - using fallback algorithms")
+endif()
+
 # ============================================================================
 # Qt Auto-processing
 # ============================================================================

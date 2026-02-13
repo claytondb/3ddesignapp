@@ -92,7 +92,7 @@ public:
     
     /// Create a BSP tree from a list of polygons (faces)
     static std::unique_ptr<BSPNode> build(std::vector<SolidFace>& faces,
-                                          const std::vector<SolidVertex>& vertices,
+                                          std::vector<SolidVertex>& vertices,
                                           float epsilon = 1e-5f);
     
     /// Classify a point relative to this node's plane
@@ -107,7 +107,10 @@ public:
     void clipPolygons(std::vector<SolidFace>& faces,
                      std::vector<SolidVertex>& vertices) const;
     
-    /// Clip coplanar polygons
+    /// Clip coplanar polygons (with vertices for split operations)
+    void clipTo(BSPNode* other, std::vector<SolidVertex>& vertices);
+    
+    /// Clip coplanar polygons (backward compatibility overload)
     void clipTo(BSPNode* other);
     
     /// Get all polygons from this tree

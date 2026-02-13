@@ -18,6 +18,7 @@
 #include <unordered_set>
 #include <optional>
 #include <functional>
+#include <mutex>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -407,6 +408,18 @@ public:
     float volume() const;
     
     /**
+     * @brief Get signed volume (negative if normals are inverted)
+     * @return Signed volume
+     */
+    float signedVolume() const;
+    
+    /**
+     * @brief Check if normals are inverted (inside-out solid)
+     * @return true if signed volume is negative
+     */
+    bool hasInvertedNormals() const;
+    
+    /**
      * @brief Calculate total surface area
      * @return Sum of all face areas
      */
@@ -605,8 +618,10 @@ private:
     // Cached data
     BoundingBox bounds_;
     mutable std::optional<float> cachedVolume_;
+    mutable std::optional<float> cachedSignedVolume_;
     mutable std::optional<float> cachedSurfaceArea_;
     mutable std::optional<SolidValidation> cachedValidation_;
+    mutable std::mutex validationMutex_;
     
     // Edge lookup for quick adjacency queries
     std::unordered_map<uint64_t, uint32_t> edgeLookup_;
@@ -620,8 +635,14 @@ private:
     
     uint64_t makeEdgeKey(uint32_t v0, uint32_t v1) const;
     
+    /**
+     * @brief Triangle-triangle intersection test
+     */
+    bool triangleTriangleIntersect(const glm::vec3& a0, const glm::vec3& a1, const glm::vec3& a2,
+                                   const glm::vec3& b0, const glm::vec3& b1, const glm::vec3& b2) const;
+    
     // ID generator
-    static SolidId nextId_;
+    static SolidId generateNextId();
 };
 
 /**

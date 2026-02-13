@@ -28,9 +28,13 @@ jobs:
       run: |
         git clone --depth 1 https://github.com/g-truc/glm.git C:/glm
     
+    - name: Install Eigen
+      run: |
+        git clone --depth 1 --branch 3.4.0 https://gitlab.com/libeigen/eigen.git C:/eigen
+    
     - name: Configure CMake
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" -DGLM_DIR="C:/glm"
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" -DGLM_DIR="C:/glm" -DEIGEN3_INCLUDE_DIR="C:/eigen"
     
     - name: Build
       run: cmake --build build --config Release --parallel
@@ -57,7 +61,7 @@ jobs:
     
     - name: Install Dependencies
       run: |
-        brew install qt@6 glm cmake
+        brew install qt@6 glm cmake eigen
         echo "Qt6_DIR=$(brew --prefix qt@6)/lib/cmake/Qt6" >> $GITHUB_ENV
     
     - name: Configure CMake
@@ -89,7 +93,7 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake build-essential qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev libglm-dev libgl1-mesa-dev
+        sudo apt-get install -y cmake build-essential qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev libglm-dev libgl1-mesa-dev libeigen3-dev
     
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release

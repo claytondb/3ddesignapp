@@ -14,8 +14,8 @@
 
 #include "MeshEditCommand.h"
 
-#include <sstream>
 #include <algorithm>
+#include <numeric>
 
 namespace dc3d {
 namespace core {
@@ -26,7 +26,7 @@ namespace core {
 
 MeshEditCommand::MeshEditCommand(
     geometry::MeshData& mesh,
-    const std::string& name,
+    const QString& name,
     EditFunction operation)
     : mesh_(mesh)
     , name_(name)
@@ -36,14 +36,14 @@ MeshEditCommand::MeshEditCommand(
 
 CommandPtr MeshEditCommand::create(
     geometry::MeshData& mesh,
-    const std::string& name,
+    const QString& name,
     EditFunction operation)
 {
     return std::unique_ptr<MeshEditCommand>(
         new MeshEditCommand(mesh, name, operation));
 }
 
-bool MeshEditCommand::execute() {
+void MeshEditCommand::execute() {
     // Store current state
     beforeMesh_ = mesh_;
     
@@ -51,14 +51,12 @@ bool MeshEditCommand::execute() {
     if (!operation_(mesh_)) {
         // Operation failed, restore
         mesh_ = beforeMesh_;
-        return false;
+        return;
     }
     
     // Store result for redo
     afterMesh_ = mesh_;
     executed_ = true;
-    
-    return true;
 }
 
 void MeshEditCommand::undo() {
@@ -92,43 +90,40 @@ DecimateCommand::DecimateCommand(
 {
 }
 
-bool DecimateCommand::execute() {
+void DecimateCommand::execute() {
     beforeMesh_ = mesh_;
     
     auto result = geometry::MeshDecimator::decimate(mesh_, options_, nullptr);
     
     if (!result.ok()) {
         mesh_ = beforeMesh_;
-        return false;
+        return;
     }
     
     mesh_ = std::move(result.value->first);
     result_ = result.value->second;
-    
-    return true;
 }
 
 void DecimateCommand::undo() {
     mesh_ = beforeMesh_;
 }
 
-std::string DecimateCommand::description() const {
-    std::ostringstream ss;
-    ss << "Decimate (";
+QString DecimateCommand::description() const {
+    QString desc = QStringLiteral("Decimate (");
     
     switch (options_.targetMode) {
         case geometry::DecimationTarget::Ratio:
-            ss << static_cast<int>(options_.targetRatio * 100) << "%)";
+            desc += QString::number(static_cast<int>(options_.targetRatio * 100)) + QStringLiteral("%)");
             break;
         case geometry::DecimationTarget::VertexCount:
-            ss << options_.targetVertexCount << " vertices)";
+            desc += QString::number(options_.targetVertexCount) + QStringLiteral(" vertices)");
             break;
         case geometry::DecimationTarget::FaceCount:
-            ss << options_.targetFaceCount << " faces)";
+            desc += QString::number(options_.targetFaceCount) + QStringLiteral(" faces)");
             break;
     }
     
-    return ss.str();
+    return desc;
 }
 
 size_t DecimateCommand::memoryUsage() const {
@@ -147,40 +142,37 @@ SmoothCommand::SmoothCommand(
 {
 }
 
-bool SmoothCommand::execute() {
+void SmoothCommand::execute() {
     beforeMesh_ = mesh_;
     
     result_ = geometry::MeshSmoother::smooth(mesh_, options_, nullptr);
-    
-    return true;  // Smoothing doesn't fail
 }
 
 void SmoothCommand::undo() {
     mesh_ = beforeMesh_;
 }
 
-std::string SmoothCommand::description() const {
-    std::ostringstream ss;
-    ss << "Smooth (";
+QString SmoothCommand::description() const {
+    QString desc = QStringLiteral("Smooth (");
     
     switch (options_.algorithm) {
         case geometry::SmoothingAlgorithm::Laplacian:
-            ss << "Laplacian";
+            desc += QStringLiteral("Laplacian");
             break;
         case geometry::SmoothingAlgorithm::Taubin:
-            ss << "Taubin";
+            desc += QStringLiteral("Taubin");
             break;
         case geometry::SmoothingAlgorithm::HCLaplacian:
-            ss << "HC";
+            desc += QStringLiteral("HC");
             break;
         case geometry::SmoothingAlgorithm::Cotangent:
-            ss << "Cotangent";
+            desc += QStringLiteral("Cotangent");
             break;
     }
     
-    ss << ", " << options_.iterations << " iterations)";
+    desc += QStringLiteral(", ") + QString::number(options_.iterations) + QStringLiteral(" iterations)");
     
-    return ss.str();
+    return desc;
 }
 
 size_t SmoothCommand::memoryUsage() const {
@@ -229,7 +221,7 @@ RepairCommand::RepairCommand(
 {
 }
 
-bool RepairCommand::execute() {
+void RepairCommand::execute() {
     beforeMesh_ = mesh_;
     
     switch (operation_) {
@@ -274,30 +266,28 @@ bool RepairCommand::execute() {
                 nullptr);
             break;
     }
-    
-    return result_.success;
 }
 
 void RepairCommand::undo() {
     mesh_ = beforeMesh_;
 }
 
-std::string RepairCommand::description() const {
+QString RepairCommand::description() const {
     switch (operation_) {
         case Operation::RemoveOutliers:
-            return "Remove Outliers";
+            return QStringLiteral("Remove Outliers");
         case Operation::FillHoles:
-            return "Fill Holes";
+            return QStringLiteral("Fill Holes");
         case Operation::RemoveDuplicates:
-            return "Remove Duplicate Vertices";
+            return QStringLiteral("Remove Duplicate Vertices");
         case Operation::RemoveDegenerates:
-            return "Remove Degenerate Faces";
+            return QStringLiteral("Remove Degenerate Faces");
         case Operation::MakeManifold:
-            return "Make Manifold";
+            return QStringLiteral("Make Manifold");
         case Operation::RepairAll:
-            return "Repair Mesh";
+            return QStringLiteral("Repair Mesh");
     }
-    return "Mesh Repair";
+    return QStringLiteral("Mesh Repair");
 }
 
 size_t RepairCommand::memoryUsage() const {
@@ -316,48 +306,45 @@ SubdivideCommand::SubdivideCommand(
 {
 }
 
-bool SubdivideCommand::execute() {
+void SubdivideCommand::execute() {
     beforeMesh_ = mesh_;
     
     auto result = geometry::MeshSubdivider::subdivide(mesh_, options_, nullptr);
     
     if (!result.ok()) {
         mesh_ = beforeMesh_;
-        return false;
+        return;
     }
     
     mesh_ = std::move(result.value->first);
     result_ = result.value->second;
-    
-    return true;
 }
 
 void SubdivideCommand::undo() {
     mesh_ = beforeMesh_;
 }
 
-std::string SubdivideCommand::description() const {
-    std::ostringstream ss;
-    ss << "Subdivide (";
+QString SubdivideCommand::description() const {
+    QString desc = QStringLiteral("Subdivide (");
     
     switch (options_.algorithm) {
         case geometry::SubdivisionAlgorithm::Loop:
-            ss << "Loop";
+            desc += QStringLiteral("Loop");
             break;
         case geometry::SubdivisionAlgorithm::CatmullClark:
-            ss << "Catmull-Clark";
+            desc += QStringLiteral("Catmull-Clark");
             break;
         case geometry::SubdivisionAlgorithm::Butterfly:
-            ss << "Butterfly";
+            desc += QStringLiteral("Butterfly");
             break;
         case geometry::SubdivisionAlgorithm::MidPoint:
-            ss << "Midpoint";
+            desc += QStringLiteral("Midpoint");
             break;
     }
     
-    ss << ", " << options_.iterations << "x)";
+    desc += QStringLiteral(", ") + QString::number(options_.iterations) + QStringLiteral("x)");
     
-    return ss.str();
+    return desc;
 }
 
 size_t SubdivideCommand::memoryUsage() const {
@@ -368,7 +355,7 @@ size_t SubdivideCommand::memoryUsage() const {
 // CompoundCommand Implementation
 // ============================================================================
 
-CompoundCommand::CompoundCommand(const std::string& name)
+CompoundCommand::CompoundCommand(const QString& name)
     : name_(name)
 {
 }
@@ -377,21 +364,13 @@ void CompoundCommand::addCommand(CommandPtr cmd) {
     commands_.push_back(std::move(cmd));
 }
 
-bool CompoundCommand::execute() {
+void CompoundCommand::execute() {
     executedCount_ = 0;
     
     for (auto& cmd : commands_) {
-        if (!cmd->execute()) {
-            // Rollback
-            for (size_t i = executedCount_; i > 0; --i) {
-                commands_[i - 1]->undo();
-            }
-            return false;
-        }
+        cmd->execute();
         ++executedCount_;
     }
-    
-    return true;
 }
 
 void CompoundCommand::undo() {
@@ -485,14 +464,14 @@ bool CommandHistory::redo() {
     return true;
 }
 
-std::string CommandHistory::undoDescription() const {
-    if (undoStack_.empty()) return "";
-    return "Undo " + undoStack_.back()->description();
+QString CommandHistory::undoDescription() const {
+    if (undoStack_.empty()) return QString();
+    return QStringLiteral("Undo ") + undoStack_.back()->description();
 }
 
-std::string CommandHistory::redoDescription() const {
-    if (redoStack_.empty()) return "";
-    return "Redo " + redoStack_.back()->description();
+QString CommandHistory::redoDescription() const {
+    if (redoStack_.empty()) return QString();
+    return QStringLiteral("Redo ") + redoStack_.back()->description();
 }
 
 void CommandHistory::clear() {

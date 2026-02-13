@@ -55,6 +55,33 @@ public:
     size_t controlPointCountV() const { return m_surface.controlPointCountV(); }
     
     /**
+     * @brief Get all control points
+     */
+    const std::vector<dc3d::geometry::ControlPoint>& getControlPoints() const { 
+        return m_surface.controlPoints(); 
+    }
+    
+    /**
+     * @brief Get knot vector in U direction
+     */
+    const std::vector<float>& getKnotsU() const { return m_surface.knotsU(); }
+    
+    /**
+     * @brief Get knot vector in V direction
+     */
+    const std::vector<float>& getKnotsV() const { return m_surface.knotsV(); }
+    
+    /**
+     * @brief Get degree in U direction (alias for degreeU)
+     */
+    int getDegreeU() const { return m_surface.degreeU(); }
+    
+    /**
+     * @brief Get degree in V direction (alias for degreeV)
+     */
+    int getDegreeV() const { return m_surface.degreeV(); }
+    
+    /**
      * @brief Evaluate surface at parameter
      */
     glm::vec3 evaluate(float u, float v) const { return m_surface.evaluate(u, v); }

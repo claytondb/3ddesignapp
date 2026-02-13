@@ -461,22 +461,23 @@ MeshData Chamfer::generatePreviewAsymmetric(const Solid& solid,
         auto faces = chamferSurf.generateFaces(vertices);
         
         // Convert to MeshData
-        uint32_t baseIdx = static_cast<uint32_t>(preview.positions.size());
+        uint32_t baseIdx = static_cast<uint32_t>(preview.vertices().size());
         
         for (const auto& v : vertices) {
-            preview.positions.push_back(v.position);
-            preview.normals.push_back(v.normal);
+            preview.vertices().push_back(v.position);
+            preview.normals().push_back(v.normal);
         }
         vertices.clear();
         
         for (const auto& face : faces) {
             for (uint32_t vi : face.vertices) {
-                preview.indices.push_back(baseIdx + vi);
+                preview.indices().push_back(baseIdx + vi);
             }
         }
     }
     
-    preview.recomputeBounds();
+    // Trigger bounds computation
+    preview.boundingBox();
     return preview;
 }
 

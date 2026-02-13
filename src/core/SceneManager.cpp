@@ -166,6 +166,61 @@ bool SceneManager::isMeshVisible(uint64_t id) const
 
 // ---- Node Management (for undo/redo support) ----
 
+void SceneManager::addMeshNode(std::unique_ptr<MeshNode> node)
+{
+    if (!node) {
+        qWarning() << "SceneManager::addMeshNode - null node";
+        return;
+    }
+    
+    uint64_t id = node->id();
+    QString name = node->displayName();
+    
+    // Check if mesh already exists
+    if (m_meshNodes.find(id) != m_meshNodes.end()) {
+        qWarning() << "SceneManager::addMeshNode - mesh already exists with id" << id;
+        return;
+    }
+    
+    m_meshNodes[id] = std::move(node);
+    
+    emit meshAdded(id, name);
+    emit sceneChanged();
+}
+
+std::unique_ptr<MeshNode> SceneManager::detachMeshNode(uint64_t id)
+{
+    auto it = m_meshNodes.find(id);
+    if (it == m_meshNodes.end()) {
+        qWarning() << "SceneManager::detachMeshNode - mesh not found with id" << id;
+        return nullptr;
+    }
+    
+    auto node = std::move(it->second);
+    m_meshNodes.erase(it);
+    
+    emit meshRemoved(id);
+    emit sceneChanged();
+    
+    return node;
+}
+
+void SceneManager::setNodeTransform(uint64_t nodeId, const glm::mat4& transform)
+{
+    // Currently MeshNode doesn't store transform - this is a placeholder
+    // for future transform support. For now, just verify the node exists.
+    auto it = m_meshNodes.find(nodeId);
+    if (it == m_meshNodes.end()) {
+        qWarning() << "SceneManager::setNodeTransform - node not found with id" << nodeId;
+        return;
+    }
+    
+    // TODO: When MeshNode gains transform support, apply it here
+    Q_UNUSED(transform);
+    
+    emit sceneChanged();
+}
+
 void SceneManager::restoreNode(std::unique_ptr<SceneNode> node, uint64_t parentId, size_t index)
 {
     if (!node) {

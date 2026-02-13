@@ -57,7 +57,7 @@ Solid::Solid() {
 }
 
 Result<Solid> Solid::fromMesh(const MeshData& mesh, ProgressCallback progress) {
-    if (mesh.indices.empty() || mesh.positions.empty()) {
+    if (mesh.indices().empty() || mesh.vertices().empty()) {
         return Result<Solid>::failure("Empty mesh data");
     }
     
@@ -65,13 +65,13 @@ Result<Solid> Solid::fromMesh(const MeshData& mesh, ProgressCallback progress) {
     solid.name_ = "Solid from Mesh";
     
     // Copy vertices
-    solid.vertices_.reserve(mesh.positions.size());
-    for (size_t i = 0; i < mesh.positions.size(); ++i) {
+    solid.vertices_.reserve(mesh.vertices().size());
+    for (size_t i = 0; i < mesh.vertices().size(); ++i) {
         SolidVertex v;
         v.id = generateNextId();
-        v.position = mesh.positions[i];
-        if (i < mesh.normals.size()) {
-            v.normal = mesh.normals[i];
+        v.position = mesh.vertices()[i];
+        if (i < mesh.normals().size()) {
+            v.normal = mesh.normals()[i];
         }
         solid.vertices_.push_back(v);
     }
@@ -81,16 +81,16 @@ Result<Solid> Solid::fromMesh(const MeshData& mesh, ProgressCallback progress) {
     }
     
     // Create faces from triangles
-    size_t numTriangles = mesh.indices.size() / 3;
+    size_t numTriangles = mesh.indices().size() / 3;
     solid.faces_.reserve(numTriangles);
     
     for (size_t i = 0; i < numTriangles; ++i) {
         SolidFace face;
         face.id = generateNextId();
         face.vertices = {
-            mesh.indices[i * 3],
-            mesh.indices[i * 3 + 1],
-            mesh.indices[i * 3 + 2]
+            mesh.indices()[i * 3],
+            mesh.indices()[i * 3 + 1],
+            mesh.indices()[i * 3 + 2]
         };
         solid.faces_.push_back(face);
         
@@ -567,39 +567,40 @@ MeshData Solid::toMesh() const {
     MeshData mesh;
     
     // Copy vertices
-    mesh.positions.reserve(vertices_.size());
-    mesh.normals.reserve(vertices_.size());
+    mesh.vertices().reserve(vertices_.size());
+    mesh.normals().reserve(vertices_.size());
     for (const auto& v : vertices_) {
-        mesh.positions.push_back(v.position);
-        mesh.normals.push_back(v.normal);
+        mesh.vertices().push_back(v.position);
+        mesh.normals().push_back(v.normal);
     }
     
     // Triangulate faces
     for (const auto& face : faces_) {
         if (face.vertices.size() == 3) {
-            mesh.indices.push_back(face.vertices[0]);
-            mesh.indices.push_back(face.vertices[1]);
-            mesh.indices.push_back(face.vertices[2]);
+            mesh.indices().push_back(face.vertices[0]);
+            mesh.indices().push_back(face.vertices[1]);
+            mesh.indices().push_back(face.vertices[2]);
         } else if (face.vertices.size() == 4) {
             // Quad -> 2 triangles
-            mesh.indices.push_back(face.vertices[0]);
-            mesh.indices.push_back(face.vertices[1]);
-            mesh.indices.push_back(face.vertices[2]);
+            mesh.indices().push_back(face.vertices[0]);
+            mesh.indices().push_back(face.vertices[1]);
+            mesh.indices().push_back(face.vertices[2]);
             
-            mesh.indices.push_back(face.vertices[0]);
-            mesh.indices.push_back(face.vertices[2]);
-            mesh.indices.push_back(face.vertices[3]);
+            mesh.indices().push_back(face.vertices[0]);
+            mesh.indices().push_back(face.vertices[2]);
+            mesh.indices().push_back(face.vertices[3]);
         } else {
             // Fan triangulation for n-gons
             for (size_t i = 1; i < face.vertices.size() - 1; ++i) {
-                mesh.indices.push_back(face.vertices[0]);
-                mesh.indices.push_back(face.vertices[i]);
-                mesh.indices.push_back(face.vertices[i + 1]);
+                mesh.indices().push_back(face.vertices[0]);
+                mesh.indices().push_back(face.vertices[i]);
+                mesh.indices().push_back(face.vertices[i + 1]);
             }
         }
     }
     
-    mesh.recomputeBounds();
+    // Trigger bounds computation
+    mesh.boundingBox();
     return mesh;
 }
 
