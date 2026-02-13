@@ -291,6 +291,25 @@ void ObjectBrowser::setItemSelected(const QString& id, bool selected)
     }
 }
 
+void ObjectBrowser::setSelectedItems(const QStringList& ids)
+{
+    // Block signals during batch update
+    m_treeWidget->blockSignals(true);
+    
+    // Clear existing selection
+    m_treeWidget->clearSelection();
+    
+    // Select items by ID
+    for (const QString& id : ids) {
+        auto it = m_itemMap.find(id);
+        if (it != m_itemMap.end()) {
+            it.value()->setSelected(true);
+        }
+    }
+    
+    m_treeWidget->blockSignals(false);
+}
+
 QStringList ObjectBrowser::selectedItemIds() const
 {
     QStringList ids;

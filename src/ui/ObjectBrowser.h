@@ -34,12 +34,17 @@ public:
 
     // Remove items
     void removeItem(const QString& id);
+    void removeMesh(const QString& id) { removeItem(id); }
     void clear();
 
     // Item state
     void setItemVisible(const QString& id, bool visible);
+    void setMeshVisible(const QString& id, bool visible) { setItemVisible(id, visible); }
     void setItemLocked(const QString& id, bool locked);
     void setItemSelected(const QString& id, bool selected);
+    
+    // Batch selection
+    void setSelectedItems(const QStringList& ids);
     
     // Get selected items
     QStringList selectedItemIds() const;

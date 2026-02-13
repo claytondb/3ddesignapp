@@ -43,6 +43,10 @@ public:
     void setPage(Page page);
     Page currentPage() const;
 
+    // Generic property setting (from IntegrationController)
+    void setProperties(const QVariantMap& props);
+    void clearProperties();
+
     // Update scene statistics (no selection page)
     void setSceneStats(int meshCount, int triangleCount, int surfaceCount, int bodyCount);
     void setUnits(const QString& units);

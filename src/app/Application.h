@@ -20,10 +20,16 @@ namespace dc3d {
 // Forward declarations
 namespace core {
 class SceneManager;
+class Selection;
+class IntegrationController;
 }
 
 namespace geometry {
 class MeshData;
+}
+
+namespace renderer {
+class Picking;
 }
 
 /**
@@ -75,6 +81,21 @@ public:
     QUndoStack* undoStack() const { return m_undoStack.get(); }
     
     /**
+     * @brief Get the selection manager
+     */
+    core::Selection* selection() const { return m_selection.get(); }
+    
+    /**
+     * @brief Get the picking system
+     */
+    renderer::Picking* picking() const { return m_picking.get(); }
+    
+    /**
+     * @brief Get the integration controller
+     */
+    core::IntegrationController* integrationController() const { return m_integrationController.get(); }
+    
+    /**
      * @brief Get the main window
      */
     MainWindow* mainWindow() const { return m_mainWindow; }
@@ -111,6 +132,9 @@ private:
     static Application* s_instance;
     
     std::unique_ptr<core::SceneManager> m_sceneManager;
+    std::unique_ptr<core::Selection> m_selection;
+    std::unique_ptr<renderer::Picking> m_picking;
+    std::unique_ptr<core::IntegrationController> m_integrationController;
     std::unique_ptr<QUndoStack> m_undoStack;
     MainWindow* m_mainWindow = nullptr;
     bool m_initialized = false;

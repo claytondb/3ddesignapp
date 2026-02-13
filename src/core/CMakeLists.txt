@@ -5,6 +5,11 @@ set(CORE_SOURCES
     SceneManager.h
     Selection.cpp
     Selection.h
+    IntegrationController.cpp
+    IntegrationController.h
+    Command.h
+    CommandStack.cpp
+    CommandStack.h
 )
 
 add_library(dc3d_core STATIC

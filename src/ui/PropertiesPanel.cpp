@@ -554,3 +554,36 @@ void PropertiesPanel::showDeviation(bool show)
 {
     m_deviationGroup->setVisible(show);
 }
+
+void PropertiesPanel::setProperties(const QVariantMap& props)
+{
+    // Switch to mesh page for now (most common case)
+    setPage(PageMesh);
+    
+    // Set properties from map
+    if (props.contains("Name")) {
+        setMeshName(props["Name"].toString());
+    }
+    if (props.contains("Vertices")) {
+        setMeshVertices(props["Vertices"].toString().toInt());
+    }
+    if (props.contains("Triangles")) {
+        setMeshTriangles(props["Triangles"].toString().toInt());
+    }
+    
+    // For multiple selection, we show different info
+    if (props.contains("Selected Objects")) {
+        m_meshNameLabel->setText(props["Selected Objects"].toString() + " objects selected");
+    }
+    if (props.contains("Total Vertices")) {
+        m_meshVerticesLabel->setText(props["Total Vertices"].toString());
+    }
+    if (props.contains("Total Triangles")) {
+        m_meshTrianglesLabel->setText(props["Total Triangles"].toString());
+    }
+}
+
+void PropertiesPanel::clearProperties()
+{
+    setPage(PageNoSelection);
+}

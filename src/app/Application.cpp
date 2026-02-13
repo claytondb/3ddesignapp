@@ -6,13 +6,16 @@
 #include "Application.h"
 #include "ImportCommand.h"
 #include "core/SceneManager.h"
+#include "core/Selection.h"
+#include "core/IntegrationController.h"
 #include "geometry/MeshData.h"
 #include "io/MeshImporter.h"
 #include "io/STLImporter.h"
 #include "io/OBJImporter.h"
 #include "io/PLYImporter.h"
-#include "ui/MainWindow.h"
+#include "renderer/Picking.h"
 #include "renderer/Viewport.h"
+#include "ui/MainWindow.h"
 #include "ui/ObjectBrowser.h"
 
 #include <filesystem>
@@ -56,6 +59,15 @@ bool Application::initialize()
     // Initialize scene manager
     m_sceneManager = std::make_unique<core::SceneManager>();
     
+    // Initialize selection system
+    m_selection = std::make_unique<core::Selection>();
+    
+    // Initialize picking system
+    m_picking = std::make_unique<renderer::Picking>();
+    
+    // Initialize integration controller
+    m_integrationController = std::make_unique<dc3d::IntegrationController>();
+    
     m_initialized = true;
     qDebug() << "Application initialized successfully";
     return true;
@@ -70,6 +82,9 @@ void Application::shutdown()
     qDebug() << "Shutting down Application...";
     
     // Cleanup in reverse order of initialization
+    m_integrationController.reset();
+    m_picking.reset();
+    m_selection.reset();
     m_undoStack.reset();
     m_sceneManager.reset();
     
@@ -80,17 +95,17 @@ void Application::setMainWindow(MainWindow* window)
 {
     m_mainWindow = window;
     
-    if (m_mainWindow && m_sceneManager) {
-        // Connect scene changes to viewport updates
-        connect(m_sceneManager.get(), &core::SceneManager::sceneChanged,
-                m_mainWindow, &MainWindow::onSceneChanged);
+    if (m_mainWindow && m_integrationController) {
+        // Initialize the integration controller with all components
+        m_integrationController->initialize(
+            m_sceneManager.get(),
+            m_mainWindow->viewport(),
+            m_selection.get(),
+            m_picking.get(),
+            m_mainWindow
+        );
         
-        // Connect mesh imported signal to update UI
-        connect(this, &Application::meshImported, [this](const QString& name, uint64_t id) {
-            if (m_mainWindow && m_mainWindow->objectBrowser()) {
-                m_mainWindow->objectBrowser()->addMesh(name, QString::number(id));
-            }
-        });
+        qDebug() << "Integration controller connected to main window";
     }
 }
 
@@ -152,7 +167,7 @@ bool Application::importMesh(const QString& filePath)
     uint64_t meshId = generateMeshId();
     QString meshName = fileInfo.baseName();
     
-    // Create and execute import command (for undo support)
+    // Create mesh data
     auto mesh = std::make_shared<geometry::MeshData>(std::move(*result.value));
     
     // Compute normals if not present
@@ -160,12 +175,23 @@ bool Application::importMesh(const QString& filePath)
         mesh->computeNormals();
     }
     
+    // Use integration controller to add mesh (this connects to viewport, picking, browser)
+    if (m_integrationController) {
+        m_integrationController->addMesh(meshId, meshName, mesh);
+    } else {
+        // Fallback: add directly to scene manager
+        m_sceneManager->addMesh(meshId, meshName, mesh);
+    }
+    
+    // Create and execute import command (for undo support)
     ImportCommand* cmd = new ImportCommand(meshId, meshName, mesh, this);
     m_undoStack->push(cmd);
     
     qDebug() << "Mesh imported successfully:" << meshName 
              << "Vertices:" << mesh->vertexCount()
              << "Faces:" << mesh->faceCount();
+    
+    emit meshImported(meshName, meshId);
     
     return true;
 }
