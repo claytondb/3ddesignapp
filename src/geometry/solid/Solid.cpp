@@ -1302,8 +1302,17 @@ size_t Solid::identifyShells() {
 }
 
 Solid Solid::clone() const {
-    Solid copy = *this;
+    Solid copy;
     copy.id_ = generateNextId();
+    copy.name_ = name_;
+    copy.vertices_ = vertices_;
+    copy.edges_ = edges_;
+    copy.faces_ = faces_;
+    copy.shells_ = shells_;
+    copy.bounds_ = bounds_;
+    copy.edgeLookup_ = edgeLookup_;
+    // Cached values are not copied - they will be recomputed as needed
+    // validationMutex_ gets a fresh instance from Solid's default constructor
     return copy;
 }
 

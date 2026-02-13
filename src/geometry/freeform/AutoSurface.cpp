@@ -625,10 +625,10 @@ void AutoSurface::projectToOriginalMesh() {
         glm::vec3 closest = pos;
         
         for (const auto& v : origVerts) {
-            float dist = glm::length(v.position - pos);
+            float dist = glm::length(v - pos);
             if (dist < minDist) {
                 minDist = dist;
-                closest = v.position;
+                closest = v;
             }
         }
         
