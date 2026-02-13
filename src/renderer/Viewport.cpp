@@ -12,6 +12,7 @@
 #include "core/Selection.h"
 
 #include <algorithm>
+#include <QApplication>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QWheelEvent>
@@ -611,16 +612,24 @@ void Viewport::mousePressEvent(QMouseEvent* event)
     m_lastMousePos = event->pos();
     m_mouseDownPos = event->pos();
     
+    // Tinkercad-style camera controls:
+    // - Right-click + drag = Orbit
+    // - Shift + Right-click + drag = Pan
+    // - Middle-click + drag = Pan
+    // - Mouse wheel = Zoom
+    
     if (event->button() == Qt::MiddleButton) {
+        // Middle-click = Pan (Tinkercad style)
+        m_navMode = NavigationMode::Pan;
+        setCursor(Qt::ClosedHandCursor);
+    } else if (event->button() == Qt::RightButton) {
+        // Right-click = Orbit, Shift+Right-click = Pan (Tinkercad style)
         if (m_shiftPressed) {
             m_navMode = NavigationMode::Pan;
         } else {
             m_navMode = NavigationMode::Orbit;
         }
         setCursor(Qt::ClosedHandCursor);
-    } else if (event->button() == Qt::RightButton) {
-        m_navMode = NavigationMode::Zoom;
-        setCursor(Qt::SizeVerCursor);
     } else if (event->button() == Qt::LeftButton) {
         // Left click could be selection or box selection start
         m_isBoxSelecting = false;
@@ -706,6 +715,7 @@ void Viewport::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_Shift) {
         m_shiftPressed = true;
+        // Tinkercad-style: Shift switches right-click from Orbit to Pan
         if (m_navMode == NavigationMode::Orbit) {
             m_navMode = NavigationMode::Pan;
         }
@@ -717,7 +727,13 @@ void Viewport::keyPressEvent(QKeyEvent* event)
     
     switch (event->key()) {
         case Qt::Key_F:
+            // Tinkercad-style: F key = Zoom to fit / focus on selection
             fitView();
+            break;
+            
+        case Qt::Key_Home:
+            // Tinkercad-style: Home key = Reset to default view
+            resetView();
             break;
             
         case Qt::Key_G:
@@ -753,8 +769,14 @@ void Viewport::keyReleaseEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_Shift) {
         m_shiftPressed = false;
+        // Tinkercad-style: When Shift is released during right-click drag,
+        // switch back from Pan to Orbit (only if we were panning via right-click)
+        // Note: Middle-click pan stays as pan regardless of Shift
         if (m_navMode == NavigationMode::Pan) {
-            m_navMode = NavigationMode::Orbit;
+            // Check if right mouse button is still pressed (ongoing drag)
+            if (QApplication::mouseButtons() & Qt::RightButton) {
+                m_navMode = NavigationMode::Orbit;
+            }
         }
     } else if (event->key() == Qt::Key_Control) {
         m_ctrlPressed = false;

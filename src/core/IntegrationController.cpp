@@ -152,6 +152,14 @@ void IntegrationController::onMeshAdded(uint64_t id, const QString& name)
         return;
     }
     
+    // CRITICAL FIX: Ensure normals are computed before GPU upload
+    // Without normals, the shader produces black silhouettes due to zero diffuse lighting
+    if (!mesh->hasNormals()) {
+        qDebug() << "IntegrationController: computing normals for mesh:" << name;
+        // Note: const_cast is safe here because we own the mesh and need to fix missing normals
+        const_cast<geometry::MeshData*>(mesh.get())->computeNormals();
+    }
+    
     // Add to viewport for rendering
     if (m_viewport) {
         try {
