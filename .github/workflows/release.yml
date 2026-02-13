@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+            artifact: 3DDesignApp-Windows.zip
+          - os: macos-latest
+            name: macOS
+            artifact: 3DDesignApp-macOS.zip
+          - os: ubuntu-latest
+            name: Linux
+            artifact: 3DDesignApp-Linux.tar.gz
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    # Windows
+    - name: Install Qt (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '6.6.0'
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2019_64'
+        cache: true
+
+    - name: Install GLM (Windows)
+      if: matrix.os == 'windows-latest'
+      run: git clone --depth 1 https://github.com/g-truc/glm.git C:/glm
+
+    - name: Build (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DGLM_INCLUDE_DIR="C:/glm"
+        cmake --build build --config Release --parallel
+        mkdir deploy
+        cp build/Release/*.exe deploy/
+        & "$env:Qt6_DIR/../../../bin/windeployqt.exe" --release --no-translations deploy/
+        Compress-Archive -Path deploy/* -DestinationPath ${{ matrix.artifact }}
+      shell: pwsh
+
+    # macOS
+    - name: Install Dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: brew install qt@6 glm cmake
+
+    - name: Build (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        export Qt6_DIR=$(brew --prefix qt@6)/lib/cmake/Qt6
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$Qt6_DIR
+        cmake --build build --config Release --parallel
+        mkdir deploy && cp -r build/*.app deploy/ 2>/dev/null || cp build/dc3d* deploy/
+        zip -r ${{ matrix.artifact }} deploy/
+
+    # Linux
+    - name: Install Dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential qt6-base-dev libqt6opengl6-dev libglm-dev
+
+    - name: Build (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release --parallel
+        mkdir deploy && cp build/dc3d* deploy/ 2>/dev/null || cp build/*[Dd]esign* deploy/
+        tar -czvf ${{ matrix.artifact }} deploy/
+
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ matrix.artifact }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

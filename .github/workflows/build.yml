@@ -1,0 +1,112 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '6.6.0'
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2019_64'
+        modules: 'qtcharts'
+        cache: true
+    
+    - name: Install GLM
+      run: |
+        git clone --depth 1 https://github.com/g-truc/glm.git C:/glm
+        echo "GLM_DIR=C:/glm" >> $env:GITHUB_ENV
+    
+    - name: Configure CMake
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" -DGLM_INCLUDE_DIR="C:/glm"
+    
+    - name: Build
+      run: cmake --build build --config Release --parallel
+    
+    - name: Deploy Qt
+      run: |
+        mkdir deploy
+        cp build/Release/*.exe deploy/ 2>$null || cp build/*.exe deploy/
+        & "$env:Qt6_DIR/../../../bin/windeployqt.exe" --release --no-translations deploy/
+      shell: pwsh
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: 3DDesignApp-Windows
+        path: deploy/
+        retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Dependencies
+      run: |
+        brew install qt@6 glm cmake
+        echo "Qt6_DIR=$(brew --prefix qt@6)/lib/cmake/Qt6" >> $GITHUB_ENV
+    
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$Qt6_DIR
+    
+    - name: Build
+      run: cmake --build build --config Release --parallel
+    
+    - name: Create App Bundle
+      run: |
+        cd build
+        $(brew --prefix qt@6)/bin/macdeployqt *.app -dmg 2>/dev/null || echo "Creating archive instead"
+        mkdir -p ../deploy
+        cp -r *.app ../deploy/ 2>/dev/null || cp -r *DesignApp* ../deploy/
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: 3DDesignApp-macOS
+        path: deploy/
+        retention-days: 30
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev libglm-dev libgl1-mesa-dev
+    
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      run: cmake --build build --config Release --parallel
+    
+    - name: Package
+      run: |
+        mkdir deploy
+        cp build/*[Dd]esign*[Aa]pp deploy/ 2>/dev/null || cp build/dc3d* deploy/ || echo "Binary location TBD"
+        chmod +x deploy/* 2>/dev/null || true
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: 3DDesignApp-Linux
+        path: deploy/
+        retention-days: 30
