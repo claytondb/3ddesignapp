@@ -143,6 +143,17 @@ private:
 };
 
 /**
+ * @brief Parameters for shrink wrap algorithm
+ */
+struct ShrinkParams {
+    int iterations = 50;
+    float stepSize = 0.1f;
+    float smoothness = 0.5f;
+    bool preserveVolume = false;
+    float collisionOffset = 0.001f;
+};
+
+/**
  * @brief Shrink wrap algorithm for organic surface fitting
  */
 class ShrinkWrapper {
@@ -150,25 +161,17 @@ public:
     ShrinkWrapper();
     ~ShrinkWrapper();
     
-    struct ShrinkParams {
-        int iterations = 50;
-        float stepSize = 0.1f;
-        float smoothness = 0.5f;
-        bool preserveVolume = false;
-        float collisionOffset = 0.001f;
-    };
-    
     // Shrink wrap a surface onto target
     WrapResult shrinkWrap(const NurbsSurface& surface,
                            const TriangleMesh& targetMesh,
-                           const ShrinkParams& params = ShrinkParams{});
+                           const ShrinkParams& params = {});
     
     // Shrink wrap with constraints
     WrapResult shrinkWrapConstrained(const NurbsSurface& surface,
                                       const TriangleMesh& targetMesh,
                                       const std::vector<glm::vec3>& constraintPoints,
                                       const std::vector<glm::vec3>& constraintPositions,
-                                      const ShrinkParams& params = ShrinkParams{});
+                                      const ShrinkParams& params = {});
     
     void setProgressCallback(WrapProgressCallback callback);
     void cancel();

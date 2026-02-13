@@ -241,10 +241,8 @@ void Viewport::paintGL()
     renderMeshes();
     
     // Render selection highlights
-    if (m_selectionRenderer) {
-        if (auto selection = m_selection.lock()) {
-            m_selectionRenderer->render(*m_camera, *selection);
-        }
+    if (m_selectionRenderer && m_selection) {
+        m_selectionRenderer->render(*m_camera, *m_selection);
     }
     
     // Render box selection overlay if active

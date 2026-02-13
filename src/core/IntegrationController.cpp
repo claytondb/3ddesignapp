@@ -445,7 +445,7 @@ void IntegrationController::updatePropertiesForSelection()
             props["Triangles"] = QString::number(mesh->faceCount());
             props["Has Normals"] = mesh->hasNormals() ? "Yes" : "No";
             
-            auto bounds = mesh->bounds();
+            auto bounds = mesh->boundingBox();
             props["Bounds Min"] = QString("(%1, %2, %3)")
                 .arg(bounds.min.x, 0, 'f', 3)
                 .arg(bounds.min.y, 0, 'f', 3)
