@@ -52,8 +52,54 @@ bool SolidFace::isPlanar(float tolerance) const {
 // Solid Construction
 // ===================
 
-Solid::Solid() {
+Solid::Solid() 
+    : validationMutex_(std::make_unique<std::mutex>()) {
     id_ = generateNextId();
+}
+
+// Move constructor
+Solid::Solid(Solid&& other) noexcept
+    : id_(other.id_)
+    , name_(std::move(other.name_))
+    , vertices_(std::move(other.vertices_))
+    , edges_(std::move(other.edges_))
+    , faces_(std::move(other.faces_))
+    , shells_(std::move(other.shells_))
+    , bounds_(std::move(other.bounds_))
+    , cachedVolume_(std::move(other.cachedVolume_))
+    , cachedSignedVolume_(std::move(other.cachedSignedVolume_))
+    , cachedSurfaceArea_(std::move(other.cachedSurfaceArea_))
+    , cachedValidation_(std::move(other.cachedValidation_))
+    , validationMutex_(std::move(other.validationMutex_))
+    , edgeLookup_(std::move(other.edgeLookup_)) {
+    // Reset the source object's ID to invalid
+    other.id_ = INVALID_SOLID_ID;
+    // Create a new mutex for the moved-from object so it remains valid
+    other.validationMutex_ = std::make_unique<std::mutex>();
+}
+
+// Move assignment operator
+Solid& Solid::operator=(Solid&& other) noexcept {
+    if (this != &other) {
+        id_ = other.id_;
+        name_ = std::move(other.name_);
+        vertices_ = std::move(other.vertices_);
+        edges_ = std::move(other.edges_);
+        faces_ = std::move(other.faces_);
+        shells_ = std::move(other.shells_);
+        bounds_ = std::move(other.bounds_);
+        cachedVolume_ = std::move(other.cachedVolume_);
+        cachedSignedVolume_ = std::move(other.cachedSignedVolume_);
+        cachedSurfaceArea_ = std::move(other.cachedSurfaceArea_);
+        cachedValidation_ = std::move(other.cachedValidation_);
+        validationMutex_ = std::move(other.validationMutex_);
+        edgeLookup_ = std::move(other.edgeLookup_);
+        
+        // Reset the source object
+        other.id_ = INVALID_SOLID_ID;
+        other.validationMutex_ = std::make_unique<std::mutex>();
+    }
+    return *this;
 }
 
 Result<Solid> Solid::fromMesh(const MeshData& mesh, ProgressCallback progress) {
@@ -616,7 +662,7 @@ Result<HalfEdgeMesh> Solid::toHalfEdgeMesh() const {
 SolidValidation Solid::validate() const {
     // LOW FIX: Thread-safe cached validation access
     {
-        std::lock_guard<std::mutex> lock(validationMutex_);
+        std::lock_guard<std::mutex> lock(*validationMutex_);
         if (cachedValidation_.has_value()) {
             return *cachedValidation_;
         }
@@ -678,7 +724,7 @@ SolidValidation Solid::validate() const {
     
     // LOW FIX: Thread-safe cached validation assignment
     {
-        std::lock_guard<std::mutex> lock(validationMutex_);
+        std::lock_guard<std::mutex> lock(*validationMutex_);
         cachedValidation_ = result;
     }
     return result;

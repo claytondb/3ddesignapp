@@ -211,10 +211,13 @@ public:
     Solid();
     ~Solid() = default;
     
-    Solid(Solid&& other) noexcept = default;
-    Solid& operator=(Solid&& other) noexcept = default;
-    Solid(const Solid& other) = default;
-    Solid& operator=(const Solid& other) = default;
+    // Move operations - enabled by using unique_ptr for mutex
+    Solid(Solid&& other) noexcept;
+    Solid& operator=(Solid&& other) noexcept;
+    
+    // Copy operations - deleted (mutex cannot be copied)
+    Solid(const Solid& other) = delete;
+    Solid& operator=(const Solid& other) = delete;
     
     // ===================
     // Construction
@@ -621,7 +624,7 @@ private:
     mutable std::optional<float> cachedSignedVolume_;
     mutable std::optional<float> cachedSurfaceArea_;
     mutable std::optional<SolidValidation> cachedValidation_;
-    mutable std::mutex validationMutex_;
+    mutable std::unique_ptr<std::mutex> validationMutex_;  // unique_ptr for move semantics
     
     // Edge lookup for quick adjacency queries
     std::unordered_map<uint64_t, uint32_t> edgeLookup_;
