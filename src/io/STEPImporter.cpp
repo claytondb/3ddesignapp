@@ -1,6 +1,15 @@
-#include "STEPImporter.h"
+// Must be first - before any includes that might pull in cmath
+#ifdef _WIN32
 #define _USE_MATH_DEFINES
+#endif
 #include <cmath>
+
+// Fallback M_PI definition for platforms that don't provide it
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#include "STEPImporter.h"
 #include <fstream>
 #include <sstream>
 #include <algorithm>

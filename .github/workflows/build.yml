@@ -63,14 +63,23 @@ jobs:
       run: |
         brew install qt@6 glm cmake eigen
         echo "Qt6_DIR=$(brew --prefix qt@6)/lib/cmake/Qt6" >> $GITHUB_ENV
+        echo "HOMEBREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
+        # Debug: Show where dependencies are installed
+        echo "=== Homebrew prefix ==="
+        brew --prefix
+        echo "=== GLM location ==="
+        brew --prefix glm
+        ls -la $(brew --prefix glm)/include/ || true
+        echo "=== Eigen location ==="
+        brew --prefix eigen
+        ls -la $(brew --prefix eigen)/include/eigen3/ || true
     
     - name: Configure CMake
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_PREFIX_PATH="$Qt6_DIR" \
-          -DCMAKE_INCLUDE_PATH="/opt/homebrew/include;/usr/local/include" \
-          -DGLM_INCLUDE_DIRS="$(brew --prefix glm)/include" \
-          -DEigen3_DIR="$(brew --prefix eigen)/share/eigen3/cmake"
+          -DCMAKE_PREFIX_PATH="$Qt6_DIR;$HOMEBREW_PREFIX" \
+          -DGLM_DIR="$(brew --prefix glm)/include" \
+          -DEIGEN3_INCLUDE_DIR="$(brew --prefix eigen)/include/eigen3"
     
     - name: Build
       run: cmake --build build --config Release --parallel
