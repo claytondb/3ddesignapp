@@ -86,12 +86,11 @@ jobs:
     
     - name: Create App Bundle
       run: |
-        cd build
-        echo "=== Build output ==="
-        ls -la
-        $(brew --prefix qt@6)/bin/macdeployqt dc-3ddesignapp.app 2>/dev/null || echo "macdeployqt skipped"
-        mkdir -p ../deploy
-        cp -r dc-3ddesignapp.app ../deploy/
+        echo "=== Find app bundle ==="
+        find build -name "*.app" -type d
+        $(brew --prefix qt@6)/bin/macdeployqt build/src/app/dc-3ddesignapp.app 2>/dev/null || echo "macdeployqt skipped"
+        mkdir -p deploy
+        cp -r build/src/app/dc-3ddesignapp.app deploy/
     
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -121,8 +120,8 @@ jobs:
       run: |
         mkdir deploy
         echo "=== Build output ==="
-        ls -la build/
-        cp build/dc-3ddesignapp deploy/
+        find build -name "dc-3ddesignapp" -type f
+        cp build/src/app/dc-3ddesignapp deploy/
         chmod +x deploy/dc-3ddesignapp
     
     - name: Upload Artifact
