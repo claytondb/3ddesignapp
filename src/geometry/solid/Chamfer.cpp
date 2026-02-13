@@ -95,7 +95,7 @@ ChamferResult Chamfer::chamferEdgesAsymmetric(const Solid& solid,
     
     if (edgeIndices.empty()) {
         result.success = true;
-        result.solid = solid.clone();
+        result.solid = std::make_optional(solid.clone());
         return result;
     }
     
@@ -222,7 +222,7 @@ ChamferResult Chamfer::chamferEdgesAsymmetric(const Solid& solid,
     resultSolid.rebuildTopology();
     
     result.success = true;
-    result.solid = std::move(resultSolid);
+    result.solid = std::make_optional(std::move(resultSolid));
     result.stats.edgesProcessed = static_cast<int>(allEdges.size());
     
     auto endTime = std::chrono::high_resolution_clock::now();
@@ -242,7 +242,7 @@ ChamferResult Chamfer::chamferEdgesAngle(const Solid& solid,
     
     if (edgeIndices.empty()) {
         result.success = true;
-        result.solid = solid.clone();
+        result.solid = std::make_optional(solid.clone());
         return result;
     }
     
@@ -272,7 +272,7 @@ ChamferResult Chamfer::chamferEdgesWithParams(
     
     if (edgeParams.empty()) {
         result.success = true;
-        result.solid = solid.clone();
+        result.solid = std::make_optional(solid.clone());
         return result;
     }
     
@@ -293,7 +293,7 @@ ChamferResult Chamfer::chamferEdgesWithParams(
     }
     
     result.success = true;
-    result.solid = std::move(current);
+    result.solid = std::make_optional(std::move(current));
     return result;
 }
 
@@ -330,7 +330,7 @@ ChamferResult Chamfer::chamferEdgeVariable(
     resultSolid.rebuildTopology();
     
     result.success = true;
-    result.solid = std::move(resultSolid);
+    result.solid = std::make_optional(std::move(resultSolid));
     result.stats.edgesProcessed = 1;
     result.stats.chamferFacesCreated = static_cast<int>(newFaces.size());
     

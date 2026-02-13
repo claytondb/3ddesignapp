@@ -345,17 +345,17 @@ BooleanResult BooleanOps::compute(BooleanOperation op,
         if (op == BooleanOperation::Union) {
             // For union with no overlap, just combine both
             result.success = true;
-            result.solid = solidA.clone();
+            result.solid = std::make_optional(solidA.clone());
             // Would need to merge solidB as separate shell
             // For now, just return A (simplified)
         } else if (op == BooleanOperation::Subtract) {
             // No overlap means subtract has no effect
             result.success = true;
-            result.solid = solidA.clone();
+            result.solid = std::make_optional(solidA.clone());
         } else {
             // No overlap means empty intersection
             result.success = true;
-            result.solid = Solid();
+            result.solid = std::make_optional(Solid());
         }
         
         auto endTime = std::chrono::high_resolution_clock::now();
@@ -380,13 +380,13 @@ BooleanResult BooleanOps::booleanUnionMultiple(const std::vector<Solid>& solids,
     
     if (solids.empty()) {
         result.success = true;
-        result.solid = Solid();
+        result.solid = std::make_optional(Solid());
         return result;
     }
     
     if (solids.size() == 1) {
         result.success = true;
-        result.solid = solids[0].clone();
+        result.solid = std::make_optional(solids[0].clone());
         return result;
     }
     
@@ -413,7 +413,7 @@ BooleanResult BooleanOps::booleanUnionMultiple(const std::vector<Solid>& solids,
     }
     
     result.success = true;
-    result.solid = std::move(accumulated);
+    result.solid = std::make_optional(std::move(accumulated));
     return result;
 }
 
@@ -424,7 +424,7 @@ BooleanResult BooleanOps::booleanSubtractMultiple(const Solid& base,
     
     if (tools.empty()) {
         result.success = true;
-        result.solid = base.clone();
+        result.solid = std::make_optional(base.clone());
         return result;
     }
     
@@ -450,7 +450,7 @@ BooleanResult BooleanOps::booleanSubtractMultiple(const Solid& base,
     }
     
     result.success = true;
-    result.solid = std::move(accumulated);
+    result.solid = std::make_optional(std::move(accumulated));
     return result;
 }
 
@@ -467,7 +467,7 @@ BooleanResult BooleanOps::evaluateCSGTree(const std::shared_ptr<CSGNode>& root,
     if (root->isLeaf()) {
         if (root->solid()) {
             result.success = true;
-            result.solid = root->solid()->clone();
+            result.solid = std::make_optional(root->solid()->clone());
         } else {
             result.success = false;
             result.error = "Null solid in leaf node";
@@ -784,7 +784,7 @@ BooleanResult BooleanOps::performBSPBoolean(const Solid& solidA, const Solid& so
     resultSolid.rebuildTopology();
     
     result.success = true;
-    result.solid = std::move(resultSolid);
+    result.solid = std::make_optional(std::move(resultSolid));
     result.stats.newFaceCount = static_cast<int>(result.solid->faceCount());
     result.stats.newVertexCount = static_cast<int>(result.solid->vertexCount());
     
