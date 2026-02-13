@@ -72,16 +72,24 @@
 - SurfaceFit (surface fitting algorithms)
 - WrapSurface (shrink-wrap surfaces)
 
+### Sprint 8 — Integration ✅
+- IntegrationController for component wiring
+- SceneManager ↔ Viewport mesh rendering
+- SceneManager ↔ Picking system
+- Viewport selection signals (click/box)
+- Selection ↔ PropertiesPanel updates
+- Selection ↔ ObjectBrowser sync
+
 ---
 
 ## Current Metrics
 
 | Metric | Target | Current | Progress |
 |--------|--------|---------|----------|
-| Source Files | ~200 | 201 | ✅ 100% |
-| Lines of Code | ~75K | 74,460 | ✅ 99% |
-| Features (P0) | 82 | ~60 | 73% |
-| Features (P1) | 50 | ~30 | 60% |
+| Source Files | ~200 | 203 | ✅ 102% |
+| Lines of Code | ~75K | 75,333 | ✅ 100% |
+| Features (P0) | 82 | ~70 | 85% |
+| Features (P1) | 50 | ~35 | 70% |
 | Test Coverage | 80% | 0% | ⚪ Pending |
 
 ---
