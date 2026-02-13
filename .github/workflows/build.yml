@@ -87,9 +87,11 @@ jobs:
     - name: Create App Bundle
       run: |
         cd build
-        $(brew --prefix qt@6)/bin/macdeployqt *.app -dmg 2>/dev/null || echo "Creating archive instead"
+        echo "=== Build output ==="
+        ls -la
+        $(brew --prefix qt@6)/bin/macdeployqt dc-3ddesignapp.app 2>/dev/null || echo "macdeployqt skipped"
         mkdir -p ../deploy
-        cp -r *.app ../deploy/ 2>/dev/null || cp -r *DesignApp* ../deploy/
+        cp -r dc-3ddesignapp.app ../deploy/
     
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -118,8 +120,10 @@ jobs:
     - name: Package
       run: |
         mkdir deploy
-        cp build/*[Dd]esign*[Aa]pp deploy/ 2>/dev/null || cp build/dc3d* deploy/ || echo "Binary location TBD"
-        chmod +x deploy/* 2>/dev/null || true
+        echo "=== Build output ==="
+        ls -la build/
+        cp build/dc-3ddesignapp deploy/
+        chmod +x deploy/dc-3ddesignapp
     
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
