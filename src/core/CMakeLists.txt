@@ -36,4 +36,5 @@ target_include_directories(dc3d_core PUBLIC
 target_link_libraries(dc3d_core PUBLIC
     Qt6::Core
     Qt6::Widgets  # For QUndoCommand
+    Qt6::OpenGLWidgets  # For QOpenGLWidget in Viewport.h
 )

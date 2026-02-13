@@ -156,21 +156,19 @@ public:
         float smoothness = 0.5f;
         bool preserveVolume = false;
         float collisionOffset = 0.001f;
-        
-        ShrinkParams() = default;
     };
     
     // Shrink wrap a surface onto target
     WrapResult shrinkWrap(const NurbsSurface& surface,
                            const TriangleMesh& targetMesh,
-                           const ShrinkParams& params = {});
+                           const ShrinkParams& params = ShrinkParams{});
     
     // Shrink wrap with constraints
     WrapResult shrinkWrapConstrained(const NurbsSurface& surface,
                                       const TriangleMesh& targetMesh,
                                       const std::vector<glm::vec3>& constraintPoints,
                                       const std::vector<glm::vec3>& constraintPositions,
-                                      const ShrinkParams& params = {});
+                                      const ShrinkParams& params = ShrinkParams{});
     
     void setProgressCallback(WrapProgressCallback callback);
     void cancel();
