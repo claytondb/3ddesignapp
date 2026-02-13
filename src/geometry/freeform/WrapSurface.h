@@ -5,8 +5,12 @@
 #include <functional>
 #include <string>
 #include <glm/glm.hpp>
+#include "../NURBSSurface.h"
 
 namespace dc {
+
+// Use ControlPoint from NURBSSurface
+using dc3d::geometry::ControlPoint;
 
 // Forward declarations
 class NurbsSurface;
@@ -127,12 +131,12 @@ private:
                            float& hitDistance) const;
     
     // Continuity preservation
-    void adjustForContinuity(std::vector<std::vector<glm::vec3>>& controlPoints,
-                              const std::vector<std::vector<glm::vec3>>& originalControlPoints,
+    void adjustForContinuity(std::vector<std::vector<ControlPoint>>& controlPoints,
+                              const std::vector<std::vector<ControlPoint>>& originalControlPoints,
                               int continuityDegree);
     
     // Smoothing
-    void smoothControlPoints(std::vector<std::vector<glm::vec3>>& controlPoints,
+    void smoothControlPoints(std::vector<std::vector<ControlPoint>>& controlPoints,
                               const WrapParams& params);
     
     void reportProgress(float progress, const std::string& stage);

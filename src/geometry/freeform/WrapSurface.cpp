@@ -1,10 +1,14 @@
 #include "WrapSurface.h"
 #include "../nurbs/NurbsSurface.h"
 #include "../mesh/TriangleMesh.h"
+#include "../NURBSSurface.h"
 #include <algorithm>
 #include <cmath>
 
 namespace dc {
+
+// Use ControlPoint from NURBSSurface
+using dc3d::geometry::ControlPoint;
 
 SurfaceWrapper::SurfaceWrapper() = default;
 SurfaceWrapper::~SurfaceWrapper() = default;
@@ -17,10 +21,10 @@ WrapResult SurfaceWrapper::wrapToMesh(const NurbsSurface& surface,
     
     reportProgress(0.0f, "Initializing wrap");
     
-    // Get control points
-    auto controlPoints = surface.getControlPoints();
+    // Get control points as 2D array of ControlPoint
+    auto controlPoints = surface.getControlPoints2D();
     
-    // Fix: Check for empty control points before accessing
+    // Check for empty control points before accessing
     if (controlPoints.empty() || controlPoints[0].empty()) {
         result.success = false;
         result.message = "Surface has no control points";
@@ -29,8 +33,8 @@ WrapResult SurfaceWrapper::wrapToMesh(const NurbsSurface& surface,
     
     auto originalControlPoints = controlPoints;
     
-    int nu = static_cast<int>(controlPoints.size());
-    int nv = static_cast<int>(controlPoints[0].size());
+    int nu = surface.numControlPointsU();
+    int nv = surface.numControlPointsV();
     int totalCPs = nu * nv;
     
     result.controlPointMovement.resize(totalCPs, 0.0f);
@@ -67,11 +71,12 @@ WrapResult SurfaceWrapper::wrapToMesh(const NurbsSurface& surface,
             if (frozen) continue;
             
             // Find closest point on target mesh
-            glm::vec3 closest = accel.closestPoint(controlPoints[i][j]);
-            float dist = glm::length(closest - controlPoints[i][j]);
+            glm::vec3 closest = accel.closestPoint(controlPoints[i][j].position);
+            float dist = glm::length(closest - controlPoints[i][j].position);
             
             if (dist < params.maxDistance) {
-                controlPoints[i][j] = closest;
+                controlPoints[i][j].position = closest;
+                // Preserve weight
                 result.controlPointMovement[i * nv + j] = dist;
                 result.movedControlPoints++;
             }
@@ -135,9 +140,8 @@ WrapResult SurfaceWrapper::wrapRegion(const NurbsSurface& surface,
     // Create modified params with frozen control points outside region
     WrapParams regionParams = params;
     
-    auto controlPoints = surface.getControlPoints();
-    int nu = static_cast<int>(controlPoints.size());
-    int nv = static_cast<int>(controlPoints[0].size());
+    int nu = surface.numControlPointsU();
+    int nv = surface.numControlPointsV();
     
     // Freeze control points outside the specified region
     // This is approximate - proper implementation would use knot spans
@@ -164,9 +168,9 @@ WrapResult SurfaceWrapper::snapControlPoints(const NurbsSurface& surface,
     WrapResult result;
     m_cancelled = false;
     
-    auto controlPoints = surface.getControlPoints();
-    int nu = static_cast<int>(controlPoints.size());
-    int nv = static_cast<int>(controlPoints[0].size());
+    auto controlPoints = surface.getControlPoints2D();
+    int nu = surface.numControlPointsU();
+    int nv = surface.numControlPointsV();
     
     result.controlPointMovement.resize(nu * nv, 0.0f);
     result.movedControlPoints = 0;
@@ -182,13 +186,14 @@ WrapResult SurfaceWrapper::snapControlPoints(const NurbsSurface& surface,
         }
         
         if (idx.x >= 0 && idx.x < nu && idx.y >= 0 && idx.y < nv) {
-            glm::vec3& cp = controlPoints[idx.x][idx.y];
-            glm::vec3 closest = accel.closestPoint(cp);
-            float dist = glm::length(closest - cp);
+            ControlPoint& cp = controlPoints[idx.x][idx.y];
+            glm::vec3 closest = accel.closestPoint(cp.position);
+            float dist = glm::length(closest - cp.position);
             
             if (dist < params.maxDistance) {
                 result.controlPointMovement[idx.x * nv + idx.y] = dist;
-                cp = closest;
+                cp.position = closest;
+                // Preserve weight
                 result.movedControlPoints++;
                 result.maxDeviation = std::max(result.maxDeviation, dist);
                 result.averageDeviation += dist;
@@ -221,9 +226,9 @@ WrapResult SurfaceWrapper::wrapWithDeformation(const NurbsSurface& surface,
     // Compute deformation field from source to target mesh
     // Then apply this deformation to surface control points
     
-    auto controlPoints = surface.getControlPoints();
-    int nu = static_cast<int>(controlPoints.size());
-    int nv = static_cast<int>(controlPoints[0].size());
+    auto controlPoints = surface.getControlPoints2D();
+    int nu = surface.numControlPointsU();
+    int nv = surface.numControlPointsV();
     
     result.controlPointMovement.resize(nu * nv, 0.0f);
     result.movedControlPoints = 0;
@@ -232,25 +237,22 @@ WrapResult SurfaceWrapper::wrapWithDeformation(const NurbsSurface& surface,
     
     WrapUtils::MeshAccelerator sourceAccel(sourceMesh);
     WrapUtils::MeshAccelerator targetAccel(targetMesh);
-    
-    const auto& sourceVerts = sourceMesh.vertices();
-    
+
     for (int i = 0; i < nu; ++i) {
         for (int j = 0; j < nv; ++j) {
-            glm::vec3& cp = controlPoints[i][j];
+            ControlPoint& cp = controlPoints[i][j];
             
             // Find closest point on source mesh
-            glm::vec3 sourcePoint = sourceAccel.closestPoint(cp);
+            glm::vec3 sourcePoint = sourceAccel.closestPoint(cp.position);
             
-            // Fix: Use proper correspondence finding - find closest point on target mesh
-            // instead of assuming vertex indices match between source and target
+            // Find closest point on target mesh
             glm::vec3 targetPoint = targetAccel.closestPoint(sourcePoint);
             
             // Compute deformation delta from source surface to target surface
             glm::vec3 delta = targetPoint - sourcePoint;
             
             // Apply delta to control point (preserving its offset from source mesh)
-            glm::vec3 newPos = cp + delta;
+            glm::vec3 newPos = cp.position + delta;
             
             float movement = glm::length(delta);
             result.controlPointMovement[i * nv + j] = movement;
@@ -258,7 +260,8 @@ WrapResult SurfaceWrapper::wrapWithDeformation(const NurbsSurface& surface,
             totalMovement += movement;
             if (movement > 1e-6f) result.movedControlPoints++;
             
-            cp = newPos;
+            cp.position = newPos;
+            // Preserve weight
         }
     }
     
@@ -286,7 +289,7 @@ std::vector<std::unique_ptr<NurbsSurface>> SurfaceWrapper::wrapProgressive(
     std::vector<std::unique_ptr<NurbsSurface>> results;
     
     // Get original and target control points
-    auto originalCPs = surface.getControlPoints();
+    auto originalCPs = surface.getControlPoints2D();
     
     WrapParams singleStepParams = params;
     auto wrapResult = wrapToMesh(surface, targetMesh, singleStepParams);
@@ -295,10 +298,10 @@ std::vector<std::unique_ptr<NurbsSurface>> SurfaceWrapper::wrapProgressive(
         return results;
     }
     
-    auto targetCPs = wrapResult.surface->getControlPoints();
+    auto targetCPs = wrapResult.surface->getControlPoints2D();
     
-    int nu = static_cast<int>(originalCPs.size());
-    int nv = static_cast<int>(originalCPs[0].size());
+    int nu = surface.numControlPointsU();
+    int nv = surface.numControlPointsV();
     
     // Create intermediate surfaces
     for (int step = 0; step <= steps; ++step) {
@@ -307,7 +310,12 @@ std::vector<std::unique_ptr<NurbsSurface>> SurfaceWrapper::wrapProgressive(
         auto interpCPs = originalCPs;
         for (int i = 0; i < nu; ++i) {
             for (int j = 0; j < nv; ++j) {
-                interpCPs[i][j] = glm::mix(originalCPs[i][j], targetCPs[i][j], t);
+                // Interpolate position
+                interpCPs[i][j].position = glm::mix(originalCPs[i][j].position, 
+                                                     targetCPs[i][j].position, t);
+                // Interpolate weight
+                interpCPs[i][j].weight = glm::mix(originalCPs[i][j].weight, 
+                                                   targetCPs[i][j].weight, t);
             }
         }
         
@@ -330,9 +338,9 @@ WrapResult SurfaceWrapper::wrapWithOffset(const NurbsSurface& surface,
     WrapResult result;
     m_cancelled = false;
     
-    auto controlPoints = surface.getControlPoints();
-    int nu = static_cast<int>(controlPoints.size());
-    int nv = static_cast<int>(controlPoints[0].size());
+    auto controlPoints = surface.getControlPoints2D();
+    int nu = surface.numControlPointsU();
+    int nv = surface.numControlPointsV();
     
     result.controlPointMovement.resize(nu * nv, 0.0f);
     
@@ -345,20 +353,21 @@ WrapResult SurfaceWrapper::wrapWithOffset(const NurbsSurface& surface,
                 return result;
             }
             
-            glm::vec3& cp = controlPoints[i][j];
+            ControlPoint& cp = controlPoints[i][j];
             
             // Find closest point and normal on mesh
-            glm::vec3 closest = accel.closestPoint(cp);
+            glm::vec3 closest = accel.closestPoint(cp.position);
             
             // Estimate normal at closest point
             // (simplified - real implementation would interpolate face normals)
-            glm::vec3 toPoint = glm::normalize(cp - closest);
+            glm::vec3 toPoint = glm::normalize(cp.position - closest);
             
             // Offset from mesh surface
             glm::vec3 newPos = closest + toPoint * offset;
             
-            result.controlPointMovement[i * nv + j] = glm::length(newPos - cp);
-            cp = newPos;
+            result.controlPointMovement[i * nv + j] = glm::length(newPos - cp.position);
+            cp.position = newPos;
+            // Preserve weight
         }
     }
     
@@ -461,15 +470,15 @@ bool SurfaceWrapper::rayMeshIntersect(const glm::vec3& origin,
     return hit;
 }
 
-void SurfaceWrapper::adjustForContinuity(std::vector<std::vector<glm::vec3>>& controlPoints,
-                                          const std::vector<std::vector<glm::vec3>>& originalControlPoints,
+void SurfaceWrapper::adjustForContinuity(std::vector<std::vector<ControlPoint>>& controlPoints,
+                                          const std::vector<std::vector<ControlPoint>>& originalControlPoints,
                                           int continuityDegree) {
     int nu = static_cast<int>(controlPoints.size());
     int nv = static_cast<int>(controlPoints[0].size());
     
     if (continuityDegree < 1) return;
     
-    // Fix: Boundary check - need at least 2 control points in each direction
+    // Boundary check - need at least 2 control points in each direction
     if (nu < 2 || nv < 2) return;
     
     // G1 continuity: preserve tangent directions at boundaries
@@ -477,43 +486,43 @@ void SurfaceWrapper::adjustForContinuity(std::vector<std::vector<glm::vec3>>& co
         // U boundaries
         for (int j = 0; j < nv; ++j) {
             // u = 0 boundary
-            glm::vec3 origTangent = originalControlPoints[1][j] - originalControlPoints[0][j];
-            glm::vec3 newTangent = controlPoints[1][j] - controlPoints[0][j];
+            glm::vec3 origTangent = originalControlPoints[1][j].position - originalControlPoints[0][j].position;
+            glm::vec3 newTangent = controlPoints[1][j].position - controlPoints[0][j].position;
             float origLen = glm::length(origTangent);
             float newLen = glm::length(newTangent);
             if (origLen > 1e-6f && newLen > 1e-6f) {
                 // Preserve tangent direction
-                controlPoints[1][j] = controlPoints[0][j] + glm::normalize(origTangent) * newLen;
+                controlPoints[1][j].position = controlPoints[0][j].position + glm::normalize(origTangent) * newLen;
             }
             
             // u = 1 boundary
-            origTangent = originalControlPoints[nu-1][j] - originalControlPoints[nu-2][j];
-            newTangent = controlPoints[nu-1][j] - controlPoints[nu-2][j];
+            origTangent = originalControlPoints[nu-1][j].position - originalControlPoints[nu-2][j].position;
+            newTangent = controlPoints[nu-1][j].position - controlPoints[nu-2][j].position;
             origLen = glm::length(origTangent);
             newLen = glm::length(newTangent);
             if (origLen > 1e-6f && newLen > 1e-6f) {
-                controlPoints[nu-2][j] = controlPoints[nu-1][j] - glm::normalize(origTangent) * newLen;
+                controlPoints[nu-2][j].position = controlPoints[nu-1][j].position - glm::normalize(origTangent) * newLen;
             }
         }
         
         // V boundaries
         for (int i = 0; i < nu; ++i) {
             // v = 0 boundary
-            glm::vec3 origTangent = originalControlPoints[i][1] - originalControlPoints[i][0];
-            glm::vec3 newTangent = controlPoints[i][1] - controlPoints[i][0];
+            glm::vec3 origTangent = originalControlPoints[i][1].position - originalControlPoints[i][0].position;
+            glm::vec3 newTangent = controlPoints[i][1].position - controlPoints[i][0].position;
             float origLen = glm::length(origTangent);
             float newLen = glm::length(newTangent);
             if (origLen > 1e-6f && newLen > 1e-6f) {
-                controlPoints[i][1] = controlPoints[i][0] + glm::normalize(origTangent) * newLen;
+                controlPoints[i][1].position = controlPoints[i][0].position + glm::normalize(origTangent) * newLen;
             }
             
             // v = 1 boundary
-            origTangent = originalControlPoints[i][nv-1] - originalControlPoints[i][nv-2];
-            newTangent = controlPoints[i][nv-1] - controlPoints[i][nv-2];
+            origTangent = originalControlPoints[i][nv-1].position - originalControlPoints[i][nv-2].position;
+            newTangent = controlPoints[i][nv-1].position - controlPoints[i][nv-2].position;
             origLen = glm::length(origTangent);
             newLen = glm::length(newTangent);
             if (origLen > 1e-6f && newLen > 1e-6f) {
-                controlPoints[i][nv-2] = controlPoints[i][nv-1] - glm::normalize(origTangent) * newLen;
+                controlPoints[i][nv-2].position = controlPoints[i][nv-1].position - glm::normalize(origTangent) * newLen;
             }
         }
     }
@@ -525,7 +534,7 @@ void SurfaceWrapper::adjustForContinuity(std::vector<std::vector<glm::vec3>>& co
     }
 }
 
-void SurfaceWrapper::smoothControlPoints(std::vector<std::vector<glm::vec3>>& controlPoints,
+void SurfaceWrapper::smoothControlPoints(std::vector<std::vector<ControlPoint>>& controlPoints,
                                           const WrapParams& params) {
     int nu = static_cast<int>(controlPoints.size());
     int nv = static_cast<int>(controlPoints[0].size());
@@ -545,12 +554,13 @@ void SurfaceWrapper::smoothControlPoints(std::vector<std::vector<glm::vec3>>& co
                 }
                 if (frozen) continue;
                 
-                // Laplacian smoothing
-                glm::vec3 laplacian = controlPoints[i-1][j] + controlPoints[i+1][j] +
-                                      controlPoints[i][j-1] + controlPoints[i][j+1] -
-                                      4.0f * controlPoints[i][j];
+                // Laplacian smoothing on positions
+                glm::vec3 laplacian = controlPoints[i-1][j].position + controlPoints[i+1][j].position +
+                                      controlPoints[i][j-1].position + controlPoints[i][j+1].position -
+                                      4.0f * controlPoints[i][j].position;
                 
-                smoothed[i][j] = controlPoints[i][j] + params.smoothingWeight * laplacian;
+                smoothed[i][j].position = controlPoints[i][j].position + params.smoothingWeight * laplacian;
+                // Preserve weight
             }
         }
         
@@ -568,10 +578,10 @@ WrapResult ShrinkWrapper::shrinkWrap(const NurbsSurface& surface,
     WrapResult result;
     m_cancelled = false;
     
-    auto controlPoints = surface.getControlPoints();
+    auto controlPoints = surface.getControlPoints2D();
     auto originalCPs = controlPoints;  // Store original for computing statistics
-    int nu = static_cast<int>(controlPoints.size());
-    int nv = static_cast<int>(controlPoints[0].size());
+    int nu = surface.numControlPointsU();
+    int nv = surface.numControlPointsV();
     
     WrapUtils::MeshAccelerator accel(targetMesh);
     
@@ -585,18 +595,19 @@ WrapResult ShrinkWrapper::shrinkWrap(const NurbsSurface& surface,
         reportProgress(static_cast<float>(iter) / params.iterations, "Shrink wrapping");
         
         // Move control points toward target
-        std::vector<std::vector<glm::vec3>> newCPs = controlPoints;
+        std::vector<std::vector<ControlPoint>> newCPs = controlPoints;
         
         for (int i = 0; i < nu; ++i) {
             for (int j = 0; j < nv; ++j) {
-                glm::vec3 closest = accel.closestPoint(controlPoints[i][j]);
-                glm::vec3 direction = closest - controlPoints[i][j];
+                glm::vec3 closest = accel.closestPoint(controlPoints[i][j].position);
+                glm::vec3 direction = closest - controlPoints[i][j].position;
                 float dist = glm::length(direction);
                 
                 if (dist > params.collisionOffset) {
                     // Move toward target
-                    newCPs[i][j] = controlPoints[i][j] + 
+                    newCPs[i][j].position = controlPoints[i][j].position + 
                                    glm::normalize(direction) * std::min(dist, params.stepSize);
+                    // Preserve weight
                 }
             }
         }
@@ -605,9 +616,9 @@ WrapResult ShrinkWrapper::shrinkWrap(const NurbsSurface& surface,
         if (params.smoothness > 0) {
             for (int i = 1; i < nu - 1; ++i) {
                 for (int j = 1; j < nv - 1; ++j) {
-                    glm::vec3 avg = (newCPs[i-1][j] + newCPs[i+1][j] +
-                                    newCPs[i][j-1] + newCPs[i][j+1]) * 0.25f;
-                    newCPs[i][j] = glm::mix(newCPs[i][j], avg, params.smoothness);
+                    glm::vec3 avg = (newCPs[i-1][j].position + newCPs[i+1][j].position +
+                                    newCPs[i][j-1].position + newCPs[i][j+1].position) * 0.25f;
+                    newCPs[i][j].position = glm::mix(newCPs[i][j].position, avg, params.smoothness);
                 }
             }
         }
@@ -623,7 +634,7 @@ WrapResult ShrinkWrapper::shrinkWrap(const NurbsSurface& surface,
         surface.getDegreeV()
     );
     
-    // Fix: Compute statistics before returning
+    // Compute statistics
     result.controlPointMovement.resize(nu * nv);
     result.movedControlPoints = 0;
     result.maxDeviation = 0.0f;
@@ -631,7 +642,7 @@ WrapResult ShrinkWrapper::shrinkWrap(const NurbsSurface& surface,
     
     for (int i = 0; i < nu; ++i) {
         for (int j = 0; j < nv; ++j) {
-            float mov = glm::length(controlPoints[i][j] - originalCPs[i][j]);
+            float mov = glm::length(controlPoints[i][j].position - originalCPs[i][j].position);
             result.controlPointMovement[i * nv + j] = mov;
             result.maxDeviation = std::max(result.maxDeviation, mov);
             totalMovement += mov;
@@ -731,7 +742,7 @@ glm::vec3 closestPointOnTriangle(const glm::vec3& point,
     
     float denom = d00 * d11 - d01 * d01;
     
-    // Fix: Handle degenerate triangle - find closest point on edges/vertices
+    // Handle degenerate triangle - find closest point on edges/vertices
     if (std::abs(denom) < 1e-10f) {
         // Degenerate triangle - collinear or coincident vertices
         // Check which edges are valid and find closest point
@@ -787,7 +798,7 @@ void MeshAccelerator::buildBVH() {
     const auto& vertices = m_mesh.vertices();
     const auto& indices = m_mesh.indices();
     
-    // Fix: Check for empty mesh before processing
+    // Check for empty mesh before processing
     if (vertices.empty() || indices.empty()) {
         return;  // Initialize with empty BVH
     }
