@@ -259,7 +259,6 @@ public:
         float maxVal = -1.0f
     );
 
-private:
     /**
      * @brief Compute closest point on triangle to query point
      */
@@ -269,7 +268,8 @@ private:
         const glm::vec3& v1,
         const glm::vec3& v2
     );
-    
+
+private:
     /**
      * @brief Ray-triangle intersection test
      */

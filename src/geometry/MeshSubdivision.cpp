@@ -8,6 +8,7 @@
 #include <cmath>
 #include <unordered_map>
 #include <algorithm>
+#include <glm/gtc/constants.hpp>
 
 namespace dc3d {
 namespace geometry {

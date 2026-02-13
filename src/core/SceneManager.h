@@ -160,6 +160,37 @@ public:
      * @return Visibility state (false if mesh not found)
      */
     bool isMeshVisible(uint64_t id) const;
+    
+    // ---- Node Management (for undo/redo support) ----
+    
+    /**
+     * @brief Restore a previously detached node
+     * @param node The node to restore (ownership transferred)
+     * @param parentId Parent node ID (0 for root)
+     * @param index Position index in parent's child list
+     */
+    void restoreNode(std::unique_ptr<SceneNode> node, uint64_t parentId, size_t index);
+    
+    /**
+     * @brief Detach a node from the scene without destroying it
+     * @param nodeId Node identifier
+     * @return The detached node, or nullptr if not found
+     */
+    std::unique_ptr<SceneNode> detachNode(uint64_t nodeId);
+    
+    /**
+     * @brief Get the parent ID of a node
+     * @param nodeId Node identifier
+     * @return Parent node ID, or 0 if node is at root level or not found
+     */
+    uint64_t getParentId(uint64_t nodeId) const;
+    
+    /**
+     * @brief Get the index of a node within its parent's child list
+     * @param nodeId Node identifier
+     * @return Index position, or 0 if not found
+     */
+    size_t getNodeIndex(uint64_t nodeId) const;
 
 signals:
     /**

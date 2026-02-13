@@ -164,5 +164,74 @@ bool SceneManager::isMeshVisible(uint64_t id) const
     return false;
 }
 
+// ---- Node Management (for undo/redo support) ----
+
+void SceneManager::restoreNode(std::unique_ptr<SceneNode> node, uint64_t parentId, size_t index)
+{
+    if (!node) {
+        qWarning() << "SceneManager::restoreNode - null node";
+        return;
+    }
+    
+    // For now, we only support restoring nodes at root level
+    // parentId is reserved for future hierarchical scene support
+    Q_UNUSED(parentId);
+    
+    // Insert at specified index or at end if index is out of bounds
+    if (index < m_nodes.size()) {
+        m_nodes.insert(m_nodes.begin() + index, std::move(node));
+    } else {
+        m_nodes.push_back(std::move(node));
+    }
+    
+    emit sceneChanged();
+}
+
+std::unique_ptr<SceneNode> SceneManager::detachNode(uint64_t nodeId)
+{
+    // First check mesh nodes
+    auto meshIt = m_meshNodes.find(nodeId);
+    if (meshIt != m_meshNodes.end()) {
+        auto node = std::move(meshIt->second);
+        m_meshNodes.erase(meshIt);
+        emit meshRemoved(nodeId);
+        emit sceneChanged();
+        return node;
+    }
+    
+    // Check generic nodes (by matching name or other criteria)
+    // For now, nodeId doesn't directly map to generic nodes
+    // This is a simplified implementation
+    qWarning() << "SceneManager::detachNode - node not found with id" << nodeId;
+    return nullptr;
+}
+
+uint64_t SceneManager::getParentId(uint64_t nodeId) const
+{
+    // Currently all nodes are at root level, so parent is always 0
+    // Check if the node exists first
+    if (m_meshNodes.find(nodeId) != m_meshNodes.end()) {
+        return 0;  // Root level
+    }
+    
+    qWarning() << "SceneManager::getParentId - node not found with id" << nodeId;
+    return 0;
+}
+
+size_t SceneManager::getNodeIndex(uint64_t nodeId) const
+{
+    // For mesh nodes, find position in the ordered iteration
+    size_t index = 0;
+    for (const auto& pair : m_meshNodes) {
+        if (pair.first == nodeId) {
+            return index;
+        }
+        ++index;
+    }
+    
+    qWarning() << "SceneManager::getNodeIndex - node not found with id" << nodeId;
+    return 0;
+}
+
 } // namespace core
 } // namespace dc3d

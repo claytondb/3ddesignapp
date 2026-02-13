@@ -135,6 +135,13 @@ public:
      */
     bool isBuilt() const { return root_ != nullptr; }
     
+    /**
+     * @brief Get point at index
+     * @param index Index of the point
+     * @return Point position at index, or zero vector if invalid
+     */
+    glm::vec3 getPoint(int index) const;
+    
 private:
     std::unique_ptr<KDNode> buildRecursive(std::vector<int>& indices, int depth,
                                             const std::vector<glm::vec3>& points,

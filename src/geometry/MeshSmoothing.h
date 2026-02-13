@@ -148,15 +148,15 @@ public:
         float beta,
         bool preserveBoundary = true);
     
-private:
-    MeshSmoother() = default;
-    
-    // Helper functions
+    // Helper functions (public for external use)
     static std::vector<std::vector<uint32_t>> buildAdjacencyList(const MeshData& mesh);
     static std::unordered_set<uint32_t> findBoundaryVertices(const MeshData& mesh);
     static std::unordered_set<uint32_t> findFeatureVertices(
         const MeshData& mesh, 
         float angleThreshold);
+    
+private:
+    MeshSmoother() = default;
     
     static glm::vec3 computeLaplacian(
         const MeshData& mesh,
