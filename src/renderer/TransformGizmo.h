@@ -14,6 +14,7 @@
 #include <QObject>
 #include <QVector3D>
 #include <QMatrix4x4>
+#include <QQuaternion>
 #include <QColor>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
