@@ -33,39 +33,61 @@ ImportCommand::~ImportCommand() = default;
 
 void ImportCommand::redo()
 {
-    if (!m_app || !m_mesh) {
-        qWarning() << "ImportCommand::redo - Invalid state";
+    if (!m_app) {
+        qWarning() << "ImportCommand::redo - Invalid app pointer";
         return;
     }
     
-    qDebug() << "ImportCommand::redo - Adding mesh:" << m_meshName;
-    
-    // Use IntegrationController to add mesh - this properly connects to:
-    // SceneManager, Viewport, Picking, and ObjectBrowser via signals
-    auto* integrationController = m_app->integrationController();
-    if (integrationController) {
-        integrationController->addMesh(m_meshId, m_meshName, m_mesh);
-    } else {
-        // Fallback: add directly to scene manager (not recommended)
-        auto* sceneManager = m_app->sceneManager();
-        if (sceneManager) {
-            sceneManager->addMesh(m_meshId, m_meshName, m_mesh);
-        }
+    if (!m_mesh) {
+        qWarning() << "ImportCommand::redo - Invalid mesh pointer";
+        return;
     }
     
-    // Fit view to show the new mesh
-    auto* mainWindow = m_app->mainWindow();
-    if (mainWindow) {
-        auto* viewport = mainWindow->viewport();
-        if (viewport) {
-            viewport->fitView();
+    if (m_mesh->isEmpty()) {
+        qWarning() << "ImportCommand::redo - Mesh is empty";
+        return;
+    }
+    
+    qDebug() << "ImportCommand::redo - Adding mesh:" << m_meshName 
+             << "vertices:" << m_mesh->vertexCount() 
+             << "faces:" << m_mesh->faceCount();
+    
+    try {
+        // Use IntegrationController to add mesh - this properly connects to:
+        // SceneManager, Viewport, Picking, and ObjectBrowser via signals
+        auto* integrationController = m_app->integrationController();
+        if (integrationController) {
+            integrationController->addMesh(m_meshId, m_meshName, m_mesh);
+        } else {
+            // Fallback: add directly to scene manager (not recommended)
+            qWarning() << "ImportCommand::redo - IntegrationController not available, using fallback";
+            auto* sceneManager = m_app->sceneManager();
+            if (sceneManager) {
+                sceneManager->addMesh(m_meshId, m_meshName, m_mesh);
+            } else {
+                qWarning() << "ImportCommand::redo - SceneManager not available";
+                return;
+            }
         }
         
-        // Update status
-        mainWindow->setStatusMessage(QString("Imported: %1 (%2 vertices, %3 faces)")
-            .arg(m_meshName)
-            .arg(m_mesh->vertexCount())
-            .arg(m_mesh->faceCount()));
+        // Fit view to show the new mesh
+        auto* mainWindow = m_app->mainWindow();
+        if (mainWindow) {
+            auto* viewport = mainWindow->viewport();
+            if (viewport) {
+                viewport->fitView();
+            }
+            
+            // Update status
+            mainWindow->setStatusMessage(QString("Imported: %1 (%2 vertices, %3 faces)")
+                .arg(m_meshName)
+                .arg(m_mesh->vertexCount())
+                .arg(m_mesh->faceCount()));
+        }
+    } catch (const std::exception& e) {
+        qWarning() << "ImportCommand::redo - Exception:" << e.what();
+    } catch (...) {
+        qWarning() << "ImportCommand::redo - Unknown exception";
     }
 }
 

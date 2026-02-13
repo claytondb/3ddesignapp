@@ -126,12 +126,18 @@ void IntegrationController::connectViewport()
 void IntegrationController::onMeshAdded(uint64_t id, const QString& name)
 {
     // Guard against partially initialized state
-    if (!m_initialized) return;
+    if (!m_initialized) {
+        qWarning() << "IntegrationController::onMeshAdded called but not initialized - mesh:" << name;
+        return;
+    }
     
     qDebug() << "IntegrationController: mesh added" << name << "id:" << id;
     
     // Get mesh data from scene manager
-    if (!m_sceneManager) return;
+    if (!m_sceneManager) {
+        qWarning() << "IntegrationController: no scene manager";
+        return;
+    }
     
     auto mesh = m_sceneManager->getMesh(id);
     if (!mesh) {
@@ -139,14 +145,28 @@ void IntegrationController::onMeshAdded(uint64_t id, const QString& name)
         return;
     }
     
+    // SAFETY: Validate mesh has data before passing to other components
+    if (mesh->isEmpty()) {
+        qWarning() << "IntegrationController: mesh is empty:" << name;
+        return;
+    }
+    
     // Add to viewport for rendering
     if (m_viewport) {
-        m_viewport->addMesh(id, mesh);
+        try {
+            m_viewport->addMesh(id, mesh);
+        } catch (const std::exception& e) {
+            qWarning() << "IntegrationController: failed to add mesh to viewport:" << e.what();
+        }
     }
     
     // Add to picking system
-    if (m_picking) {
-        m_picking->addMesh(static_cast<uint32_t>(id), mesh.get());
+    if (m_picking && mesh) {
+        try {
+            m_picking->addMesh(static_cast<uint32_t>(id), mesh.get());
+        } catch (const std::exception& e) {
+            qWarning() << "IntegrationController: failed to add mesh to picking:" << e.what();
+        }
     }
     
     // Add to object browser

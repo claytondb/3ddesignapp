@@ -72,6 +72,7 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private slots:
+    void onOpenProjectRequested();
     void onImportMeshRequested();
     void onViewFrontRequested();
     void onViewBackRequested();

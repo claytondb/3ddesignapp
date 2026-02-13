@@ -13,6 +13,7 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QUndoStack>
 
@@ -613,6 +614,7 @@ void MainWindow::setupStatusBar()
 void MainWindow::setupConnections()
 {
     // File menu connections
+    connect(m_menuBar, &MenuBar::openProjectRequested, this, &MainWindow::onOpenProjectRequested);
     connect(m_menuBar, &MenuBar::importMeshRequested, this, &MainWindow::onImportMeshRequested);
     
     // View menu connections
@@ -747,6 +749,41 @@ void MainWindow::onSceneChanged()
     // Update viewport when scene changes
     if (m_viewport) {
         m_viewport->update();
+    }
+}
+
+void MainWindow::onOpenProjectRequested()
+{
+    // Open project file dialog
+    QString filter = "3D Design Project (*.dc3d);;Mesh Files (*.stl *.obj *.ply);;All Files (*)";
+    QString filePath = QFileDialog::getOpenFileName(this, tr("Open Project"), QString(), filter);
+    
+    if (filePath.isEmpty()) {
+        return;
+    }
+    
+    // Check if it's a mesh file and import it
+    QFileInfo fileInfo(filePath);
+    QString extension = fileInfo.suffix().toLower();
+    
+    if (extension == "stl" || extension == "obj" || extension == "ply") {
+        // Import as mesh
+        auto* app = dc3d::Application::instance();
+        if (app) {
+            if (!app->importMesh(filePath)) {
+                QMessageBox::warning(this, tr("Open Error"), 
+                    tr("Failed to open file. Check the console for details."));
+            } else {
+                setStatusMessage(QString("Opened: %1").arg(fileInfo.fileName()));
+            }
+        }
+    } else if (extension == "dc3d") {
+        // TODO: Native project file support
+        QMessageBox::information(this, tr("Open Project"), 
+            tr("Native project file support coming soon. For now, use File > Import to load mesh files."));
+    } else {
+        QMessageBox::warning(this, tr("Open Error"), 
+            tr("Unsupported file format: %1").arg(extension));
     }
 }
 

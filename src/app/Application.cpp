@@ -119,6 +119,28 @@ bool Application::importMesh(const QString& filePath)
 {
     qDebug() << "Importing mesh:" << filePath;
     
+    // SAFETY: Ensure application is properly initialized
+    if (!m_initialized) {
+        QString error = "Application not initialized";
+        qWarning() << error;
+        emit importFailed(error);
+        return false;
+    }
+    
+    if (!m_undoStack) {
+        QString error = "Undo stack not initialized";
+        qWarning() << error;
+        emit importFailed(error);
+        return false;
+    }
+    
+    if (!m_integrationController) {
+        QString error = "Integration controller not initialized";
+        qWarning() << error;
+        emit importFailed(error);
+        return false;
+    }
+    
     try {
         QFileInfo fileInfo(filePath);
         if (!fileInfo.exists()) {
@@ -233,6 +255,22 @@ bool Application::createPrimitive(const QString& type)
 {
     qDebug() << "Creating primitive:" << type;
     
+    // SAFETY: Ensure application is properly initialized
+    if (!m_initialized) {
+        qWarning() << "Application::createPrimitive called before initialization";
+        return false;
+    }
+    
+    if (!m_undoStack) {
+        qWarning() << "Application::createPrimitive - undo stack not initialized";
+        return false;
+    }
+    
+    if (!m_integrationController) {
+        qWarning() << "Application::createPrimitive - integration controller not initialized";
+        return false;
+    }
+    
     try {
         geometry::MeshData meshData;
         QString primitiveName;
@@ -266,12 +304,23 @@ bool Application::createPrimitive(const QString& type)
             return false;
         }
         
+        // Validate mesh data
+        if (meshData.vertexCount() == 0 || meshData.faceCount() == 0) {
+            qWarning() << "Generated primitive has no geometry";
+            return false;
+        }
+        
         // Generate unique mesh ID and name
         uint64_t meshId = generateMeshId();
         QString meshName = QString("%1_%2").arg(primitiveName).arg(meshId);
         
         // Create shared pointer from mesh data
         auto mesh = std::make_shared<geometry::MeshData>(std::move(meshData));
+        
+        if (!mesh) {
+            qWarning() << "Failed to create mesh shared pointer";
+            return false;
+        }
         
         // Compute normals if not already present
         if (!mesh->hasNormals()) {
@@ -280,6 +329,11 @@ bool Application::createPrimitive(const QString& type)
         
         // Create and execute import command (reuse for undo support)
         ImportCommand* cmd = new ImportCommand(meshId, meshName, mesh, this);
+        if (!cmd) {
+            qWarning() << "Failed to create import command";
+            return false;
+        }
+        
         m_undoStack->push(cmd);
         
         qDebug() << "Primitive created successfully:" << meshName
@@ -290,6 +344,9 @@ bool Application::createPrimitive(const QString& type)
         
         return true;
         
+    } catch (const std::bad_alloc& e) {
+        qWarning() << "Out of memory creating primitive:" << e.what();
+        return false;
     } catch (const std::exception& e) {
         qWarning() << "Error creating primitive:" << e.what();
         return false;

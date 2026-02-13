@@ -25,15 +25,33 @@ Picking::Picking()
 void Picking::addMesh(uint32_t meshId, const geometry::MeshData* mesh,
                       const glm::mat4& transform)
 {
+    // SAFETY: Null check before dereferencing mesh pointer
+    if (!mesh) {
+        qWarning() << "Picking::addMesh - null mesh pointer for id" << meshId;
+        return;
+    }
+    
+    // SAFETY: Validate mesh has data
+    if (mesh->isEmpty()) {
+        qWarning() << "Picking::addMesh - empty mesh for id" << meshId;
+        return;
+    }
+    
     // Check if mesh already exists
     for (auto& m : m_meshes) {
         if (m.meshId == meshId) {
             m.mesh = mesh;
             m.transform = transform;
             m.inverseTransform = glm::inverse(transform);
-            m.bvh = std::make_shared<geometry::BVH>(*mesh);
+            try {
+                m.bvh = std::make_shared<geometry::BVH>(*mesh);
+            } catch (const std::exception& e) {
+                qWarning() << "Picking: BVH construction exception for mesh" << meshId << ":" << e.what();
+                m.bvh = nullptr;
+                return;
+            }
             // Validate BVH construction succeeded
-            if (!m.bvh->isValid()) {
+            if (!m.bvh || !m.bvh->isValid()) {
                 qWarning() << "Picking: BVH construction failed for mesh" << meshId 
                            << "(possibly empty mesh)";
             }
@@ -47,9 +65,14 @@ void Picking::addMesh(uint32_t meshId, const geometry::MeshData* mesh,
     pm.mesh = mesh;
     pm.transform = transform;
     pm.inverseTransform = glm::inverse(transform);
-    pm.bvh = std::make_shared<geometry::BVH>(*mesh);
+    try {
+        pm.bvh = std::make_shared<geometry::BVH>(*mesh);
+    } catch (const std::exception& e) {
+        qWarning() << "Picking: BVH construction exception for mesh" << meshId << ":" << e.what();
+        pm.bvh = nullptr;
+    }
     // Validate BVH construction succeeded
-    if (!pm.bvh->isValid()) {
+    if (!pm.bvh || !pm.bvh->isValid()) {
         qWarning() << "Picking: BVH construction failed for mesh" << meshId 
                    << "(possibly empty mesh)";
     }
