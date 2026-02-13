@@ -34,17 +34,9 @@ target_include_directories(dc3d_sketch PUBLIC
     ${CMAKE_SOURCE_DIR}/src
 )
 
-# GLM is header-only
-find_package(glm CONFIG QUIET)
-if(glm_FOUND)
-    target_link_libraries(dc3d_sketch PUBLIC glm::glm)
-else()
-    find_path(GLM_INCLUDE_DIR glm/glm.hpp
-        PATHS /usr/include /usr/local/include
-    )
-    if(GLM_INCLUDE_DIR)
-        target_include_directories(dc3d_sketch PUBLIC ${GLM_INCLUDE_DIR})
-    endif()
+# GLM is header-only, use global GLM_INCLUDE_DIR from parent CMakeLists.txt
+if(GLM_INCLUDE_DIR)
+    target_include_directories(dc3d_sketch PUBLIC ${GLM_INCLUDE_DIR})
 endif()
 
 target_link_libraries(dc3d_sketch PUBLIC

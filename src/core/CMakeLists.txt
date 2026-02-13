@@ -31,6 +31,7 @@ target_include_directories(dc3d_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/Commands
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src
+    ${GLM_INCLUDE_DIR}
 )
 
 target_link_libraries(dc3d_core PUBLIC

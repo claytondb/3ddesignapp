@@ -96,20 +96,9 @@ target_include_directories(dc3d_geometry PUBLIC
     ${CMAKE_SOURCE_DIR}/src
 )
 
-# GLM is header-only, find it
-find_package(glm CONFIG QUIET)
-if(NOT glm_FOUND)
-    # Fallback: GLM might be installed as system headers
-    find_path(GLM_INCLUDE_DIR glm/glm.hpp
-        PATHS /usr/include /usr/local/include
-    )
-    if(GLM_INCLUDE_DIR)
-        target_include_directories(dc3d_geometry PUBLIC ${GLM_INCLUDE_DIR})
-    else()
-        message(WARNING "GLM not found - geometry module may fail to compile")
-    endif()
-else()
-    target_link_libraries(dc3d_geometry PUBLIC glm::glm)
+# GLM is header-only, use global GLM_INCLUDE_DIR from parent CMakeLists.txt
+if(GLM_INCLUDE_DIR)
+    target_include_directories(dc3d_geometry PUBLIC ${GLM_INCLUDE_DIR})
 endif()
 
 # Link only Qt for now - no circular dependencies
