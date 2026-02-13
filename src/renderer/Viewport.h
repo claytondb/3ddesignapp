@@ -39,6 +39,9 @@ class BoxSelector;
 }
 }
 
+// Forward declare
+namespace dc3d { namespace renderer { class SelectionRenderer; } }
+
 namespace dc {
 
 class Camera;
@@ -130,6 +133,11 @@ public:
      * @brief Check if a mesh exists
      */
     bool hasMesh(uint64_t id) const;
+    
+    /**
+     * @brief Set the selection manager for rendering highlights
+     */
+    void setSelection(dc3d::core::Selection* selection) { m_selection = selection; }
     
     // ---- View Control ----
     
@@ -270,6 +278,10 @@ private:
     // Renderers
     std::unique_ptr<GridRenderer> m_gridRenderer;
     std::unique_ptr<ShaderProgram> m_meshShader;
+    std::unique_ptr<dc3d::renderer::SelectionRenderer> m_selectionRenderer;
+    
+    // Selection reference (set externally)
+    dc3d::core::Selection* m_selection = nullptr;
     
     // Mesh storage
     std::unordered_map<uint64_t, std::shared_ptr<dc3d::geometry::MeshData>> m_meshes;

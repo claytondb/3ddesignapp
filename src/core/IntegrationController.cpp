@@ -106,6 +106,9 @@ void IntegrationController::connectViewport()
 {
     if (!m_viewport) return;
     
+    // Set selection manager on viewport for rendering highlights
+    m_viewport->setSelection(m_selection);
+    
     connect(m_viewport, &dc::Viewport::selectionClick,
             this, &IntegrationController::onViewportSelectionClick);
     connect(m_viewport, &dc::Viewport::boxSelectionComplete,

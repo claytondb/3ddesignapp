@@ -7,7 +7,9 @@
 #include "Camera.h"
 #include "GridRenderer.h"
 #include "ShaderProgram.h"
+#include "SelectionRenderer.h"
 #include "geometry/MeshData.h"
+#include "core/Selection.h"
 
 #include <QMouseEvent>
 #include <QKeyEvent>
@@ -145,6 +147,9 @@ Viewport::~Viewport()
     m_meshGPUData.clear();
     
     m_gridRenderer->cleanup();
+    if (m_selectionRenderer) {
+        m_selectionRenderer->cleanup();
+    }
     doneCurrent();
 }
 
@@ -162,6 +167,12 @@ void Viewport::initializeGL()
     // Initialize grid renderer
     if (!m_gridRenderer->initialize()) {
         qWarning() << "Failed to initialize grid renderer";
+    }
+    
+    // Initialize selection renderer
+    m_selectionRenderer = std::make_unique<dc3d::renderer::SelectionRenderer>();
+    if (!m_selectionRenderer->initialize()) {
+        qWarning() << "Failed to initialize selection renderer";
     }
     
     // Set initial camera position
@@ -228,6 +239,16 @@ void Viewport::paintGL()
     
     // Render meshes
     renderMeshes();
+    
+    // Render selection highlights
+    if (m_selectionRenderer && m_selection) {
+        m_selectionRenderer->render(*m_camera, *m_selection);
+    }
+    
+    // Render box selection overlay if active
+    if (m_isBoxSelecting && m_selectionRenderer) {
+        m_selectionRenderer->renderBoxSelection(m_mouseDownPos, m_lastMousePos, size());
+    }
     
     // Update FPS counter
     updateFPS();
@@ -402,6 +423,11 @@ void Viewport::addMesh(uint64_t id, std::shared_ptr<dc3d::geometry::MeshData> me
         update();
     }
     
+    // Add to selection renderer
+    if (m_selectionRenderer) {
+        m_selectionRenderer->addMesh(static_cast<uint32_t>(id), mesh.get());
+    }
+    
     qDebug() << "Viewport::addMesh - Added mesh" << id 
              << "with" << mesh->vertexCount() << "vertices";
 }
@@ -425,6 +451,11 @@ void Viewport::removeMesh(uint64_t id)
             doneCurrent();
         }
         m_meshGPUData.erase(gpuIt);
+    }
+    
+    // Remove from selection renderer
+    if (m_selectionRenderer) {
+        m_selectionRenderer->removeMesh(static_cast<uint32_t>(id));
     }
     
     update();
