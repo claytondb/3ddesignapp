@@ -294,7 +294,7 @@ bool DeviationRenderer::initialize() {
     setupShaders();
     setupLegendGeometry();
     
-    initialized_ = true;
+    m_initialized = true;
     return true;
 }
 
@@ -307,7 +307,7 @@ void DeviationRenderer::cleanup() {
     
     meshData_.clear();
     
-    initialized_ = false;
+    m_initialized = false;
 }
 
 void DeviationRenderer::setupShaders() {
@@ -341,10 +341,12 @@ void DeviationRenderer::setupLegendGeometry() {
     legendVBO_.bind();
     
     // Vertices: position (x, y) + texcoord (t)
-    // Create a vertical strip with 32 segments for smooth gradient
+    // Create a vertical strip with segments for smooth gradient
+    // Note: (segments + 1) * 2 vertices total for a triangle strip
     const int segments = 32;
+    const int vertexCount = (segments + 1) * 2;  // Used in glDrawArrays below
     std::vector<float> vertices;
-    vertices.reserve(segments * 2 * 3);  // 2 vertices per segment, 3 floats each
+    vertices.reserve(vertexCount * 3);  // 3 floats per vertex
     
     for (int i = 0; i <= segments; ++i) {
         float t = static_cast<float>(i) / segments;
@@ -504,7 +506,7 @@ void DeviationRenderer::clearAll() {
 }
 
 void DeviationRenderer::render(const glm::mat4& viewMatrix, const glm::mat4& projMatrix) {
-    if (!initialized_ || meshData_.empty()) {
+    if (!m_initialized || meshData_.empty()) {
         return;
     }
     
@@ -533,7 +535,7 @@ void DeviationRenderer::render(const glm::mat4& viewMatrix, const glm::mat4& pro
 }
 
 void DeviationRenderer::renderLegend(int viewportWidth, int viewportHeight) {
-    if (!initialized_ || config_.legendPosition == LegendPosition::None) {
+    if (!m_initialized || config_.legendPosition == LegendPosition::None) {
         return;
     }
     
@@ -585,7 +587,9 @@ void DeviationRenderer::renderLegend(int viewportWidth, int viewportHeight) {
     );
     
     legendVAO_.bind();
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 66);  // 33 segments * 2 vertices
+    // (segments + 1) * 2 = (32 + 1) * 2 = 66 vertices for triangle strip
+    const int legendVertexCount = 66;
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, legendVertexCount);
     legendVAO_.release();
     
     // Restore viewport to original state

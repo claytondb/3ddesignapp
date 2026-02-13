@@ -16,6 +16,14 @@
 namespace dc3d {
 namespace geometry {
 
+// FIX Bug 28: Define named constants for magic numbers
+namespace {
+    constexpr float EPSILON_PARALLEL = 0.999f;   // Threshold for parallel axis detection
+    constexpr float EPSILON_NORMALIZE = 1e-6f;   // For vector normalization safety
+    constexpr float EPSILON_CONVERGENCE = 1e-8f; // SVD convergence threshold
+    constexpr int MAX_SVD_ITERATIONS = 50;       // Maximum iterations for power iteration
+} // anonymous namespace
+
 // ============================================================================
 // AlignmentResult Implementation
 // ============================================================================
@@ -148,6 +156,18 @@ AlignmentResult Alignment::alignToWCS(
     // Get target WCS directions
     glm::vec3 toPrimaryDir = getAxisDirection(primaryAxis);
     glm::vec3 toSecondaryDir = getAxisDirection(secondaryAxis);
+    
+    // FIX Bug 20: Check for parallel primary/secondary directions
+    float fromDot = std::abs(glm::dot(glm::normalize(fromPrimaryDir), glm::normalize(fromSecondaryDir)));
+    float toDot = std::abs(glm::dot(toPrimaryDir, toSecondaryDir));
+    if (fromDot > 0.999f) {
+        return AlignmentResult::createFailure(
+            "Primary and secondary features are parallel - cannot determine unique alignment");
+    }
+    if (toDot > 0.999f) {
+        return AlignmentResult::createFailure(
+            "Primary and secondary WCS axes are parallel - cannot determine unique alignment");
+    }
     
     // Build rotation
     glm::mat3 rotation = buildRotationFromAxes(

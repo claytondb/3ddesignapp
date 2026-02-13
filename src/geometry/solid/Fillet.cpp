@@ -13,6 +13,12 @@
 #include <glm/gtx/norm.hpp>
 #include <glm/gtc/constants.hpp>
 
+namespace {
+// LOW FIX: Named constants for magic numbers
+constexpr float TOLERANCE_DEFAULT = 0.001f;
+constexpr float TOLERANCE_ZERO_RADIUS = 1e-6f;
+}
+
 namespace dc3d {
 namespace geometry {
 
@@ -33,27 +39,66 @@ std::vector<SolidFace> FilletSurface::generateFaces(std::vector<SolidVertex>& ve
     for (size_t i = 0; i < numSpinePoints; ++i) {
         float radius = (i < radii.size()) ? radii[i] : radii.back();
         
+        // MEDIUM FIX: Handle zero or near-zero radius
+        if (radius < TOLERANCE_ZERO_RADIUS) {
+            // Degenerate case - just add single vertex at spine
+            for (int j = 0; j <= segments; ++j) {
+                SolidVertex v;
+                v.position = spinePoints[i];
+                v.normal = glm::vec3(0, 1, 0);  // Default up normal
+                vertices.push_back(v);
+            }
+            continue;
+        }
+        
         // Get local coordinate system at this spine point
         glm::vec3 spine = spinePoints[i];
         glm::vec3 tangent = (i < numSpinePoints - 1) 
             ? glm::normalize(spinePoints[i + 1] - spine)
             : glm::normalize(spine - spinePoints[i - 1]);
         
-        // Use first control point direction as reference
-        glm::vec3 refDir(1, 0, 0);
-        if (controlPoints.size() > i * 2 + 1) {
-            refDir = glm::normalize(controlPoints[i * 2] - spine);
+        // MEDIUM FIX: Properly compute refDir from control points or derive from tangent
+        glm::vec3 refDir;
+        bool hasValidRefDir = false;
+        
+        if (controlPoints.size() > i * 2) {
+            glm::vec3 candidateRefDir = controlPoints[i * 2] - spine;
+            float refLen = glm::length(candidateRefDir);
+            if (refLen > TOLERANCE_ZERO_RADIUS) {
+                refDir = candidateRefDir / refLen;
+                hasValidRefDir = true;
+            }
         }
+        
+        // Fallback: compute refDir perpendicular to tangent
+        if (!hasValidRefDir) {
+            // Find a vector not parallel to tangent
+            glm::vec3 up(0, 1, 0);
+            if (std::abs(glm::dot(tangent, up)) > 0.99f) {
+                up = glm::vec3(1, 0, 0);
+            }
+            refDir = glm::normalize(glm::cross(tangent, up));
+        }
+        
+        // Second reference direction perpendicular to both tangent and refDir
+        glm::vec3 biNormal = glm::normalize(glm::cross(tangent, refDir));
         
         // Generate arc points
         for (int j = 0; j <= segments; ++j) {
             float angle = glm::half_pi<float>() * j / segments;  // 0 to 90 degrees
             
             SolidVertex v;
-            // Simplified: generate quarter-circle arc
-            // Real implementation would use proper cross-section calculation
-            v.position = spine + radius * (std::cos(angle) * refDir);
-            v.normal = glm::normalize(v.position - spine);
+            // Generate quarter-circle arc in the plane defined by refDir and biNormal
+            v.position = spine + radius * (std::cos(angle) * refDir + std::sin(angle) * biNormal);
+            
+            // MEDIUM FIX: Compute proper normal - direction from spine to surface point
+            glm::vec3 toSurface = v.position - spine;
+            float dist = glm::length(toSurface);
+            if (dist > TOLERANCE_ZERO_RADIUS) {
+                v.normal = toSurface / dist;
+            } else {
+                v.normal = refDir;  // Fallback
+            }
             vertices.push_back(v);
         }
     }

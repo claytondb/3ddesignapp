@@ -51,11 +51,12 @@ void SketchTool::reset()
 {
     m_drawing = false;
     m_orthoReference = QPointF();
+    m_hasOrthoReference = false;
 }
 
 QPointF SketchTool::applyOrthoConstraint(const QPointF& point) const
 {
-    if (m_orthoReference.isNull()) {
+    if (!m_hasOrthoReference) {
         return point;
     }
     

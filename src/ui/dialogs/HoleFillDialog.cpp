@@ -525,6 +525,7 @@ void HoleFillDialog::onFillAllClicked()
 
 void HoleFillDialog::updateHoleTable()
 {
+    m_holeTable->clearContents();  // Clear old items first to prevent memory issues
     m_holeTable->setRowCount(m_filteredHoles.size());
     
     for (int i = 0; i < m_filteredHoles.size(); ++i) {

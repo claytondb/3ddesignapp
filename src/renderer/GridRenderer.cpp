@@ -275,13 +275,19 @@ void GridRenderer::render(const Camera& camera)
     
     m_gridVAO.bind();
     
-    // Draw minor lines
-    glLineWidth(m_settings.minorLineWidth);
+    // Check supported line width range (glLineWidth > 1.0 may not be supported in core profile)
+    GLfloat lineWidthRange[2];
+    glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, lineWidthRange);
+    
+    // Draw minor lines (clamp to supported range)
+    float minorWidth = std::min(m_settings.minorLineWidth, lineWidthRange[1]);
+    glLineWidth(minorWidth);
     m_gridShader->setUniform("lineColor", m_settings.minorColor);
     glDrawArrays(GL_LINES, m_minorLineOffset, m_minorLineCount * 2);
     
-    // Draw major lines
-    glLineWidth(m_settings.majorLineWidth);
+    // Draw major lines (clamp to supported range)
+    float majorWidth = std::min(m_settings.majorLineWidth, lineWidthRange[1]);
+    glLineWidth(majorWidth);
     m_gridShader->setUniform("lineColor", m_settings.majorColor);
     glDrawArrays(GL_LINES, m_majorLineOffset, m_majorLineCount * 2);
     

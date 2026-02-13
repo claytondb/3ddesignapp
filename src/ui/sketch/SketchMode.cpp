@@ -18,6 +18,9 @@
 
 namespace dc {
 
+// Named constants for magic numbers
+static constexpr float kDefaultViewDistance = 100.0f;
+
 // ============================================================================
 // Constructor / Destructor
 // ============================================================================
@@ -464,8 +467,7 @@ void SketchMode::lookAtSketchPlane()
     QVector3D viewDir = -m_sketchPlane->normal;
     
     // Calculate camera position
-    float distance = 100.0f; // Default viewing distance
-    QVector3D cameraPos = m_sketchPlane->origin - viewDir * distance;
+    QVector3D cameraPos = m_sketchPlane->origin - viewDir * kDefaultViewDistance;
     
     // Calculate up vector
     QVector3D upVector = m_sketchPlane->yAxis;

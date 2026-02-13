@@ -14,6 +14,14 @@
 
 #include <glm/gtx/norm.hpp>
 
+namespace {
+// LOW FIX: Named constants for magic numbers
+constexpr float TOLERANCE_COPLANAR = 1e-6f;       // Coplanar/parallel detection
+constexpr float TOLERANCE_AREA = 1e-10f;          // Minimum valid area
+constexpr float TOLERANCE_RAY = 1e-7f;            // Ray intersection epsilon
+constexpr float TOLERANCE_MERGE = 1e-5f;          // Vertex merge distance
+}
+
 namespace dc3d {
 namespace geometry {
 
@@ -83,8 +91,13 @@ std::unique_ptr<BSPNode> BSPNode::build(std::vector<SolidFace>& faces,
 BSPNode::Classification BSPNode::classifyPoint(const glm::vec3& point) const {
     float dist = glm::dot(plane_.normal, point) - plane_.distance;
     
-    if (dist > epsilon_) return Classification::Front;
-    if (dist < -epsilon_) return Classification::Back;
+    // LOW FIX: Use adaptive epsilon based on point magnitude for numerical stability
+    // Points far from origin need larger tolerance to avoid precision issues
+    float pointMagnitude = glm::length(point);
+    float adaptiveEpsilon = epsilon_ * std::max(1.0f, pointMagnitude * 1e-5f);
+    
+    if (dist > adaptiveEpsilon) return Classification::Front;
+    if (dist < -adaptiveEpsilon) return Classification::Back;
     return Classification::Coplanar;
 }
 
@@ -183,8 +196,23 @@ void BSPNode::splitFace(const SolidFace& face, const std::vector<SolidVertex>& v
             if (frontVerts.size() >= 3) {
                 SolidFace frontFace;
                 frontFace.vertices = frontVerts;
-                frontFace.normal = face.normal;
                 frontFace.surfaceType = face.surfaceType;
+                
+                // MEDIUM FIX: Recompute normal for split face instead of copying
+                // The original normal may not be accurate for the split portion
+                glm::vec3 computedNormal(0.0f);
+                const glm::vec3& fv0 = newVertices[frontVerts[0]].position;
+                for (size_t fi = 1; fi < frontVerts.size() - 1; ++fi) {
+                    const glm::vec3& fv1 = newVertices[frontVerts[fi]].position;
+                    const glm::vec3& fv2 = newVertices[frontVerts[fi + 1]].position;
+                    computedNormal += glm::cross(fv1 - fv0, fv2 - fv0);
+                }
+                float normalLen = glm::length(computedNormal);
+                if (normalLen > TOLERANCE_COPLANAR) {
+                    frontFace.normal = computedNormal / normalLen;
+                } else {
+                    frontFace.normal = face.normal;  // Fallback to original
+                }
                 front.push_back(frontFace);
             }
             
@@ -192,8 +220,22 @@ void BSPNode::splitFace(const SolidFace& face, const std::vector<SolidVertex>& v
             if (backVerts.size() >= 3) {
                 SolidFace backFace;
                 backFace.vertices = backVerts;
-                backFace.normal = face.normal;
                 backFace.surfaceType = face.surfaceType;
+                
+                // MEDIUM FIX: Recompute normal for split face instead of copying
+                glm::vec3 computedNormal(0.0f);
+                const glm::vec3& bv0 = newVertices[backVerts[0]].position;
+                for (size_t bi = 1; bi < backVerts.size() - 1; ++bi) {
+                    const glm::vec3& bv1 = newVertices[backVerts[bi]].position;
+                    const glm::vec3& bv2 = newVertices[backVerts[bi + 1]].position;
+                    computedNormal += glm::cross(bv1 - bv0, bv2 - bv0);
+                }
+                float normalLen = glm::length(computedNormal);
+                if (normalLen > TOLERANCE_COPLANAR) {
+                    backFace.normal = computedNormal / normalLen;
+                } else {
+                    backFace.normal = face.normal;  // Fallback to original
+                }
                 back.push_back(backFace);
             }
             break;
@@ -229,13 +271,21 @@ void BSPNode::clipPolygons(std::vector<SolidFace>& faces,
     faces.insert(faces.end(), coplanarFront.begin(), coplanarFront.end());
 }
 
-void BSPNode::clipTo(BSPNode* other) {
-    // Clip coplanar faces
-    std::vector<SolidVertex> tempVerts;  // Would need actual vertex data in real implementation
-    // other->clipPolygons(coplanarFaces_, tempVerts);
+void BSPNode::clipTo(BSPNode* other, std::vector<SolidVertex>& vertices) {
+    // LOW FIX: Implemented clipTo() - was previously a no-op
+    // Clip this node's polygons against the other BSP tree
+    if (other && !coplanarFaces_.empty()) {
+        other->clipPolygons(coplanarFaces_, vertices);
+    }
     
-    if (front_) front_->clipTo(other);
-    if (back_) back_->clipTo(other);
+    if (front_) front_->clipTo(other, vertices);
+    if (back_) back_->clipTo(other, vertices);
+}
+
+// Overload for backward compatibility - uses empty vertex list
+void BSPNode::clipTo(BSPNode* other) {
+    std::vector<SolidVertex> tempVerts;
+    clipTo(other, tempVerts);
 }
 
 void BSPNode::allPolygons(std::vector<SolidFace>& result) const {
@@ -830,20 +880,20 @@ void BooleanOps::cleanupDegenerateFaces(std::vector<SolidFace>& faces,
 bool BooleanOps::trianglesIntersect(const glm::vec3& a0, const glm::vec3& a1, const glm::vec3& a2,
                                     const glm::vec3& b0, const glm::vec3& b1, const glm::vec3& b2,
                                     std::vector<glm::vec3>& intersectionPoints) {
-    // Möller–Trumbore intersection algorithm for triangle-triangle intersection
-    // Returns intersection line segment endpoints
+    // MEDIUM FIX: Proper triangle-triangle intersection returning actual line segment
+    // Based on Möller's method with proper interval computation
     
     // Compute plane of triangle A
     glm::vec3 normalA = glm::cross(a1 - a0, a2 - a0);
     float lenA = glm::length(normalA);
-    if (lenA < 1e-10f) return false;
+    if (lenA < TOLERANCE_AREA) return false;
     normalA /= lenA;
     float dA = -glm::dot(normalA, a0);
     
     // Compute plane of triangle B
     glm::vec3 normalB = glm::cross(b1 - b0, b2 - b0);
     float lenB = glm::length(normalB);
-    if (lenB < 1e-10f) return false;
+    if (lenB < TOLERANCE_AREA) return false;
     normalB /= lenB;
     float dB = -glm::dot(normalB, b0);
     
@@ -853,29 +903,91 @@ bool BooleanOps::trianglesIntersect(const glm::vec3& a0, const glm::vec3& a1, co
     float db2 = glm::dot(normalA, b2) + dA;
     
     // All vertices on same side means no intersection
-    if (db0 > 0 && db1 > 0 && db2 > 0) return false;
-    if (db0 < 0 && db1 < 0 && db2 < 0) return false;
+    if (db0 > TOLERANCE_COPLANAR && db1 > TOLERANCE_COPLANAR && db2 > TOLERANCE_COPLANAR) return false;
+    if (db0 < -TOLERANCE_COPLANAR && db1 < -TOLERANCE_COPLANAR && db2 < -TOLERANCE_COPLANAR) return false;
     
     // Classify vertices of A with respect to plane B
     float da0 = glm::dot(normalB, a0) + dB;
     float da1 = glm::dot(normalB, a1) + dB;
     float da2 = glm::dot(normalB, a2) + dB;
     
-    if (da0 > 0 && da1 > 0 && da2 > 0) return false;
-    if (da0 < 0 && da1 < 0 && da2 < 0) return false;
+    if (da0 > TOLERANCE_COPLANAR && da1 > TOLERANCE_COPLANAR && da2 > TOLERANCE_COPLANAR) return false;
+    if (da0 < -TOLERANCE_COPLANAR && da1 < -TOLERANCE_COPLANAR && da2 < -TOLERANCE_COPLANAR) return false;
     
     // Compute intersection line direction
     glm::vec3 lineDir = glm::cross(normalA, normalB);
-    if (glm::length2(lineDir) < 1e-10f) {
+    float lineDirLen = glm::length(lineDir);
+    if (lineDirLen < TOLERANCE_COPLANAR) {
         // Planes are parallel (coplanar case)
         return false;
     }
+    lineDir /= lineDirLen;
     
-    // Simplified: if we got here, triangles likely intersect
-    // Return midpoints as approximate intersection
-    glm::vec3 midA = (a0 + a1 + a2) / 3.0f;
-    glm::vec3 midB = (b0 + b1 + b2) / 3.0f;
-    intersectionPoints.push_back((midA + midB) * 0.5f);
+    // Helper lambda to compute edge-plane intersection
+    auto edgePlaneIntersect = [](const glm::vec3& p0, const glm::vec3& p1, 
+                                  float d0, float d1) -> std::optional<glm::vec3> {
+        if ((d0 > 0) == (d1 > 0)) return std::nullopt;  // Same side
+        if (std::abs(d1 - d0) < TOLERANCE_COPLANAR) return std::nullopt;
+        float t = d0 / (d0 - d1);
+        return glm::mix(p0, p1, t);
+    };
+    
+    // Compute intersection points of triangle A edges with plane B
+    std::vector<glm::vec3> pointsA;
+    if (auto p = edgePlaneIntersect(a0, a1, da0, da1)) pointsA.push_back(*p);
+    if (auto p = edgePlaneIntersect(a1, a2, da1, da2)) pointsA.push_back(*p);
+    if (auto p = edgePlaneIntersect(a2, a0, da2, da0)) pointsA.push_back(*p);
+    
+    // Compute intersection points of triangle B edges with plane A
+    std::vector<glm::vec3> pointsB;
+    if (auto p = edgePlaneIntersect(b0, b1, db0, db1)) pointsB.push_back(*p);
+    if (auto p = edgePlaneIntersect(b1, b2, db1, db2)) pointsB.push_back(*p);
+    if (auto p = edgePlaneIntersect(b2, b0, db2, db0)) pointsB.push_back(*p);
+    
+    if (pointsA.size() < 2 || pointsB.size() < 2) return false;
+    
+    // Project points onto intersection line and compute intervals
+    auto projectToLine = [&lineDir](const glm::vec3& p) {
+        return glm::dot(p, lineDir);
+    };
+    
+    float minA = std::min(projectToLine(pointsA[0]), projectToLine(pointsA[1]));
+    float maxA = std::max(projectToLine(pointsA[0]), projectToLine(pointsA[1]));
+    float minB = std::min(projectToLine(pointsB[0]), projectToLine(pointsB[1]));
+    float maxB = std::max(projectToLine(pointsB[0]), projectToLine(pointsB[1]));
+    
+    // Check interval overlap
+    float overlapMin = std::max(minA, minB);
+    float overlapMax = std::min(maxA, maxB);
+    
+    if (overlapMin > overlapMax + TOLERANCE_COPLANAR) return false;
+    
+    // Compute a point on the intersection line
+    // Use the point with largest absolute coordinate in lineDir
+    int maxIdx = 0;
+    if (std::abs(lineDir.y) > std::abs(lineDir[maxIdx])) maxIdx = 1;
+    if (std::abs(lineDir.z) > std::abs(lineDir[maxIdx])) maxIdx = 2;
+    
+    glm::vec3 linePoint;
+    if (maxIdx == 0) {
+        linePoint = glm::vec3(0, 
+            (normalA.z * dB - normalB.z * dA) / (normalA.y * normalB.z - normalB.y * normalA.z),
+            (normalB.y * dA - normalA.y * dB) / (normalA.y * normalB.z - normalB.y * normalA.z));
+    } else if (maxIdx == 1) {
+        linePoint = glm::vec3(
+            (normalB.z * dA - normalA.z * dB) / (normalA.x * normalB.z - normalB.x * normalA.z),
+            0,
+            (normalA.x * dB - normalB.x * dA) / (normalA.x * normalB.z - normalB.x * normalA.z));
+    } else {
+        linePoint = glm::vec3(
+            (normalA.y * dB - normalB.y * dA) / (normalA.x * normalB.y - normalB.x * normalA.y),
+            (normalB.x * dA - normalA.x * dB) / (normalA.x * normalB.y - normalB.x * normalA.y),
+            0);
+    }
+    
+    // Return actual intersection segment endpoints
+    intersectionPoints.push_back(linePoint + lineDir * overlapMin);
+    intersectionPoints.push_back(linePoint + lineDir * overlapMax);
     
     return true;
 }

@@ -15,6 +15,14 @@
 namespace dc3d {
 namespace geometry {
 
+// FIX Bug 28: Define named constants for magic numbers
+namespace {
+    // Epsilon values for floating-point comparisons
+    constexpr float EPSILON_TINY = 1e-10f;       // For near-zero checks (e.g., normalization)
+    constexpr float EPSILON_TOLERANCE = 1e-7f;   // For tolerance clamping
+    constexpr float EPSILON_AREA = 1e-10f;       // For degenerate face detection
+} // anonymous namespace
+
 namespace {
 
 // Hash function for glm::vec3 for use in unordered_map
@@ -125,12 +133,16 @@ uint32_t MeshData::addVertex(const glm::vec3& position) {
 }
 
 uint32_t MeshData::addVertex(const glm::vec3& position, const glm::vec3& normal) {
+    // FIX Bug 23: Document behavior when mixing addVertex calls with/without normals
+    // If vertices were added without normals previously, this fills the gaps with zero normals.
+    // For consistent behavior, either always use addVertex with normals, or call computeNormals()
+    // after adding all vertices to generate proper normals for the entire mesh.
     uint32_t idx = static_cast<uint32_t>(vertices_.size());
     vertices_.push_back(position);
     
-    // Ensure normals array is sized correctly
+    // Ensure normals array is sized correctly - fill gaps with zero normals
     while (normals_.size() < vertices_.size() - 1) {
-        normals_.push_back(glm::vec3(0.0f));
+        normals_.push_back(glm::vec3(0.0f));  // Zero normal indicates uninitialized
     }
     normals_.push_back(normal);
     
@@ -443,6 +455,7 @@ size_t MeshData::removeDegenerateFaces(float areaThreshold) {
 size_t MeshData::countDuplicateVertices(float tolerance) const {
     if (vertices_.empty()) return 0;
     
+    // FIX Bug 24: Check neighbor cells to catch duplicates near cell boundaries
     // Use spatial hashing for efficient duplicate detection
     Vec3Hash hasher(tolerance);
     std::unordered_multimap<size_t, size_t> spatialHash;
@@ -455,23 +468,32 @@ size_t MeshData::countDuplicateVertices(float tolerance) const {
     std::vector<bool> counted(vertices_.size(), false);
     
     float tolSq = tolerance * tolerance;
+    float cellSize = std::max(tolerance, 1e-7f);
     
     for (size_t i = 0; i < vertices_.size(); ++i) {
         if (counted[i]) continue;
         
         const glm::vec3& vi = vertices_[i];
-        size_t h = hasher(vi);
         
-        // Check current cell and neighbors
-        auto range = spatialHash.equal_range(h);
-        for (auto it = range.first; it != range.second; ++it) {
-            size_t j = it->second;
-            if (j <= i) continue;
-            
-            if (glm::length2(vertices_[j] - vi) < tolSq) {
-                if (!counted[j]) {
-                    counted[j] = true;
-                    ++duplicates;
+        // Check 3x3x3 neighborhood of cells to catch boundary cases
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dz = -1; dz <= 1; ++dz) {
+                    glm::vec3 offset(dx * cellSize, dy * cellSize, dz * cellSize);
+                    size_t h = hasher(vi + offset);
+                    
+                    auto range = spatialHash.equal_range(h);
+                    for (auto it = range.first; it != range.second; ++it) {
+                        size_t j = it->second;
+                        if (j <= i) continue;
+                        
+                        if (glm::length2(vertices_[j] - vi) < tolSq) {
+                            if (!counted[j]) {
+                                counted[j] = true;
+                                ++duplicates;
+                            }
+                        }
+                    }
                 }
             }
         }

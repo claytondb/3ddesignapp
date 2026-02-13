@@ -15,9 +15,9 @@
 
 namespace dc {
 
-// Shader source code
+// Shader source code - using #version 410 for consistency with other project shaders
 static const char* gizmoVertexShader = R"(
-    #version 330 core
+    #version 410 core
     layout(location = 0) in vec3 aPos;
     uniform mat4 uMVP;
     void main() {
@@ -26,7 +26,7 @@ static const char* gizmoVertexShader = R"(
 )";
 
 static const char* gizmoFragmentShader = R"(
-    #version 330 core
+    #version 410 core
     uniform vec4 uColor;
     out vec4 fragColor;
     void main() {

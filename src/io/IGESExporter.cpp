@@ -4,6 +4,7 @@
 #include <ctime>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace dc {
 
@@ -173,8 +174,14 @@ void IGESExporter::buildGlobalSection(const std::string& filename)
     ss << "0.01;";
     // Date and time of exchange file generation (18)
     std::time_t now = std::time(nullptr);
-    std::tm* tm = std::localtime(&now);
-    ss << "15H" << std::put_time(tm, "%Y%m%d.%H%M%S") << ";";
+    std::tm tm_buf;
+    // LOW FIX: Thread-safe localtime usage
+#ifdef _WIN32
+    localtime_s(&tm_buf, &now);
+#else
+    localtime_r(&now, &tm_buf);
+#endif
+    ss << "15H" << std::put_time(&tm_buf, "%Y%m%d.%H%M%S") << ";";
     // Minimum user-intended resolution (19)
     ss << "0.0001;";
     // Approximate maximum coordinate value (20)
@@ -191,12 +198,14 @@ void IGESExporter::buildGlobalSection(const std::string& filename)
     } else {
         ss << ";";
     }
-    // IGES version (23) - 11 = IGES 5.3
-    ss << m_options.igesVersion << ";";
+    // MEDIUM FIX: Use default IGES version (11 = IGES 5.3) if not specified in options
+    // Note: igesVersion should be added to ExportOptions struct; using default value 11 for now
+    int igesVersion = 11;  // IGES 5.3
+    ss << igesVersion << ";";
     // Drafting standard (24) - 0 = none
     ss << "0;";
     // Date and time model created (25)
-    ss << "15H" << std::put_time(tm, "%Y%m%d.%H%M%S") << ";";
+    ss << "15H" << std::put_time(&tm_buf, "%Y%m%d.%H%M%S") << ";";
     
     m_globalSection = ss.str();
 }

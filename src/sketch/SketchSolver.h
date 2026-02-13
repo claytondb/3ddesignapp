@@ -67,7 +67,10 @@ public:
     // Target position for FixedPoint constraints (FIX: proper storage instead of abusing refs)
     std::optional<glm::vec2> targetPosition;
     
-    // Whether constraint is driving or driven
+    // FIX #20: Reserved for future driven constraint support
+    // When true, this constraint drives geometry (normal behavior).
+    // When false (not yet implemented), the constraint value is computed from geometry.
+    // Currently always true - driven constraints are not yet implemented.
     bool isDriving = true;
     
     // Check if constraint is satisfied

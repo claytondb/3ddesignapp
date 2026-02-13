@@ -15,8 +15,15 @@ SketchSpline::SketchSpline(const std::vector<glm::vec2>& controlPoints, int degr
         throw std::invalid_argument("Spline requires at least 2 control points");
     }
     
-    // Clamp degree to valid range
-    m_degree = std::min(m_degree, static_cast<int>(m_controlPoints.size()) - 1);
+    // FIX #13: Clamp degree to valid range with documentation
+    // Note: A spline with n control points can have at most degree (n-1).
+    // For example, 2 control points = max degree 1 (linear).
+    // If you need a higher degree spline, provide more control points.
+    int maxDegree = static_cast<int>(m_controlPoints.size()) - 1;
+    if (m_degree > maxDegree) {
+        // Silently clamp, but this is documented behavior
+        m_degree = maxDegree;
+    }
     m_degree = std::max(m_degree, 1);
     
     generateKnots();
@@ -75,40 +82,58 @@ void SketchSpline::generateKnots() {
 }
 
 float SketchSpline::basisFunction(int i, int p, float t) const {
-    // De Boor-Cox recursion formula
-    if (p == 0) {
-        if (i < 0 || i >= static_cast<int>(m_knots.size()) - 1) {
-            return 0.0f;
-        }
-        // Handle the special case at t = 1
-        if (t >= m_knots[i] && t < m_knots[i + 1]) {
-            return 1.0f;
-        }
-        if (t == 1.0f && m_knots[i + 1] == 1.0f && m_knots[i] < 1.0f) {
-            return 1.0f;
-        }
+    // FIX #16: Iterative de Boor algorithm instead of exponential recursion
+    // This avoids stack overflow for high-degree splines and has O(p) complexity
+    
+    int n = static_cast<int>(m_knots.size());
+    if (i < 0 || i >= n - 1) {
         return 0.0f;
     }
     
-    float left = 0.0f, right = 0.0f;
+    // Base case array: N[j,0] for j = i-p to i
+    std::vector<float> N(p + 1, 0.0f);
     
-    // Left term
-    if (i >= 0 && i + p < static_cast<int>(m_knots.size())) {
-        float denom = m_knots[i + p] - m_knots[i];
-        if (std::abs(denom) > 1e-10f) {
-            left = (t - m_knots[i]) / denom * basisFunction(i, p - 1, t);
+    // Initialize degree 0 basis functions
+    for (int j = 0; j <= p; ++j) {
+        int idx = i - p + j;
+        if (idx >= 0 && idx < n - 1) {
+            if (t >= m_knots[idx] && t < m_knots[idx + 1]) {
+                N[j] = 1.0f;
+            } else if (t == 1.0f && m_knots[idx + 1] == 1.0f && m_knots[idx] < 1.0f) {
+                N[j] = 1.0f;
+            }
         }
     }
     
-    // Right term
-    if (i + 1 >= 0 && i + p + 1 < static_cast<int>(m_knots.size())) {
-        float denom = m_knots[i + p + 1] - m_knots[i + 1];
-        if (std::abs(denom) > 1e-10f) {
-            right = (m_knots[i + p + 1] - t) / denom * basisFunction(i + 1, p - 1, t);
+    // Build up higher degrees iteratively
+    for (int deg = 1; deg <= p; ++deg) {
+        std::vector<float> Nnew(p + 1 - deg, 0.0f);
+        for (int j = 0; j <= p - deg; ++j) {
+            int idx = i - p + j + deg;
+            float left = 0.0f, right = 0.0f;
+            
+            // Left term
+            if (idx - deg >= 0 && idx < n) {
+                float denom = m_knots[idx] - m_knots[idx - deg];
+                if (std::abs(denom) > 1e-10f) {
+                    left = (t - m_knots[idx - deg]) / denom * N[j];
+                }
+            }
+            
+            // Right term
+            if (idx + 1 - deg >= 0 && idx + 1 < n) {
+                float denom = m_knots[idx + 1] - m_knots[idx + 1 - deg];
+                if (std::abs(denom) > 1e-10f) {
+                    right = (m_knots[idx + 1] - t) / denom * N[j + 1];
+                }
+            }
+            
+            Nnew[j] = left + right;
         }
+        N = std::move(Nnew);
     }
     
-    return left + right;
+    return N.empty() ? 0.0f : N[0];
 }
 
 float SketchSpline::basisDerivative(int i, int p, float t) const {
@@ -305,9 +330,10 @@ float SketchSpline::length() const {
 }
 
 float SketchSpline::closestParameter(const glm::vec2& point) const {
-    // Newton-Raphson iteration to find closest parameter
+    // FIX #10: Newton-Raphson with oscillation detection and damping
     const int maxIterations = 20;
     const float tolerance = 1e-6f;
+    const float dampingFactor = 0.5f;  // Damping for large steps
     
     // Start with coarse sampling to find initial guess
     float bestT = 0.0f;
@@ -323,8 +349,12 @@ float SketchSpline::closestParameter(const glm::vec2& point) const {
         }
     }
     
-    // Refine with Newton-Raphson
+    // Refine with Newton-Raphson + damping and oscillation detection
     float t = bestT;
+    float prevT = t;
+    float prevPrevT = t;
+    int oscillationCount = 0;
+    
     for (int iter = 0; iter < maxIterations; ++iter) {
         glm::vec2 p = evaluate(t);
         glm::vec2 d1 = derivative(t);
@@ -342,9 +372,53 @@ float SketchSpline::closestParameter(const glm::vec2& point) const {
         }
         
         float dt = -f / fPrime;
+        
+        // Detect oscillation: if we're bouncing between boundaries or same values
+        if (iter >= 2) {
+            float oscillationTest = (t - prevPrevT);
+            if (std::abs(oscillationTest) < tolerance * 10.0f && std::abs(dt) > tolerance) {
+                oscillationCount++;
+                // Apply stronger damping when oscillating
+                dt *= dampingFactor / (oscillationCount + 1);
+            }
+        }
+        
+        // Limit step size to prevent overshooting
+        float maxStep = 0.25f;
+        if (std::abs(dt) > maxStep) {
+            dt = (dt > 0 ? maxStep : -maxStep);
+        }
+        
+        prevPrevT = prevT;
+        prevT = t;
         t = std::clamp(t + dt, 0.0f, 1.0f);
         
         if (std::abs(dt) < tolerance) {
+            break;
+        }
+        
+        // Fallback: if oscillating too much, use bisection between current best endpoints
+        if (oscillationCount > 3) {
+            // Fall back to golden section search in the best region
+            float a = std::max(0.0f, bestT - 0.1f);
+            float b = std::min(1.0f, bestT + 0.1f);
+            const float phi = 0.618033988749895f;
+            
+            for (int gs = 0; gs < 10; ++gs) {
+                float c = b - phi * (b - a);
+                float d = a + phi * (b - a);
+                glm::vec2 pc = evaluate(c);
+                glm::vec2 pd = evaluate(d);
+                float distC = glm::dot(point - pc, point - pc);
+                float distD = glm::dot(point - pd, point - pd);
+                
+                if (distC < distD) {
+                    b = d;
+                } else {
+                    a = c;
+                }
+            }
+            t = (a + b) * 0.5f;
             break;
         }
     }

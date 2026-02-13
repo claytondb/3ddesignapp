@@ -97,6 +97,7 @@ private:
     float m_radius;
     float m_startAngle;
     float m_endAngle;
+    bool m_ccw = true;  // FIX #8: Store direction explicitly for reflex arcs
     
     /**
      * @brief Normalize angle to range [-π, π]

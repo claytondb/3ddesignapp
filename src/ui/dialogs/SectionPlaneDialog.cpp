@@ -123,7 +123,7 @@ void SectionPlaneDialog::onOffsetChanged(double value)
     // Update slider
     m_updatingControls = true;
     double range = m_offsetSpinbox->maximum() - m_offsetSpinbox->minimum();
-    int sliderVal = range > 0 ? static_cast<int>((value - m_offsetSpinbox->minimum()) / range * 1000) : 500;
+    int sliderVal = range > 0 ? static_cast<int>((value - m_offsetSpinbox->minimum()) / range * 10000) : 5000;
     m_offsetSlider->setValue(sliderVal);
     m_updatingControls = false;
     
@@ -135,7 +135,7 @@ void SectionPlaneDialog::onOffsetSliderChanged(int value)
     if (m_updatingControls) return;
     
     double range = m_offsetSpinbox->maximum() - m_offsetSpinbox->minimum();
-    double offset = m_offsetSpinbox->minimum() + (value / 1000.0) * range;
+    double offset = m_offsetSpinbox->minimum() + (value / 10000.0) * range;
     
     m_updatingControls = true;
     m_offsetSpinbox->setValue(offset);
@@ -390,8 +390,8 @@ void SectionPlaneDialog::setupUI()
     offsetLayout->addLayout(offsetControlLayout);
     
     m_offsetSlider = new QSlider(Qt::Horizontal);
-    m_offsetSlider->setRange(0, 1000);
-    m_offsetSlider->setValue(500);
+    m_offsetSlider->setRange(0, 10000);  // Higher resolution for finer control
+    m_offsetSlider->setValue(5000);
     offsetLayout->addWidget(m_offsetSlider);
     
     m_offsetRangeLabel = new QLabel("Range: -50 to 50 mm");

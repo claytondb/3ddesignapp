@@ -108,6 +108,10 @@ struct SectionResult {
  * 
  * Computes the intersection of a triangle mesh with a plane,
  * producing a set of polylines representing the section profile.
+ * 
+ * @note FIX #14: This implementation assumes manifold geometry (each edge shared
+ *       by at most 2 triangles). Non-manifold meshes (edges shared by >2 triangles)
+ *       may produce incorrect or missing loops in the section result.
  */
 class SectionCreator {
 public:
@@ -160,7 +164,7 @@ private:
         glm::vec3 start;
         glm::vec3 end;
         size_t triangleIndex;
-        int edgeIndex;  // Which edge of the triangle (0, 1, or 2)
+        int edgeIndex = -1;  // FIX #19: Initialize to -1 (unused but safe)
     };
     
     /**

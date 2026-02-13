@@ -199,7 +199,7 @@ int QuadMesh::getVertexValence(int vertexIdx) const {
     return static_cast<int>(getVertexNeighbors(vertexIdx).size());
 }
 
-// Catmull-Clark subdivision
+// Catmull-Clark subdivision - iterative implementation to avoid stack overflow on deep recursion
 std::unique_ptr<QuadMesh> QuadMesh::subdivide(int levels) const {
     if (levels <= 0) {
         auto copy = std::make_unique<QuadMesh>();
@@ -211,120 +211,126 @@ std::unique_ptr<QuadMesh> QuadMesh::subdivide(int levels) const {
         return copy;
     }
     
-    auto result = std::make_unique<QuadMesh>();
+    // Fix: Use iterative approach instead of recursion to prevent stack overflow with large meshes
+    const QuadMesh* current = this;
+    std::unique_ptr<QuadMesh> result;
+    std::unique_ptr<QuadMesh> temp;
     
-    // Step 1: Compute face points
-    std::vector<glm::vec3> facePoints(m_faces.size());
-    for (size_t i = 0; i < m_faces.size(); ++i) {
-        facePoints[i] = computeFacePoint(static_cast<int>(i));
-    }
-    
-    // Step 2: Compute edge points
-    std::vector<glm::vec3> edgePoints(m_halfEdges.size());
-    std::unordered_set<uint64_t> processedEdges;
-    for (size_t i = 0; i < m_halfEdges.size(); ++i) {
-        int twin = m_halfEdges[i].twinIdx;
-        if (twin != -1 && static_cast<size_t>(twin) < i) continue;
-        edgePoints[i] = computeEdgePoint(static_cast<int>(i));
-        if (twin != -1) {
-            edgePoints[twin] = edgePoints[i];
-        }
-    }
-    
-    // Step 3: Compute new vertex positions
-    std::vector<glm::vec3> newVertexPositions(m_vertices.size());
-    for (size_t i = 0; i < m_vertices.size(); ++i) {
-        // Check for crease vertex
-        std::vector<int> creaseEdges;
-        int startHe = m_vertices[i].halfEdgeIdx;
-        if (startHe != -1) {
-            int he = startHe;
-            do {
-                if (m_halfEdges[he].isCrease || m_halfEdges[he].twinIdx == -1) {
-                    creaseEdges.push_back(he);
-                }
-                int twin = m_halfEdges[he].twinIdx;
-                if (twin == -1) break;
-                he = m_halfEdges[twin].nextIdx;
-            } while (he != startHe);
+    for (int level = 0; level < levels; ++level) {
+        result = std::make_unique<QuadMesh>();
+        
+        // Step 1: Compute face points
+        std::vector<glm::vec3> facePoints(current->m_faces.size());
+        for (size_t i = 0; i < current->m_faces.size(); ++i) {
+            facePoints[i] = current->computeFacePoint(static_cast<int>(i));
         }
         
-        if (m_vertices[i].isCorner || creaseEdges.size() > 2) {
-            // Corner vertex: keep position
-            newVertexPositions[i] = m_vertices[i].position;
-        } else if (creaseEdges.size() == 2) {
-            // Crease vertex: average of edge midpoints
-            newVertexPositions[i] = computeCreaseVertexPoint(static_cast<int>(i), edgePoints);
-        } else {
-            // Regular vertex
-            newVertexPositions[i] = computeVertexPoint(static_cast<int>(i), facePoints, edgePoints);
+        // Step 2: Compute edge points
+        std::vector<glm::vec3> edgePoints(current->m_halfEdges.size());
+        for (size_t i = 0; i < current->m_halfEdges.size(); ++i) {
+            int twin = current->m_halfEdges[i].twinIdx;
+            if (twin != -1 && static_cast<size_t>(twin) < i) continue;
+            edgePoints[i] = current->computeEdgePoint(static_cast<int>(i));
+            if (twin != -1) {
+                edgePoints[twin] = edgePoints[i];
+            }
         }
-    }
-    
-    // Step 4: Create new topology
-    // Add original vertices (with new positions)
-    for (size_t i = 0; i < m_vertices.size(); ++i) {
-        result->addVertex(newVertexPositions[i]);
-    }
-    
-    // Add face points as vertices
-    int facePointStart = result->vertexCount();
-    for (const auto& fp : facePoints) {
-        result->addVertex(fp);
-    }
-    
-    // Add edge points as vertices (one per unique edge)
-    int edgePointStart = result->vertexCount();
-    std::unordered_map<uint64_t, int> edgeToVertex;
-    for (size_t i = 0; i < m_halfEdges.size(); ++i) {
-        int fromV = m_halfEdges[m_halfEdges[i].prevIdx].vertexIdx;
-        int toV = m_halfEdges[i].vertexIdx;
-        int minV = std::min(fromV, toV);
-        int maxV = std::max(fromV, toV);
-        uint64_t key = edgeKey(minV, maxV);
         
-        if (edgeToVertex.find(key) == edgeToVertex.end()) {
-            int newIdx = result->addVertex(edgePoints[i]);
-            edgeToVertex[key] = newIdx;
+        // Step 3: Compute new vertex positions
+        std::vector<glm::vec3> newVertexPositions(current->m_vertices.size());
+        for (size_t i = 0; i < current->m_vertices.size(); ++i) {
+            // Check for crease vertex
+            std::vector<int> creaseEdges;
+            int startHe = current->m_vertices[i].halfEdgeIdx;
+            if (startHe != -1) {
+                int he = startHe;
+                do {
+                    if (current->m_halfEdges[he].isCrease || current->m_halfEdges[he].twinIdx == -1) {
+                        creaseEdges.push_back(he);
+                    }
+                    int twin = current->m_halfEdges[he].twinIdx;
+                    if (twin == -1) break;
+                    he = current->m_halfEdges[twin].nextIdx;
+                } while (he != startHe);
+            }
+            
+            if (current->m_vertices[i].isCorner || creaseEdges.size() > 2) {
+                // Corner vertex: keep position
+                newVertexPositions[i] = current->m_vertices[i].position;
+            } else if (creaseEdges.size() == 2) {
+                // Crease vertex: average of edge midpoints
+                newVertexPositions[i] = current->computeCreaseVertexPoint(static_cast<int>(i), edgePoints);
+            } else {
+                // Regular vertex
+                newVertexPositions[i] = current->computeVertexPoint(static_cast<int>(i), facePoints, edgePoints);
+            }
         }
-    }
-    
-    // Create new faces (subdivide each original face into quads)
-    for (size_t f = 0; f < m_faces.size(); ++f) {
-        int faceVertex = facePointStart + static_cast<int>(f);
-        std::vector<int> faceVerts = getFaceVertices(static_cast<int>(f));
         
-        for (size_t i = 0; i < faceVerts.size(); ++i) {
-            int v0 = faceVerts[i];
-            int v1 = faceVerts[(i + 1) % faceVerts.size()];
-            int vPrev = faceVerts[(i + faceVerts.size() - 1) % faceVerts.size()];
-            
-            // Edge vertices
-            uint64_t edgeKey0 = edgeKey(std::min(vPrev, v0), std::max(vPrev, v0));
-            uint64_t edgeKey1 = edgeKey(std::min(v0, v1), std::max(v0, v1));
-            
-            int edgeV0 = edgeToVertex[edgeKey0];
-            int edgeV1 = edgeToVertex[edgeKey1];
-            
-            // Create quad: corner, edge, face, edge
-            result->addFace({v0, edgeV1, faceVertex, edgeV0});
+        // Step 4: Create new topology
+        // Add original vertices (with new positions)
+        for (size_t i = 0; i < current->m_vertices.size(); ++i) {
+            result->addVertex(newVertexPositions[i]);
         }
-    }
-    
-    result->buildTopology();
-    
-    // Propagate crease weights (reduced by subdivision)
-    for (const auto& [key, weight] : m_creaseWeights) {
-        if (weight > 0.01f) {
-            // Find corresponding edge in subdivided mesh and apply reduced weight
-            float newWeight = std::max(0.0f, weight - 1.0f / static_cast<float>(levels));
-            // Note: Edge mapping would need proper implementation
+        
+        // Add face points as vertices
+        int facePointStart = result->vertexCount();
+        for (const auto& fp : facePoints) {
+            result->addVertex(fp);
         }
-    }
-    
-    // Recurse for additional levels
-    if (levels > 1) {
-        return result->subdivide(levels - 1);
+        
+        // Add edge points as vertices (one per unique edge)
+        std::unordered_map<uint64_t, int> edgeToVertex;
+        for (size_t i = 0; i < current->m_halfEdges.size(); ++i) {
+            int fromV = current->m_halfEdges[current->m_halfEdges[i].prevIdx].vertexIdx;
+            int toV = current->m_halfEdges[i].vertexIdx;
+            int minV = std::min(fromV, toV);
+            int maxV = std::max(fromV, toV);
+            uint64_t key = current->edgeKey(minV, maxV);
+            
+            if (edgeToVertex.find(key) == edgeToVertex.end()) {
+                int newIdx = result->addVertex(edgePoints[i]);
+                edgeToVertex[key] = newIdx;
+            }
+        }
+        
+        // Create new faces (subdivide each original face into quads)
+        for (size_t f = 0; f < current->m_faces.size(); ++f) {
+            int faceVertex = facePointStart + static_cast<int>(f);
+            std::vector<int> faceVerts = current->getFaceVertices(static_cast<int>(f));
+            
+            for (size_t i = 0; i < faceVerts.size(); ++i) {
+                int v0 = faceVerts[i];
+                int v1 = faceVerts[(i + 1) % faceVerts.size()];
+                int vPrev = faceVerts[(i + faceVerts.size() - 1) % faceVerts.size()];
+                
+                // Edge vertices
+                uint64_t edgeKey0 = current->edgeKey(std::min(vPrev, v0), std::max(vPrev, v0));
+                uint64_t edgeKey1 = current->edgeKey(std::min(v0, v1), std::max(v0, v1));
+                
+                int edgeV0 = edgeToVertex[edgeKey0];
+                int edgeV1 = edgeToVertex[edgeKey1];
+                
+                // Create quad: corner, edge, face, edge
+                result->addFace({v0, edgeV1, faceVertex, edgeV0});
+            }
+        }
+        
+        result->buildTopology();
+        
+        // Propagate crease weights (reduced by subdivision)
+        for (const auto& [key, weight] : current->m_creaseWeights) {
+            if (weight > 0.01f) {
+                // Find corresponding edge in subdivided mesh and apply reduced weight
+                float newWeight = std::max(0.0f, weight - 1.0f / static_cast<float>(levels));
+                // Note: Edge mapping would need proper implementation
+            }
+        }
+        
+        // Move result to temp for next iteration
+        if (level < levels - 1) {
+            temp = std::move(result);
+            current = temp.get();
+        }
     }
     
     return result;
@@ -766,9 +772,9 @@ std::vector<int> QuadMesh::findIrregularVertices() const {
     std::vector<int> irregular;
     for (size_t i = 0; i < m_vertices.size(); ++i) {
         int valence = getVertexValence(static_cast<int>(i));
-        // Regular valence is 4 for interior, 2 for boundary
-        int expectedValence = m_vertices[i].isBoundary ? 2 : 4;
-        if (valence != expectedValence && valence > 0) {
+        // Fix: Only check interior vertices - boundary vertices have variable valence
+        // depending on local geometry (corners, edges, etc.)
+        if (!m_vertices[i].isBoundary && valence != 4 && valence > 0) {
             irregular.push_back(static_cast<int>(i));
         }
     }

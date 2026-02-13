@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstring>
 #include <bit>
+#include <cstdint>
 
 namespace dc3d {
 namespace io {
@@ -18,6 +19,24 @@ namespace {
 
 // Maximum list size to prevent DoS attacks (CRITICAL FIX)
 constexpr int64_t MAX_LIST_SIZE = 10000000;  // 10M elements max
+
+// MEDIUM FIX: RAII guard for stream position restoration on error
+struct StreamPositionGuard {
+    std::istream& stream;
+    std::streampos savedPos;
+    bool dismissed = false;
+    
+    explicit StreamPositionGuard(std::istream& s) : stream(s), savedPos(s.tellg()) {}
+    
+    ~StreamPositionGuard() {
+        if (!dismissed) {
+            stream.clear();  // Clear any error flags
+            stream.seekg(savedPos);
+        }
+    }
+    
+    void dismiss() { dismissed = true; }
+};
 
 // Trim whitespace from string
 std::string trim(const std::string& str) {

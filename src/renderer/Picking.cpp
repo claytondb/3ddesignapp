@@ -32,6 +32,11 @@ void Picking::addMesh(uint32_t meshId, const geometry::MeshData* mesh,
             m.transform = transform;
             m.inverseTransform = glm::inverse(transform);
             m.bvh = std::make_shared<geometry::BVH>(*mesh);
+            // Validate BVH construction succeeded
+            if (!m.bvh->isValid()) {
+                qWarning() << "Picking: BVH construction failed for mesh" << meshId 
+                           << "(possibly empty mesh)";
+            }
             return;
         }
     }
@@ -43,6 +48,11 @@ void Picking::addMesh(uint32_t meshId, const geometry::MeshData* mesh,
     pm.transform = transform;
     pm.inverseTransform = glm::inverse(transform);
     pm.bvh = std::make_shared<geometry::BVH>(*mesh);
+    // Validate BVH construction succeeded
+    if (!pm.bvh->isValid()) {
+        qWarning() << "Picking: BVH construction failed for mesh" << meshId 
+                   << "(possibly empty mesh)";
+    }
     pm.visible = true;
     
     m_meshes.push_back(std::move(pm));

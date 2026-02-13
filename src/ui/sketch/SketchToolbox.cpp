@@ -30,6 +30,9 @@ SketchToolbox::SketchToolbox(QWidget* parent)
     setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
     setAttribute(Qt::WA_TranslucentBackground);
     
+    // Explicitly set exclusive mode for clarity (tools should be mutually exclusive)
+    m_toolGroup->setExclusive(true);
+    
     setupUI();
     applyStylesheet();
     
@@ -395,19 +398,9 @@ SketchToolButton::SketchToolButton(QWidget* parent)
 
 void SketchToolButton::paintEvent(QPaintEvent* event)
 {
+    // Let the stylesheet handle all styling including hover effects
+    // The :hover pseudo-class in the stylesheet already provides visual feedback
     QToolButton::paintEvent(event);
-    
-    // Draw additional hover/checked indicators if needed
-    if (m_hovered && !isChecked()) {
-        QPainter painter(this);
-        painter.setRenderHint(QPainter::Antialiasing);
-        
-        // Draw subtle glow effect
-        QColor glowColor(0, 122, 204, 50);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(glowColor);
-        painter.drawRoundedRect(rect().adjusted(1, 1, -1, -1), 3, 3);
-    }
 }
 
 void SketchToolButton::enterEvent(QEnterEvent* /*event*/)

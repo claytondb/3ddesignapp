@@ -1,5 +1,6 @@
 #include "SketchCircle.h"
 #include <cmath>
+#include <stdexcept>
 
 namespace dc {
 namespace sketch {
@@ -12,6 +13,10 @@ SketchCircle::SketchCircle(const glm::vec2& center, float radius)
     , m_center(center)
     , m_radius(radius)
 {
+    // FIX #11: Validate radius
+    if (radius <= 0.0f) {
+        throw std::invalid_argument("Circle radius must be positive");
+    }
 }
 
 SketchCircle::Ptr SketchCircle::createFromThreePoints(const glm::vec2& p1, const glm::vec2& p2, const glm::vec2& p3) {
@@ -22,8 +27,8 @@ SketchCircle::Ptr SketchCircle::createFromThreePoints(const glm::vec2& p1, const
     
     float d = 2.0f * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
     if (std::abs(d) < 1e-10f) {
-        // Points are collinear
-        return nullptr;
+        // FIX #12: Throw exception instead of returning nullptr silently
+        throw std::invalid_argument("Cannot create circle from collinear points");
     }
     
     float aSq = ax * ax + ay * ay;

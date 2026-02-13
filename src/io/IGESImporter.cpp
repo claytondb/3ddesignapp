@@ -4,6 +4,12 @@
 #include <algorithm>
 #include <cmath>
 #include <cctype>
+#include <cstdint>
+
+namespace {
+// LOW FIX: Define PI constant instead of relying on non-standard M_PI
+constexpr double PI = 3.14159265358979323846;
+} // anonymous namespace
 
 namespace dc {
 
@@ -472,7 +478,7 @@ std::shared_ptr<NURBSCurve> IGESImporter::getCircularArc(int directoryEntry)
     double endAngle = std::atan2(y3 - y1, x3 - x1);
     
     if (endAngle < startAngle) {
-        endAngle += 2.0 * M_PI;
+        endAngle += 2.0 * PI;
     }
     
     // Create rational quadratic arc
@@ -704,7 +710,7 @@ std::shared_ptr<NURBSSurface> IGESImporter::getSurfaceOfRevolution(int directory
     surface->degreeV = 2;  // Rational quadratic for circular sections
     
     // Number of sections (quarters)
-    int numSections = std::ceil((endAngle - startAngle) / (M_PI / 2.0));
+    int numSections = std::ceil((endAngle - startAngle) / (PI / 2.0));
     numSections = std::max(1, numSections);
     
     double angleStep = (endAngle - startAngle) / numSections;

@@ -226,12 +226,14 @@ WrapResult SurfaceWrapper::wrapWithDeformation(const NurbsSurface& surface,
     int nv = static_cast<int>(controlPoints[0].size());
     
     result.controlPointMovement.resize(nu * nv, 0.0f);
+    result.movedControlPoints = 0;
+    result.maxDeviation = 0.0f;
+    float totalMovement = 0.0f;
     
     WrapUtils::MeshAccelerator sourceAccel(sourceMesh);
     WrapUtils::MeshAccelerator targetAccel(targetMesh);
     
     const auto& sourceVerts = sourceMesh.vertices();
-    const auto& targetVerts = targetMesh.vertices();
     
     for (int i = 0; i < nu; ++i) {
         for (int j = 0; j < nv; ++j) {
@@ -240,28 +242,27 @@ WrapResult SurfaceWrapper::wrapWithDeformation(const NurbsSurface& surface,
             // Find closest point on source mesh
             glm::vec3 sourcePoint = sourceAccel.closestPoint(cp);
             
-            // Find corresponding point on target mesh (using parameterization)
-            // Simplified: use closest vertex
-            float minDist = std::numeric_limits<float>::max();
-            int closestIdx = 0;
-            for (size_t v = 0; v < sourceVerts.size(); ++v) {
-                float d = glm::length(sourceVerts[v].position - sourcePoint);
-                if (d < minDist) {
-                    minDist = d;
-                    closestIdx = static_cast<int>(v);
-                }
-            }
+            // Fix: Use proper correspondence finding - find closest point on target mesh
+            // instead of assuming vertex indices match between source and target
+            glm::vec3 targetPoint = targetAccel.closestPoint(sourcePoint);
             
-            // Get corresponding target vertex
-            if (closestIdx < static_cast<int>(targetVerts.size())) {
-                glm::vec3 delta = targetVerts[closestIdx].position - sourceVerts[closestIdx].position;
-                glm::vec3 newPos = cp + delta;
-                
-                result.controlPointMovement[i * nv + j] = glm::length(delta);
-                cp = newPos;
-            }
+            // Compute deformation delta from source surface to target surface
+            glm::vec3 delta = targetPoint - sourcePoint;
+            
+            // Apply delta to control point (preserving its offset from source mesh)
+            glm::vec3 newPos = cp + delta;
+            
+            float movement = glm::length(delta);
+            result.controlPointMovement[i * nv + j] = movement;
+            result.maxDeviation = std::max(result.maxDeviation, movement);
+            totalMovement += movement;
+            if (movement > 1e-6f) result.movedControlPoints++;
+            
+            cp = newPos;
         }
     }
+    
+    result.averageDeviation = totalMovement / static_cast<float>(nu * nv);
     
     result.surface = std::make_unique<NurbsSurface>(
         controlPoints,
@@ -272,6 +273,7 @@ WrapResult SurfaceWrapper::wrapWithDeformation(const NurbsSurface& surface,
     );
     
     result.success = true;
+    result.message = "Deformation wrap completed successfully";
     return result;
 }
 
@@ -567,6 +569,7 @@ WrapResult ShrinkWrapper::shrinkWrap(const NurbsSurface& surface,
     m_cancelled = false;
     
     auto controlPoints = surface.getControlPoints();
+    auto originalCPs = controlPoints;  // Store original for computing statistics
     int nu = static_cast<int>(controlPoints.size());
     int nv = static_cast<int>(controlPoints[0].size());
     
@@ -620,7 +623,25 @@ WrapResult ShrinkWrapper::shrinkWrap(const NurbsSurface& surface,
         surface.getDegreeV()
     );
     
+    // Fix: Compute statistics before returning
+    result.controlPointMovement.resize(nu * nv);
+    result.movedControlPoints = 0;
+    result.maxDeviation = 0.0f;
+    float totalMovement = 0.0f;
+    
+    for (int i = 0; i < nu; ++i) {
+        for (int j = 0; j < nv; ++j) {
+            float mov = glm::length(controlPoints[i][j] - originalCPs[i][j]);
+            result.controlPointMovement[i * nv + j] = mov;
+            result.maxDeviation = std::max(result.maxDeviation, mov);
+            totalMovement += mov;
+            if (mov > 1e-6f) result.movedControlPoints++;
+        }
+    }
+    result.averageDeviation = totalMovement / static_cast<float>(nu * nv);
+    
     result.success = true;
+    result.message = "Shrink wrap completed successfully";
     return result;
 }
 
@@ -685,6 +706,18 @@ glm::vec3 closestPointOnTriangle(const glm::vec3& point,
                                   const glm::vec3& v0,
                                   const glm::vec3& v1,
                                   const glm::vec3& v2) {
+    // Helper lambda for closest point on a line segment
+    auto closestOnSegment = [](const glm::vec3& p, const glm::vec3& a, const glm::vec3& b) {
+        glm::vec3 ab = b - a;
+        float abLenSq = glm::dot(ab, ab);
+        if (abLenSq < 1e-10f) {
+            return a;  // Degenerate segment (a == b), return the point
+        }
+        float t = glm::dot(p - a, ab) / abLenSq;
+        t = glm::clamp(t, 0.0f, 1.0f);
+        return a + t * ab;
+    };
+    
     // Check if point projects inside triangle
     glm::vec3 edge0 = v1 - v0;
     glm::vec3 edge1 = v2 - v0;
@@ -697,8 +730,28 @@ glm::vec3 closestPointOnTriangle(const glm::vec3& point,
     float d21 = glm::dot(v0p, edge1);
     
     float denom = d00 * d11 - d01 * d01;
+    
+    // Fix: Handle degenerate triangle - find closest point on edges/vertices
     if (std::abs(denom) < 1e-10f) {
-        return v0; // Degenerate triangle
+        // Degenerate triangle - collinear or coincident vertices
+        // Check which edges are valid and find closest point
+        float len0 = d00;  // |edge0|^2
+        float len1 = d11;  // |edge1|^2
+        float len2 = glm::dot(v2 - v1, v2 - v1);  // |v2 - v1|^2
+        
+        // If all vertices coincident, return v0
+        if (len0 < 1e-10f && len1 < 1e-10f && len2 < 1e-10f) {
+            return v0;
+        }
+        
+        // Find closest point on longest edge (the non-degenerate line)
+        if (len0 >= len1 && len0 >= len2) {
+            return closestOnSegment(point, v0, v1);
+        } else if (len1 >= len2) {
+            return closestOnSegment(point, v0, v2);
+        } else {
+            return closestOnSegment(point, v1, v2);
+        }
     }
     
     float v = (d11 * d20 - d01 * d21) / denom;
@@ -711,23 +764,16 @@ glm::vec3 closestPointOnTriangle(const glm::vec3& point,
     }
     
     // Point is outside triangle - find closest point on edges
-    auto closestOnSegment = [](const glm::vec3& p, const glm::vec3& a, const glm::vec3& b) {
-        glm::vec3 ab = b - a;
-        float t = glm::dot(p - a, ab) / glm::dot(ab, ab);
-        t = glm::clamp(t, 0.0f, 1.0f);
-        return a + t * ab;
-    };
-    
     glm::vec3 c0 = closestOnSegment(point, v0, v1);
     glm::vec3 c1 = closestOnSegment(point, v1, v2);
     glm::vec3 c2 = closestOnSegment(point, v2, v0);
     
-    float d0 = glm::dot(point - c0, point - c0);
-    float d1 = glm::dot(point - c1, point - c1);
-    float d2 = glm::dot(point - c2, point - c2);
+    float dist0 = glm::dot(point - c0, point - c0);
+    float dist1 = glm::dot(point - c1, point - c1);
+    float dist2 = glm::dot(point - c2, point - c2);
     
-    if (d0 <= d1 && d0 <= d2) return c0;
-    if (d1 <= d2) return c1;
+    if (dist0 <= dist1 && dist0 <= dist2) return c0;
+    if (dist1 <= dist2) return c1;
     return c2;
 }
 

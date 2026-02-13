@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <unordered_set>
+#include <deque>
 
 namespace dc {
 namespace sketch {
@@ -276,25 +277,25 @@ std::vector<Polyline> SectionCreator::chainSegments(std::vector<EdgeSegment>& se
         
         if (startIdx < 0) break;  // All segments used
         
-        // Start a new polyline
-        Polyline polyline;
-        polyline.points.push_back(segments[startIdx].start);
-        polyline.points.push_back(segments[startIdx].end);
+        // FIX #17: Use deque for O(1) front insertion instead of O(n) vector insert
+        std::deque<glm::vec3> pointsDeque;
+        pointsDeque.push_back(segments[startIdx].start);
+        pointsDeque.push_back(segments[startIdx].end);
         used[startIdx] = true;
         
         // Try to extend forward
         bool extended = true;
         while (extended) {
             extended = false;
-            int nextIdx = findConnectedSegment(segments, used, polyline.points.back());
+            int nextIdx = findConnectedSegment(segments, used, pointsDeque.back());
             if (nextIdx >= 0) {
                 used[nextIdx] = true;
                 
                 // Determine which end connects
-                if (areCoincident(segments[nextIdx].start, polyline.points.back())) {
-                    polyline.points.push_back(segments[nextIdx].end);
+                if (areCoincident(segments[nextIdx].start, pointsDeque.back())) {
+                    pointsDeque.push_back(segments[nextIdx].end);
                 } else {
-                    polyline.points.push_back(segments[nextIdx].start);
+                    pointsDeque.push_back(segments[nextIdx].start);
                 }
                 extended = true;
             }
@@ -304,19 +305,23 @@ std::vector<Polyline> SectionCreator::chainSegments(std::vector<EdgeSegment>& se
         extended = true;
         while (extended) {
             extended = false;
-            int prevIdx = findConnectedSegment(segments, used, polyline.points.front());
+            int prevIdx = findConnectedSegment(segments, used, pointsDeque.front());
             if (prevIdx >= 0) {
                 used[prevIdx] = true;
                 
-                // Determine which end connects
-                if (areCoincident(segments[prevIdx].end, polyline.points.front())) {
-                    polyline.points.insert(polyline.points.begin(), segments[prevIdx].start);
+                // Determine which end connects - use push_front (O(1) with deque)
+                if (areCoincident(segments[prevIdx].end, pointsDeque.front())) {
+                    pointsDeque.push_front(segments[prevIdx].start);
                 } else {
-                    polyline.points.insert(polyline.points.begin(), segments[prevIdx].end);
+                    pointsDeque.push_front(segments[prevIdx].end);
                 }
                 extended = true;
             }
         }
+        
+        // Convert deque to vector for Polyline
+        Polyline polyline;
+        polyline.points.assign(pointsDeque.begin(), pointsDeque.end());
         
         // Check if closed
         if (polyline.points.size() > 2 && 

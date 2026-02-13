@@ -154,13 +154,27 @@ protected:
     /**
      * @brief Set reference point for ortho constraint
      */
-    void setOrthoReference(const QPointF& point) { m_orthoReference = point; }
+    void setOrthoReference(const QPointF& point) { 
+        m_orthoReference = point; 
+        m_hasOrthoReference = true;
+    }
+    
+    /**
+     * @brief Clear ortho reference point
+     */
+    void clearOrthoReference() { m_hasOrthoReference = false; }
+    
+    /**
+     * @brief Check if ortho reference is set
+     */
+    bool hasOrthoReference() const { return m_hasOrthoReference; }
     
     SketchMode* m_sketchMode;
     bool m_active = false;
     bool m_drawing = false;
     
     QPointF m_orthoReference;
+    bool m_hasOrthoReference = false;
 };
 
 } // namespace dc

@@ -596,6 +596,7 @@ RepairResult MeshRepair::fillHoles(
             float p = static_cast<float>(i) / holes.size();
             if (!progress(p)) {
                 result.message = "Cancelled";
+                result.success = false;  // FIX Bug 13: Mark as unsuccessful when cancelled
                 return result;
             }
         }
@@ -853,8 +854,12 @@ RepairResult MeshRepair::makeManifold(
     // This requires duplicating vertices, which is more complex
     // For now, we just report them
     
+    // FIX Bug 25: Non-manifold vertices are detected but not yet fixed
+    // TODO: Implement vertex duplication to handle non-manifold vertices
+    // For now, we report them so the caller knows they exist
     auto nmVertices = detectNonManifoldVertices(mesh);
     result.itemsFixed = nmEdges.size();
+    result.verticesAdded = 0;  // Track that no vertices were fixed yet
     
     result.success = true;
     result.message = "Fixed " + std::to_string(nmEdges.size()) + " non-manifold edges, " +
@@ -868,6 +873,10 @@ RepairResult MeshRepair::makeManifold(
 // ============================================================================
 
 size_t MeshRepair::makeOrientationConsistent(MeshData& mesh) {
+    // FIX Bug 21: Note that this BFS-based orientation propagation only works
+    // within connected components. If mesh has multiple disconnected components,
+    // each may have different orientations that aren't made consistent with each other.
+    // For full consistency across components, use orientOutward() which checks volume sign.
     if (mesh.isEmpty()) return 0;
     
     const auto& indices = mesh.indices();

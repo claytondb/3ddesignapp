@@ -13,6 +13,13 @@
 namespace dc3d {
 namespace geometry {
 
+// FIX Bug 28: Define named constants for magic numbers
+namespace {
+    constexpr float EPSILON_WEIGHT = 1e-10f;     // Minimum weight sum for cotangent Laplacian
+    constexpr float EPSILON_DISPLACEMENT = 1e-10f; // Threshold for detecting vertex movement
+    constexpr float MIN_COT_WEIGHT = 0.01f;      // Minimum cotangent weight to prevent instability
+} // anonymous namespace
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -229,8 +236,11 @@ glm::vec3 MeshSmoother::computeCotangentLaplacian(
         weightSum += cotWeight;
     }
     
+    // FIX Bug 17: Return zero vector if weightSum is too small to avoid instability
     if (weightSum > 1e-10f) {
         laplacian /= weightSum;
+    } else {
+        return glm::vec3(0.0f);  // No valid weights - return zero displacement
     }
     
     return laplacian;

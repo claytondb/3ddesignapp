@@ -282,7 +282,7 @@ void AutoSurface::generateInitialQuadMesh(const AutoSurfaceParams& params) {
     if (m_cancelled) return;
     
     reportProgress(0.6f, "Extracting quad mesh");
-    extractQuadMesh();
+    extractQuadMesh(params.targetPatchCount);
     
     if (m_cancelled) return;
     
@@ -443,16 +443,17 @@ void AutoSurface::computePositionField() {
     }
 }
 
-void AutoSurface::extractQuadMesh() {
+void AutoSurface::extractQuadMesh(int targetPatchCount) {
     // Extract quad mesh by tracing iso-lines of the position field
     
     m_quadMesh = std::make_unique<QuadMesh>();
     
     const auto& vertices = m_inputMesh->vertices();
     
-    // Determine grid spacing based on target patch count
-    float scale = std::sqrt(static_cast<float>(vertices.size()) / 
-                           static_cast<float>(m_metrics.patchCount > 0 ? m_metrics.patchCount : 100));
+    // Fix: Use targetPatchCount parameter instead of uninitialized m_metrics.patchCount
+    // m_metrics.patchCount is only set AFTER optimization, so use the target value here
+    float targetPatches = static_cast<float>(targetPatchCount > 0 ? targetPatchCount : 100);
+    float scale = std::sqrt(static_cast<float>(vertices.size()) / targetPatches);
     
     // Round position field values to grid
     std::vector<glm::ivec2> gridCoords(vertices.size());
@@ -666,8 +667,14 @@ void AutoSurface::cancel() {
 }
 
 void AutoSurface::reportProgress(float progress, const std::string& stage) {
+    // Fix: Wrap callback in try-catch for defensive coding - callback could throw
     if (m_progressCallback) {
-        m_progressCallback(progress, stage);
+        try {
+            m_progressCallback(progress, stage);
+        } catch (...) {
+            // Silently ignore callback exceptions to avoid interrupting processing
+            // The caller's callback is responsible for its own error handling
+        }
     }
 }
 

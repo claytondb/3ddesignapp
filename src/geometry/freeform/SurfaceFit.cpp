@@ -717,14 +717,95 @@ std::pair<int, int> estimateControlPointCount(const std::vector<glm::vec3>& poin
 }
 
 std::vector<glm::vec2> computeChordLengthParameterization(const std::vector<glm::vec3>& points) {
+    // Fix: Implement chord-length parameterization
+    // This assumes points form a roughly rectangular grid or ordered sequence
     std::vector<glm::vec2> params;
-    // Implementation for chord-length parameterization
+    
+    if (points.empty()) {
+        return params;
+    }
+    
+    if (points.size() == 1) {
+        params.push_back(glm::vec2(0.0f, 0.0f));
+        return params;
+    }
+    
+    params.reserve(points.size());
+    
+    // Compute cumulative chord lengths
+    std::vector<float> chordLengths;
+    chordLengths.reserve(points.size());
+    chordLengths.push_back(0.0f);
+    
+    float totalLength = 0.0f;
+    for (size_t i = 1; i < points.size(); ++i) {
+        float segmentLength = glm::length(points[i] - points[i - 1]);
+        totalLength += segmentLength;
+        chordLengths.push_back(totalLength);
+    }
+    
+    // Normalize to [0, 1]
+    if (totalLength > 1e-6f) {
+        for (size_t i = 0; i < points.size(); ++i) {
+            float u = chordLengths[i] / totalLength;
+            // For 1D parameterization, use u for both coordinates
+            // In practice, caller should use appropriate 2D arrangement
+            params.push_back(glm::vec2(u, 0.0f));
+        }
+    } else {
+        // All points coincident - distribute evenly
+        for (size_t i = 0; i < points.size(); ++i) {
+            float u = static_cast<float>(i) / static_cast<float>(points.size() - 1);
+            params.push_back(glm::vec2(u, 0.0f));
+        }
+    }
+    
     return params;
 }
 
 std::vector<glm::vec2> computeCentripetalParameterization(const std::vector<glm::vec3>& points) {
+    // Fix: Implement centripetal parameterization
+    // Uses square root of chord length for smoother curves
     std::vector<glm::vec2> params;
-    // Implementation for centripetal parameterization
+    
+    if (points.empty()) {
+        return params;
+    }
+    
+    if (points.size() == 1) {
+        params.push_back(glm::vec2(0.0f, 0.0f));
+        return params;
+    }
+    
+    params.reserve(points.size());
+    
+    // Compute cumulative sqrt of chord lengths (centripetal)
+    std::vector<float> centripetalLengths;
+    centripetalLengths.reserve(points.size());
+    centripetalLengths.push_back(0.0f);
+    
+    float totalLength = 0.0f;
+    for (size_t i = 1; i < points.size(); ++i) {
+        float segmentLength = glm::length(points[i] - points[i - 1]);
+        // Centripetal uses sqrt of distance
+        totalLength += std::sqrt(segmentLength);
+        centripetalLengths.push_back(totalLength);
+    }
+    
+    // Normalize to [0, 1]
+    if (totalLength > 1e-6f) {
+        for (size_t i = 0; i < points.size(); ++i) {
+            float u = centripetalLengths[i] / totalLength;
+            params.push_back(glm::vec2(u, 0.0f));
+        }
+    } else {
+        // All points coincident - distribute evenly
+        for (size_t i = 0; i < points.size(); ++i) {
+            float u = static_cast<float>(i) / static_cast<float>(points.size() - 1);
+            params.push_back(glm::vec2(u, 0.0f));
+        }
+    }
+    
     return params;
 }
 

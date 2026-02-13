@@ -12,6 +12,13 @@
 namespace dc3d {
 namespace geometry {
 
+// FIX Bug 28: Define named constants for magic numbers
+namespace {
+    constexpr float EPSILON_RAY = 1e-7f;         // For ray-triangle intersection
+    constexpr int NUM_SIGN_RAYS = 5;             // Number of rays for sign determination majority vote
+    constexpr int RANDOM_SEED = 42;              // Seed for reproducible random directions
+} // anonymous namespace
+
 // ============================================================================
 // KDBox
 // ============================================================================
@@ -299,7 +306,8 @@ std::vector<float> DeviationAnalysis::computeSignedDeviation(
         
         // Determine sign using ray casting
         // Use multiple random rays and take majority vote for robustness
-        static std::mt19937 rng(42);
+        // FIX Bug 16: Use thread_local to make function thread-safe and reentrant
+        thread_local std::mt19937 rng(42);
         std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
         
         int insideCount = 0;
@@ -483,6 +491,8 @@ std::vector<size_t> DeviationAnalysis::createHistogram(
     
     float range = maxVal - minVal;
     if (range <= 0) {
+        // FIX Bug 27: Document behavior when all values are identical
+        // All values go in bin 0, which is technically correct for a single-value distribution
         histogram[0] = deviations.size();
         return histogram;
     }

@@ -108,7 +108,7 @@ public:
     /**
      * @brief Check if renderer is initialized
      */
-    bool isInitialized() const { return initialized_; }
+    bool isInitialized() const { return m_initialized; }
     
     // ---- Data Setup ----
     
@@ -235,7 +235,7 @@ private:
     
     void computeAutoRange(const std::vector<float>& deviations);
     
-    bool initialized_ = false;
+    bool m_initialized = false;  // Standardized naming (m_ prefix)
     DeviationRenderConfig config_;
     
     // Shaders

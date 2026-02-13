@@ -4,11 +4,15 @@
  */
 
 #include "MeshImporter.h"
+#include "STLImporter.h"
+#include "OBJImporter.h"
+#include "PLYImporter.h"
 #include "geometry/MeshData.h"
 
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cstdint>
 
 namespace dc3d {
 namespace io {
@@ -78,39 +82,62 @@ std::vector<std::string> MeshImporter::supportedExtensions()
     return {".stl", ".obj", ".ply"};
 }
 
-ImportResult MeshImporter::importSTL(const std::string& filePath, const ImportOptions& /*options*/)
+ImportResult MeshImporter::importSTL(const std::string& filePath, const ImportOptions& options)
 {
     ImportResult result;
-    result.mesh = std::make_unique<geometry::MeshData>();
     
-    // TODO: Implement STL parsing
-    // For now, return empty mesh
-    result.error = "STL import not yet implemented";
-    result.mesh.reset();
+    // MEDIUM FIX: Forward to actual STLImporter instead of stub
+    STLImportOptions stlOptions;
+    stlOptions.computeNormals = options.computeNormals;
+    stlOptions.mergeVertexTolerance = options.mergeVertices ? 1e-6f : 0.0f;
+    
+    auto stlResult = STLImporter::import(std::filesystem::path(filePath), stlOptions, nullptr);
+    
+    if (stlResult) {
+        result.mesh = std::make_unique<geometry::MeshData>(std::move(*stlResult.value));
+    } else {
+        result.error = stlResult.error;
+    }
     
     return result;
 }
 
-ImportResult MeshImporter::importOBJ(const std::string& filePath, const ImportOptions& /*options*/)
+ImportResult MeshImporter::importOBJ(const std::string& filePath, const ImportOptions& options)
 {
     ImportResult result;
-    result.mesh = std::make_unique<geometry::MeshData>();
     
-    // TODO: Implement OBJ parsing
-    result.error = "OBJ import not yet implemented";
-    result.mesh.reset();
+    // MEDIUM FIX: Forward to actual OBJImporter instead of stub
+    OBJImportOptions objOptions;
+    objOptions.computeNormalsIfMissing = options.computeNormals;
+    objOptions.triangulate = true;
+    objOptions.importUVs = true;
+    
+    auto objResult = OBJImporter::import(std::filesystem::path(filePath), objOptions, nullptr);
+    
+    if (objResult) {
+        result.mesh = std::make_unique<geometry::MeshData>(std::move(*objResult.value));
+    } else {
+        result.error = objResult.error;
+    }
     
     return result;
 }
 
-ImportResult MeshImporter::importPLY(const std::string& filePath, const ImportOptions& /*options*/)
+ImportResult MeshImporter::importPLY(const std::string& filePath, const ImportOptions& options)
 {
     ImportResult result;
-    result.mesh = std::make_unique<geometry::MeshData>();
     
-    // TODO: Implement PLY parsing
-    result.error = "PLY import not yet implemented";
-    result.mesh.reset();
+    // MEDIUM FIX: Forward to actual PLYImporter instead of stub
+    PLYImportOptions plyOptions;
+    plyOptions.computeNormalsIfMissing = options.computeNormals;
+    
+    auto plyResult = PLYImporter::import(std::filesystem::path(filePath), plyOptions, nullptr);
+    
+    if (plyResult) {
+        result.mesh = std::make_unique<geometry::MeshData>(std::move(*plyResult.value));
+    } else {
+        result.error = plyResult.error;
+    }
     
     return result;
 }

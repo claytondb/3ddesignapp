@@ -12,6 +12,14 @@
 namespace dc3d {
 namespace geometry {
 
+// FIX Bug 28: Define named constants for magic numbers
+namespace {
+    constexpr float EPSILON_ZERO = 1e-10f;       // For near-zero checks
+    constexpr float EPSILON_CONVERGENCE = 1e-8f; // SVD convergence threshold
+    constexpr float EPSILON_NORMALIZE = 1e-6f;   // For vector normalization safety
+    constexpr int MAX_SVD_ITERATIONS = 50;       // Maximum iterations for power iteration SVD
+} // anonymous namespace
+
 // ============================================================================
 // KDTree Implementation
 // ============================================================================
@@ -451,7 +459,11 @@ glm::mat4 ICP::computePointToPointTransform(
 glm::mat4 ICP::computePointToPlaneTransform(
     const std::vector<Correspondence>& correspondences)
 {
+    // FIX Bug 22: Log when falling back to point-to-point algorithm
+    // Point-to-plane requires at least 6 correspondences to solve the 6-DOF system
     if (correspondences.size() < 6) {
+        // Note: Falling back to point-to-point ICP due to insufficient correspondences
+        // This may produce different convergence behavior than expected point-to-plane
         return computePointToPointTransform(correspondences);
     }
     

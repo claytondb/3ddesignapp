@@ -1,6 +1,15 @@
 /**
  * @file MeshEditCommand.cpp
  * @brief Implementation of mesh editing commands
+ * 
+ * Memory Note: MeshEditCommand stores both beforeMesh_ and afterMesh_, doubling
+ * memory usage for large meshes. This is intentional for correctness when:
+ * - Operations may not be deterministic
+ * - User edits the mesh after command execution
+ * 
+ * For memory-constrained applications, consider storing lightweight deltas instead
+ * of full mesh copies, or use streaming undo where only the last N commands store
+ * full state and older commands just store operations.
  */
 
 #include "MeshEditCommand.h"
@@ -45,7 +54,7 @@ bool MeshEditCommand::execute() {
         return false;
     }
     
-    // Store result
+    // Store result for redo
     afterMesh_ = mesh_;
     executed_ = true;
     
@@ -503,9 +512,19 @@ void CommandHistory::setMaxMemory(size_t bytes) {
 }
 
 void CommandHistory::trimToMemoryLimit() {
+    // First try removing old undo commands (oldest first)
     while (currentMemoryUsage_ > maxMemoryBytes_ && !undoStack_.empty()) {
         currentMemoryUsage_ -= undoStack_.front()->memoryUsage();
         undoStack_.erase(undoStack_.begin());
+    }
+    
+    // If still over limit, clear the redo stack entirely
+    // (redo is less important than recent undo)
+    if (currentMemoryUsage_ > maxMemoryBytes_ && !redoStack_.empty()) {
+        for (const auto& cmd : redoStack_) {
+            currentMemoryUsage_ -= cmd->memoryUsage();
+        }
+        redoStack_.clear();
     }
 }
 

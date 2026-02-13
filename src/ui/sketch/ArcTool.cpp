@@ -10,6 +10,11 @@
 #include <QKeyEvent>
 #include <cmath>
 
+// M_PI is not standard C++, provide fallback for Windows portability
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 namespace dc {
 
 ArcTool::ArcTool(SketchMode* sketchMode, QObject* parent)

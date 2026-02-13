@@ -538,4 +538,18 @@ void ClippingBoxDialog::validateBounds()
     // Ensure min <= max for each axis
     // We just warn visually but don't force correction
     // (user might be in the middle of typing)
+    
+    bool xValid = m_minXSpinbox->value() <= m_maxXSpinbox->value();
+    bool yValid = m_minYSpinbox->value() <= m_maxYSpinbox->value();
+    bool zValid = m_minZSpinbox->value() <= m_maxZSpinbox->value();
+    
+    QString validStyle = "";
+    QString invalidStyle = "border: 2px solid #ff6b6b;";
+    
+    m_minXSpinbox->setStyleSheet(xValid ? validStyle : invalidStyle);
+    m_maxXSpinbox->setStyleSheet(xValid ? validStyle : invalidStyle);
+    m_minYSpinbox->setStyleSheet(yValid ? validStyle : invalidStyle);
+    m_maxYSpinbox->setStyleSheet(yValid ? validStyle : invalidStyle);
+    m_minZSpinbox->setStyleSheet(zValid ? validStyle : invalidStyle);
+    m_maxZSpinbox->setStyleSheet(zValid ? validStyle : invalidStyle);
 }

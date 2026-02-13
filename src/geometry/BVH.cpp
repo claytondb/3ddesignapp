@@ -11,6 +11,13 @@
 namespace dc3d {
 namespace geometry {
 
+// FIX Bug 28: Define named constants for magic numbers
+namespace {
+    constexpr float EPSILON_RAY = 1e-10f;        // For ray-axis alignment detection
+    constexpr float INV_DIR_MAX = 1e10f;         // Maximum inverse direction for axis-aligned rays
+    constexpr float EPSILON_PARALLEL = 1e-10f;   // For ray-triangle parallel check
+} // anonymous namespace
+
 // ============================================================================
 // AABB Implementation
 // ============================================================================
@@ -482,9 +489,12 @@ std::vector<uint32_t> BVH::queryFrustum(const glm::vec4 frustumPlanes[6]) const
 {
     std::vector<uint32_t> results;
     
-    if (!m_nodes.empty()) {
-        queryFrustumNode(0, frustumPlanes, results);
+    // FIX Bug 19: Validate frustumPlanes pointer before use
+    if (frustumPlanes == nullptr || m_nodes.empty()) {
+        return results;
     }
+    
+    queryFrustumNode(0, frustumPlanes, results);
     
     return results;
 }

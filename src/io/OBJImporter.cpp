@@ -9,6 +9,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <algorithm>
+#include <cstdint>
 
 namespace dc3d {
 namespace io {
@@ -301,9 +302,9 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
                 // Add UV if available
                 if (hasUVs && vk.texIdx > 0 && 
                     vk.texIdx <= static_cast<int>(texCoords.size())) {
-                    // Ensure UVs vector is sized
-                    while (mesh.uvs().size() < mesh.vertexCount()) {
-                        mesh.uvs().push_back(glm::vec2(0.0f));
+                    // LOW FIX: Use resize() instead of push_back in loop (O(1) vs O(n²))
+                    if (newIdx >= mesh.uvs().size()) {
+                        mesh.uvs().resize(newIdx + 1, glm::vec2(0.0f));
                     }
                     mesh.uvs()[newIdx] = texCoords[vk.texIdx - 1];
                 }

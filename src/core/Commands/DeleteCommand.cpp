@@ -31,10 +31,16 @@ void DeleteCommand::execute()
         return;
     }
     
-    // If this is a redo, we need to delete again using stored info
+    // If this is a redo, the nodes are already stored from first execution
+    // We need to remove them from the scene again
     if (m_executed && !m_deletedNodes.empty()) {
-        for (const auto& info : m_deletedNodes) {
-            m_sceneManager->removeNode(info.nodeId);
+        for (auto& info : m_deletedNodes) {
+            // Move the node from our storage back to scene, then detach it again
+            // This ensures we have the same node instance throughout
+            if (info.node) {
+                m_sceneManager->restoreNode(std::move(info.node), info.parentId, info.index);
+                info.node = m_sceneManager->detachNode(info.nodeId);
+            }
         }
         return;
     }
@@ -64,11 +70,13 @@ void DeleteCommand::undo()
     }
     
     // Restore nodes in reverse order to maintain correct indices
+    // Move nodes from command storage to scene (no cloning needed)
     for (auto it = m_deletedNodes.rbegin(); it != m_deletedNodes.rend(); ++it) {
         if (it->node) {
-            // Clone the node for restoration (keep original for potential redo)
-            auto nodeClone = it->node->clone();
-            m_sceneManager->restoreNode(std::move(nodeClone), it->parentId, it->index);
+            // Move the node to the scene - we keep a detached reference via nodeId
+            m_sceneManager->restoreNode(std::move(it->node), it->parentId, it->index);
+            // Node is now in the scene, set our pointer to null
+            // (it will be re-captured on redo via execute())
         }
     }
 }

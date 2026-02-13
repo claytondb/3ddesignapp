@@ -654,6 +654,9 @@ void SelectionRenderer::renderVertexSelection(const dc::Camera& camera,
         if (vIdx < vertices.size()) {
             glm::vec4 worldPos = info->transform * glm::vec4(vertices[vIdx], 1.0f);
             points.push_back(glm::vec3(worldPos));
+        } else {
+            qWarning() << "SelectionRenderer: Invalid vertex index" << vIdx 
+                       << "for mesh" << meshId << "(size:" << vertices.size() << ")";
         }
     }
     

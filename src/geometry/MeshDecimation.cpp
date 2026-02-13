@@ -75,6 +75,9 @@ Quadric Quadric::operator*(float scale) const {
 }
 
 bool Quadric::findOptimal(glm::vec3& outPoint) const {
+    // FIX Bug 15: Initialize outPoint to safe default in case of failure
+    outPoint = glm::vec3(0.0f);
+    
     // Solve the 3x3 linear system derived from dQ/dx = 0
     // [ 2*a00  2*a01  2*a02 ] [x]   [-2*a03]
     // [ 2*a01  2*a11  2*a12 ] [y] = [-2*a13]

@@ -203,29 +203,29 @@ public:
      * @brief Set orbit sensitivity
      * @param sensitivity Degrees per pixel of mouse movement
      */
-    void setOrbitSensitivity(float sensitivity) { m_orbitSensitivity = sensitivity; }
+    void setOrbitSensitivity(float sensitivity) noexcept { m_orbitSensitivity = sensitivity; }
     
     /**
      * @brief Set pan sensitivity
      * @param sensitivity World units per pixel of mouse movement
      */
-    void setPanSensitivity(float sensitivity) { m_panSensitivity = sensitivity; }
+    void setPanSensitivity(float sensitivity) noexcept { m_panSensitivity = sensitivity; }
     
     /**
      * @brief Set zoom sensitivity
      * @param sensitivity Scale factor per scroll step
      */
-    void setZoomSensitivity(float sensitivity) { m_zoomSensitivity = sensitivity; }
+    void setZoomSensitivity(float sensitivity) noexcept { m_zoomSensitivity = sensitivity; }
     
     /**
      * @brief Set minimum distance from target
      */
-    void setMinDistance(float distance) { m_minDistance = distance; }
+    void setMinDistance(float distance) noexcept { m_minDistance = distance; }
     
     /**
      * @brief Set maximum distance from target
      */
-    void setMaxDistance(float distance) { m_maxDistance = distance; }
+    void setMaxDistance(float distance) noexcept { m_maxDistance = distance; }
     
     /**
      * @brief Get distance from camera to target

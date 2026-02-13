@@ -4,6 +4,8 @@
 #include <iomanip>
 #include <cstring>
 #include <algorithm>
+#include <cstdint>
+#include <stdexcept>
 
 namespace dc {
 
@@ -240,23 +242,25 @@ NativeFormat::FileInfo NativeFormat::getFileInfo(const std::string& filename)
                 // Simple JSON parsing for basic info
                 std::string json(entry.data.begin(), entry.data.end());
                 
-                // Extract name
-                size_t pos = json.find("\"name\"");
-                if (pos != std::string::npos) {
+                // MEDIUM FIX: Safe JSON string extraction with npos checks
+                auto safeExtractString = [&json](const std::string& key) -> std::string {
+                    size_t pos = json.find("\"" + key + "\"");
+                    if (pos == std::string::npos) return "";
                     pos = json.find(":", pos);
-                    size_t start = json.find("\"", pos) + 1;
+                    if (pos == std::string::npos) return "";
+                    size_t start = json.find("\"", pos);
+                    if (start == std::string::npos) return "";
+                    start++;  // Move past the opening quote
                     size_t end = json.find("\"", start);
-                    info.name = json.substr(start, end - start);
-                }
+                    if (end == std::string::npos) return "";
+                    return json.substr(start, end - start);
+                };
+                
+                // Extract name
+                info.name = safeExtractString("name");
                 
                 // Extract author
-                pos = json.find("\"author\"");
-                if (pos != std::string::npos) {
-                    pos = json.find(":", pos);
-                    size_t start = json.find("\"", pos) + 1;
-                    size_t end = json.find("\"", start);
-                    info.author = json.substr(start, end - start);
-                }
+                info.author = safeExtractString("author");
                 
                 break;
             }
@@ -338,13 +342,17 @@ bool NativeFormat::parseManifestJSON(const std::string& json, Project& project)
 {
     // Simple JSON parser (in production, use a proper library like nlohmann/json)
     
-    // Parse settings
+    // MEDIUM FIX: Safe JSON parsing with proper npos checks to prevent substr failures
     auto extractString = [&json](const std::string& key) -> std::string {
         size_t pos = json.find("\"" + key + "\"");
         if (pos == std::string::npos) return "";
         pos = json.find(":", pos);
-        size_t start = json.find("\"", pos) + 1;
+        if (pos == std::string::npos) return "";
+        size_t start = json.find("\"", pos);
+        if (start == std::string::npos) return "";
+        start++;  // Move past opening quote
         size_t end = json.find("\"", start);
+        if (end == std::string::npos) return "";
         return json.substr(start, end - start);
     };
     
@@ -352,17 +360,28 @@ bool NativeFormat::parseManifestJSON(const std::string& json, Project& project)
         size_t pos = json.find("\"" + key + "\"");
         if (pos == std::string::npos) return 0;
         pos = json.find(":", pos);
+        if (pos == std::string::npos) return 0;
         size_t start = pos + 1;
         while (start < json.length() && (json[start] == ' ' || json[start] == '\t')) start++;
+        if (start >= json.length()) return 0;
         size_t end = start;
         while (end < json.length() && (std::isdigit(json[end]) || json[end] == '.' || json[end] == '-')) end++;
-        return std::stod(json.substr(start, end - start));
+        if (start == end) return 0;
+        try {
+            return std::stod(json.substr(start, end - start));
+        } catch (...) {
+            return 0;
+        }
     };
     
     auto extractBool = [&json](const std::string& key) -> bool {
         size_t pos = json.find("\"" + key + "\"");
         if (pos == std::string::npos) return false;
-        return json.find("true", pos) < json.find(",", pos);
+        size_t truePos = json.find("true", pos);
+        size_t commaPos = json.find(",", pos);
+        if (truePos == std::string::npos) return false;
+        if (commaPos == std::string::npos) return true;  // true found, no comma after
+        return truePos < commaPos;
     };
     
     project.settings.name = extractString("name");
@@ -879,9 +898,15 @@ std::string NativeFormat::readString(const std::vector<uint8_t>& buffer, size_t&
 std::string NativeFormat::getCurrentTimestamp()
 {
     std::time_t now = std::time(nullptr);
-    std::tm* tm = std::localtime(&now);
+    std::tm tm_buf;
+    // LOW FIX: Thread-safe localtime usage
+#ifdef _WIN32
+    localtime_s(&tm_buf, &now);
+#else
+    localtime_r(&now, &tm_buf);
+#endif
     std::ostringstream ss;
-    ss << std::put_time(tm, "%Y-%m-%dT%H:%M:%S");
+    ss << std::put_time(&tm_buf, "%Y-%m-%dT%H:%M:%S");
     return ss.str();
 }
 

@@ -1,6 +1,10 @@
 /**
  * @file SceneManager.cpp
  * @brief Implementation of SceneManager and SceneNode classes
+ * 
+ * Thread Safety Note: SceneManager is designed to be accessed from the main
+ * (UI) thread only. All signal/slot connections should use Qt::AutoConnection
+ * to ensure thread safety when signals cross thread boundaries.
  */
 
 #include "SceneManager.h"
@@ -45,6 +49,12 @@ SceneManager::~SceneManager() = default;
 
 void SceneManager::clear()
 {
+    // Emit meshRemoved signals for each mesh before clearing
+    // This allows connected components to properly clean up their state
+    for (const auto& pair : m_meshNodes) {
+        emit meshRemoved(pair.first);
+    }
+    
     m_nodes.clear();
     m_meshNodes.clear();
     emit sceneChanged();

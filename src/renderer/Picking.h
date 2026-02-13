@@ -141,11 +141,11 @@ public:
     
     /**
      * @brief Get all faces/objects within a screen-space rectangle
-     * @param rect Selection rectangle in screen coords
+     * @param rect Selection rectangle in screen coords (must be valid with width/height >= 2)
      * @param viewportSize Viewport dimensions
      * @param camera Camera for frustum generation
      * @param mode What to select (Object, Face, etc.)
-     * @return List of selection elements
+     * @return List of selection elements, or empty vector if rect is invalid/too small
      */
     std::vector<core::SelectionElement> boxSelect(
         const QRect& rect,

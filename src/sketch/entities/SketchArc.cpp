@@ -1,6 +1,7 @@
 #include "SketchArc.h"
 #include <cmath>
 #include <algorithm>
+#include <stdexcept>
 
 namespace dc {
 namespace sketch {
@@ -15,6 +16,16 @@ SketchArc::SketchArc(const glm::vec2& center, float radius, float startAngle, fl
     , m_startAngle(startAngle)
     , m_endAngle(endAngle)
 {
+    // FIX #11: Validate radius
+    if (radius <= 0.0f) {
+        throw std::invalid_argument("Arc radius must be positive");
+    }
+    
+    // FIX #8: Determine CCW direction from angle difference
+    float sweep = endAngle - startAngle;
+    while (sweep > PI) sweep -= TWO_PI;
+    while (sweep < -PI) sweep += TWO_PI;
+    m_ccw = (sweep >= 0);
 }
 
 SketchArc::Ptr SketchArc::createFromThreePoints(const glm::vec2& start, const glm::vec2& mid, const glm::vec2& end) {
@@ -25,8 +36,8 @@ SketchArc::Ptr SketchArc::createFromThreePoints(const glm::vec2& start, const gl
     
     float d = 2.0f * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
     if (std::abs(d) < 1e-10f) {
-        // Points are collinear, can't form an arc
-        return nullptr;
+        // FIX #12: Throw exception instead of returning nullptr silently
+        throw std::invalid_argument("Cannot create arc from collinear points");
     }
     
     float aSq = ax * ax + ay * ay;
@@ -108,14 +119,26 @@ glm::vec2 SketchArc::endPoint() const {
 }
 
 glm::vec2 SketchArc::midPoint() const {
-    float midAngle = (m_startAngle + m_endAngle) * 0.5f;
+    // FIX #9: Use sweepAngle() for correct midpoint on reflex arcs
+    float midAngle = m_startAngle + sweepAngle() * 0.5f;
     return m_center + m_radius * glm::vec2(std::cos(midAngle), std::sin(midAngle));
 }
 
 float SketchArc::sweepAngle() const {
+    // FIX #8: Use stored direction flag for correct reflex arc handling
     float sweep = m_endAngle - m_startAngle;
-    while (sweep > PI) sweep -= TWO_PI;
-    while (sweep < -PI) sweep += TWO_PI;
+    
+    // Normalize to [-2π, 2π] first
+    while (sweep > TWO_PI) sweep -= TWO_PI;
+    while (sweep < -TWO_PI) sweep += TWO_PI;
+    
+    // Adjust based on stored direction
+    if (m_ccw && sweep < 0) {
+        sweep += TWO_PI;
+    } else if (!m_ccw && sweep > 0) {
+        sweep -= TWO_PI;
+    }
+    
     return sweep;
 }
 
@@ -125,6 +148,7 @@ bool SketchArc::isCCW() const {
 
 void SketchArc::reverse() {
     std::swap(m_startAngle, m_endAngle);
+    m_ccw = !m_ccw;  // FIX #8: Also reverse direction flag
 }
 
 float SketchArc::normalizeAngle(float angle) {

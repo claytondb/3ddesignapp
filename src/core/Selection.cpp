@@ -1,6 +1,10 @@
 /**
  * @file Selection.cpp
  * @brief Implementation of the Selection manager
+ * 
+ * Thread Safety Note: Selection is designed to be accessed from the main
+ * (UI) thread only. All signal/slot connections should use Qt::AutoConnection
+ * to ensure thread safety when signals cross thread boundaries.
  */
 
 #include "Selection.h"
@@ -34,7 +38,8 @@ void Selection::select(const SelectionElement& element, SelectionOp op)
     
     switch (op) {
         case SelectionOp::Replace:
-            if (!m_selectedElements.empty() || m_selectedElements.find(element) == m_selectedElements.end()) {
+            // Only skip if we already have exactly this one element selected
+            if (m_selectedElements.size() != 1 || m_selectedElements.find(element) == m_selectedElements.end()) {
                 m_selectedElements.clear();
                 m_selectedElements.insert(element);
                 changed = true;
@@ -146,18 +151,25 @@ SelectionElement Selection::createElementFromHit(const HitInfo& hit) const
             break;
             
         case SelectionMode::Edge:
-            // Encode edge as two vertex indices using 64-bit to support large meshes
+            // Validate closestEdge before using it as an index
             {
                 uint32_t v1, v2;
-                if (hit.closestEdge == 0) {
+                if (hit.closestEdge >= 0 && hit.closestEdge <= 2) {
+                    // Valid edge index
+                    if (hit.closestEdge == 0) {
+                        v1 = hit.vertexIndices[0];
+                        v2 = hit.vertexIndices[1];
+                    } else if (hit.closestEdge == 1) {
+                        v1 = hit.vertexIndices[1];
+                        v2 = hit.vertexIndices[2];
+                    } else {
+                        v1 = hit.vertexIndices[2];
+                        v2 = hit.vertexIndices[0];
+                    }
+                } else {
+                    // Invalid edge index (-1 or out of range), default to edge 0
                     v1 = hit.vertexIndices[0];
                     v2 = hit.vertexIndices[1];
-                } else if (hit.closestEdge == 1) {
-                    v1 = hit.vertexIndices[1];
-                    v2 = hit.vertexIndices[2];
-                } else {
-                    v1 = hit.vertexIndices[2];
-                    v2 = hit.vertexIndices[0];
                 }
                 // Ensure consistent ordering
                 if (v1 > v2) std::swap(v1, v2);
@@ -288,6 +300,12 @@ std::vector<uint32_t> Selection::selectedMeshIds() const
 
 void Selection::selectObject(uint32_t meshId, SelectionOp op)
 {
+    // Switch to Object mode if not already in it
+    // This ensures the element mode matches the current selection mode
+    if (m_mode != SelectionMode::Object) {
+        setMode(SelectionMode::Object);
+    }
+    
     SelectionElement elem;
     elem.meshId = meshId;
     elem.elementIndex = 0;
@@ -318,6 +336,11 @@ bool Selection::isObjectSelected(uint32_t meshId) const
 
 void Selection::selectFace(uint32_t meshId, uint32_t faceIndex, SelectionOp op)
 {
+    // Switch to Face mode if not already in it
+    if (m_mode != SelectionMode::Face) {
+        setMode(SelectionMode::Face);
+    }
+    
     SelectionElement elem;
     elem.meshId = meshId;
     elem.elementIndex = faceIndex;
@@ -328,6 +351,11 @@ void Selection::selectFace(uint32_t meshId, uint32_t faceIndex, SelectionOp op)
 
 void Selection::selectVertex(uint32_t meshId, uint32_t vertexIndex, SelectionOp op)
 {
+    // Switch to Vertex mode if not already in it
+    if (m_mode != SelectionMode::Vertex) {
+        setMode(SelectionMode::Vertex);
+    }
+    
     SelectionElement elem;
     elem.meshId = meshId;
     elem.elementIndex = vertexIndex;
@@ -338,6 +366,11 @@ void Selection::selectVertex(uint32_t meshId, uint32_t vertexIndex, SelectionOp 
 
 void Selection::selectEdge(uint32_t meshId, uint32_t v1, uint32_t v2, SelectionOp op)
 {
+    // Switch to Edge mode if not already in it
+    if (m_mode != SelectionMode::Edge) {
+        setMode(SelectionMode::Edge);
+    }
+    
     // Ensure consistent ordering
     if (v1 > v2) std::swap(v1, v2);
     

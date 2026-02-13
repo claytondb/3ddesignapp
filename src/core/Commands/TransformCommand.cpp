@@ -7,6 +7,7 @@
 #include "../SceneManager.h"
 
 #include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace dc3d {
 namespace core {
@@ -17,18 +18,14 @@ namespace core {
 
 glm::mat4 Transform::toMatrix() const
 {
-    glm::mat4 result = glm::mat4(1.0f);
+    // Standard TRS (Translate * Rotate * Scale) composition
+    // Applied to vertex: T * R * S * v
+    // This means: first scale the vertex, then rotate it, then translate it
+    glm::mat4 T = glm::translate(glm::mat4(1.0f), position);
+    glm::mat4 R = glm::mat4_cast(rotation);
+    glm::mat4 S = glm::scale(glm::mat4(1.0f), scale);
     
-    // Apply scale
-    result = glm::scale(result, scale);
-    
-    // Apply rotation
-    result = glm::mat4_cast(rotation) * result;
-    
-    // Apply translation
-    result[3] = glm::vec4(position, 1.0f);
-    
-    return result;
+    return T * R * S;
 }
 
 Transform Transform::fromMatrix(const glm::mat4& matrix)

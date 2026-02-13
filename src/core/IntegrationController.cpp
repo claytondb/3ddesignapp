@@ -1,6 +1,10 @@
 /**
  * @file IntegrationController.cpp
  * @brief Implementation of the central integration controller
+ * 
+ * Thread Safety Note: All IntegrationController methods must be called from
+ * the main (UI) thread. Qt signal/slot connections ensure this when using
+ * Qt::AutoConnection (the default) for cross-thread signals.
  */
 
 #include "IntegrationController.h"
@@ -121,9 +125,14 @@ void IntegrationController::connectViewport()
 
 void IntegrationController::onMeshAdded(uint64_t id, const QString& name)
 {
+    // Guard against partially initialized state
+    if (!m_initialized) return;
+    
     qDebug() << "IntegrationController: mesh added" << name << "id:" << id;
     
     // Get mesh data from scene manager
+    if (!m_sceneManager) return;
+    
     auto mesh = m_sceneManager->getMesh(id);
     if (!mesh) {
         qWarning() << "Mesh not found in scene manager:" << id;
@@ -153,6 +162,9 @@ void IntegrationController::onMeshAdded(uint64_t id, const QString& name)
 
 void IntegrationController::onMeshRemoved(uint64_t id)
 {
+    // Guard against partially initialized state
+    if (!m_initialized) return;
+    
     qDebug() << "IntegrationController: mesh removed id:" << id;
     
     // Remove from viewport
@@ -183,6 +195,9 @@ void IntegrationController::onMeshRemoved(uint64_t id)
 
 void IntegrationController::onMeshVisibilityChanged(uint64_t id, bool visible)
 {
+    // Guard against partially initialized state
+    if (!m_initialized) return;
+    
     qDebug() << "IntegrationController: visibility changed" << id << visible;
     
     // Update picking system
@@ -203,6 +218,9 @@ void IntegrationController::onMeshVisibilityChanged(uint64_t id, bool visible)
 
 void IntegrationController::onSelectionChanged()
 {
+    // Guard against partially initialized state
+    if (!m_initialized) return;
+    
     qDebug() << "IntegrationController: selection changed";
     
     // Update properties panel
@@ -231,6 +249,9 @@ void IntegrationController::onSelectionChanged()
 
 void IntegrationController::onSelectionModeChanged(core::SelectionMode mode)
 {
+    // Guard against partially initialized state
+    if (!m_initialized) return;
+    
     qDebug() << "IntegrationController: selection mode changed to" << static_cast<int>(mode);
     
     // Update status bar mode indicator
@@ -248,7 +269,7 @@ void IntegrationController::onSelectionModeChanged(core::SelectionMode mode)
 
 void IntegrationController::onObjectBrowserItemSelected(const QString& id)
 {
-    if (!m_selection) return;
+    if (!m_initialized || !m_selection) return;
     
     bool ok;
     uint64_t meshId = id.toULongLong(&ok);
@@ -260,6 +281,8 @@ void IntegrationController::onObjectBrowserItemSelected(const QString& id)
 
 void IntegrationController::onObjectBrowserItemDoubleClicked(const QString& id)
 {
+    if (!m_initialized) return;
+    
     bool ok;
     uint64_t meshId = id.toULongLong(&ok);
     if (!ok) return;
@@ -270,7 +293,7 @@ void IntegrationController::onObjectBrowserItemDoubleClicked(const QString& id)
 
 void IntegrationController::onObjectBrowserVisibilityToggled(const QString& id, bool visible)
 {
-    if (!m_sceneManager) return;
+    if (!m_initialized || !m_sceneManager) return;
     
     bool ok;
     uint64_t meshId = id.toULongLong(&ok);
@@ -307,7 +330,7 @@ void IntegrationController::clearScene()
 {
     if (!m_sceneManager) return;
     
-    // Clear scene manager
+    // Clear scene manager (will emit meshRemoved signals)
     m_sceneManager->clear();
     
     // Clear viewport
@@ -477,6 +500,8 @@ void IntegrationController::updateStatusBarForSelection()
 
 void IntegrationController::onViewportSelectionClick(const QPoint& pos, bool addToSelection, bool toggleSelection)
 {
+    // Guard against partially initialized state
+    if (!m_initialized) return;
     if (!m_picking || !m_selection || !m_viewport) return;
     
     // Perform pick at click position
@@ -506,6 +531,8 @@ void IntegrationController::onViewportSelectionClick(const QPoint& pos, bool add
 
 void IntegrationController::onViewportBoxSelection(const QRect& rect, bool addToSelection)
 {
+    // Guard against partially initialized state
+    if (!m_initialized) return;
     if (!m_picking || !m_selection || !m_viewport) return;
     
     // Perform box selection

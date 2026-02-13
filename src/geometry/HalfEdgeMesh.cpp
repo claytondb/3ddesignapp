@@ -120,11 +120,18 @@ Result<HalfEdgeMesh> HalfEdgeMesh::buildFromTriangles(
             if (it == edgeMap.end()) {
                 edgeMap[key] = {he0, INVALID_INDEX};
             } else {
-                // Found twin
-                uint32_t twinHe = it->second.first;
-                mesh.halfEdges_[he0].twin = twinHe;
-                mesh.halfEdges_[twinHe].twin = he0;
-                it->second.second = he0;  // Mark as paired
+                // FIX Bug 14: Check for non-manifold edge (already has twin)
+                if (it->second.second != INVALID_INDEX) {
+                    // Edge already has twin - this is a non-manifold edge (>2 faces share it)
+                    // Log or track for later handling but continue building mesh
+                    // The edge will only link the first two faces found
+                } else {
+                    // Found twin - link them
+                    uint32_t twinHe = it->second.first;
+                    mesh.halfEdges_[he0].twin = twinHe;
+                    mesh.halfEdges_[twinHe].twin = he0;
+                    it->second.second = he0;  // Mark as paired
+                }
             }
         }
         
@@ -135,10 +142,15 @@ Result<HalfEdgeMesh> HalfEdgeMesh::buildFromTriangles(
             if (it == edgeMap.end()) {
                 edgeMap[key] = {he1, INVALID_INDEX};
             } else {
-                uint32_t twinHe = it->second.first;
-                mesh.halfEdges_[he1].twin = twinHe;
-                mesh.halfEdges_[twinHe].twin = he1;
-                it->second.second = he1;
+                // FIX Bug 14: Check for non-manifold edge
+                if (it->second.second != INVALID_INDEX) {
+                    // Non-manifold edge - skip linking third+ occurrence
+                } else {
+                    uint32_t twinHe = it->second.first;
+                    mesh.halfEdges_[he1].twin = twinHe;
+                    mesh.halfEdges_[twinHe].twin = he1;
+                    it->second.second = he1;
+                }
             }
         }
         
@@ -149,10 +161,15 @@ Result<HalfEdgeMesh> HalfEdgeMesh::buildFromTriangles(
             if (it == edgeMap.end()) {
                 edgeMap[key] = {he2, INVALID_INDEX};
             } else {
-                uint32_t twinHe = it->second.first;
-                mesh.halfEdges_[he2].twin = twinHe;
-                mesh.halfEdges_[twinHe].twin = he2;
-                it->second.second = he2;
+                // FIX Bug 14: Check for non-manifold edge
+                if (it->second.second != INVALID_INDEX) {
+                    // Non-manifold edge - skip linking third+ occurrence
+                } else {
+                    uint32_t twinHe = it->second.first;
+                    mesh.halfEdges_[he2].twin = twinHe;
+                    mesh.halfEdges_[twinHe].twin = he2;
+                    it->second.second = he2;
+                }
             }
         }
         
@@ -335,10 +352,12 @@ std::vector<uint32_t> HalfEdgeMesh::faceVertices(uint32_t faceIdx) const {
     uint32_t startHe = faces_[faceIdx].halfEdge;
     uint32_t he = startHe;
     
+    // FIX Bug 26: Document safety limit assumption for triangle meshes
+    constexpr size_t MAX_FACE_VERTICES = 4;  // For triangle meshes; increase for n-gon support
     do {
         verts.push_back(halfEdges_[he].vertex);
         he = halfEdges_[he].next;
-    } while (he != startHe && verts.size() < 4);  // Safety limit
+    } while (he != startHe && verts.size() < MAX_FACE_VERTICES);
     
     return verts;
 }
@@ -352,10 +371,13 @@ std::vector<uint32_t> HalfEdgeMesh::faceHalfEdges(uint32_t faceIdx) const {
     uint32_t startHe = faces_[faceIdx].halfEdge;
     uint32_t he = startHe;
     
+    // FIX Bug 26: Document that safety limit of 4 assumes triangles only
+    // If quad support is added, increase this limit accordingly
+    constexpr size_t MAX_FACE_VERTICES = 4;  // For triangle meshes; increase for n-gon support
     do {
         edges.push_back(he);
         he = halfEdges_[he].next;
-    } while (he != startHe && edges.size() < 4);
+    } while (he != startHe && edges.size() < MAX_FACE_VERTICES);
     
     return edges;
 }

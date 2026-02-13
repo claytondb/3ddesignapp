@@ -34,9 +34,9 @@ void Camera::orbit(float deltaX, float deltaY)
     // Clamp pitch to avoid gimbal lock
     clampPitch();
     
-    // Wrap yaw to [0, 360)
-    while (m_yaw < 0.0f) m_yaw += 360.0f;
-    while (m_yaw >= 360.0f) m_yaw -= 360.0f;
+    // Wrap yaw to [0, 360) using fmod for efficiency with extreme values
+    m_yaw = std::fmod(m_yaw, 360.0f);
+    if (m_yaw < 0.0f) m_yaw += 360.0f;
     
     // Recalculate camera position from spherical coordinates
     float yawRad = qDegreesToRadians(m_yaw);

@@ -1,6 +1,10 @@
 /**
  * @file CommandStack.cpp
  * @brief Implementation of CommandStack for undo/redo management
+ * 
+ * Thread Safety Note: CommandStack is designed to be accessed from the main
+ * (UI) thread only. All signal/slot connections should use Qt::AutoConnection
+ * to ensure thread safety when signals cross thread boundaries.
  */
 
 #include "CommandStack.h"
@@ -232,8 +236,11 @@ void CommandStack::clear()
     
     emitStateChanges(oldCanUndo, oldCanRedo, oldUndoText, oldRedoText);
     
-    if (!oldClean) {
-        emit cleanChanged(false);  // Still not clean after clear
+    // After clear, isClean() returns false (since -1 != 0)
+    // Emit cleanChanged with the actual current state
+    bool nowClean = isClean();
+    if (oldClean != nowClean) {
+        emit cleanChanged(nowClean);
     }
 }
 

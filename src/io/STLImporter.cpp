@@ -10,6 +10,7 @@
 #include <cstring>
 #include <cctype>
 #include <algorithm>
+#include <cstdint>
 
 namespace dc3d {
 namespace io {
@@ -428,18 +429,17 @@ geometry::Result<geometry::MeshData> STLImporter::importBinary(
     
     // Read triangles
     for (uint32_t t = 0; t < triangleCount; ++t) {
-        // Read face normal (12 bytes) - we'll recompute this later
-        glm::vec3 normal = readVec3(stream);
-        (void)normal;  // Ignore stored normal, compute from vertices
+        // LOW FIX: Skip face normal directly instead of reading into unused variable
+        // Skip 12 bytes (normal vector) - we recompute normals later
+        stream.seekg(12, std::ios::cur);
         
         // Read 3 vertices (36 bytes)
         glm::vec3 v0 = readVec3(stream);
         glm::vec3 v1 = readVec3(stream);
         glm::vec3 v2 = readVec3(stream);
         
-        // Read attribute byte count (2 bytes) - usually 0
-        uint16_t attr = readUint16(stream);
-        (void)attr;
+        // LOW FIX: Skip attribute byte count directly (2 bytes) - usually 0
+        stream.seekg(2, std::ios::cur);
         
         if (!stream) {
             return geometry::Result<geometry::MeshData>::failure(

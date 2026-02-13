@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <ctime>
 #include <algorithm>
+#include <cstdint>
 
 namespace dc {
 
@@ -816,10 +817,16 @@ std::string STEPExporter::getEntityTypeName(STEPEntityType type) const
 std::string STEPExporter::getCurrentTimestamp() const
 {
     std::time_t now = std::time(nullptr);
-    std::tm* tm = std::localtime(&now);
+    std::tm tm_buf;
+    // LOW FIX: Thread-safe localtime usage
+#ifdef _WIN32
+    localtime_s(&tm_buf, &now);
+#else
+    localtime_r(&now, &tm_buf);
+#endif
     
     std::ostringstream ss;
-    ss << std::put_time(tm, "%Y-%m-%dT%H:%M:%S");
+    ss << std::put_time(&tm_buf, "%Y-%m-%dT%H:%M:%S");
     return ss.str();
 }
 

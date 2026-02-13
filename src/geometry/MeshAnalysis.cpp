@@ -557,6 +557,16 @@ HoleInfo MeshAnalysis::traceHole(
     const auto& vertices = mesh.vertices();
     const auto& indices = mesh.indices();
     
+    // FIX Bug 18: Build vertex-to-boundary-edge map for O(1) lookup instead of O(E) per vertex
+    // This improves overall complexity from O(E*V) to O(E+V) for hole tracing
+    std::unordered_map<uint32_t, std::vector<Edge>> vertexBoundaryEdges;
+    for (const auto& [edge, faces] : edgeMap) {
+        if (faces.size() == 1) {  // Boundary edge
+            vertexBoundaryEdges[edge.v0].push_back(edge);
+            vertexBoundaryEdges[edge.v1].push_back(edge);
+        }
+    }
+    
     // Find the boundary direction from the face
     uint32_t faceIdx = edgeMap.at(startEdge)[0];
     uint32_t i0 = indices[faceIdx * 3];
@@ -591,13 +601,13 @@ HoleInfo MeshAnalysis::traceHole(
     while (currentVertex != startVertex && iterations < maxIterations) {
         hole.boundaryVertices.push_back(currentVertex);
         
-        // Find next boundary edge
+        // FIX Bug 18: Use precomputed vertex-to-boundary-edge map for O(1) lookup
         bool found = false;
-        for (const auto& [edge, faces] : edgeMap) {
-            if (faces.size() != 1) continue;
-            if (visitedEdges.count(edge)) continue;
-            
-            if (edge.v0 == currentVertex || edge.v1 == currentVertex) {
+        auto it = vertexBoundaryEdges.find(currentVertex);
+        if (it != vertexBoundaryEdges.end()) {
+            for (const Edge& edge : it->second) {
+                if (visitedEdges.count(edge)) continue;
+                
                 visitedEdges.insert(edge);
                 uint32_t next = (edge.v0 == currentVertex) ? edge.v1 : edge.v0;
                 hole.perimeter += glm::length(vertices[next] - vertices[currentVertex]);

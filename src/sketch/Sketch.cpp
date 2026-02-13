@@ -3,6 +3,7 @@
 #include <cmath>
 #include <queue>
 #include <set>
+#include <unordered_set>
 
 namespace dc {
 namespace sketch {
@@ -319,8 +320,17 @@ std::vector<std::vector<uint64_t>> Sketch::findClosedLoops() const {
     std::vector<std::vector<uint64_t>> loops;
     
     // Build connectivity graph
-    // For each entity endpoint, find other entities that share that point
+    // FIX #15: Use spatial hashing for O(n) instead of O(n²) endpoint comparison
     const float tolerance = 1e-5f;
+    const float cellSize = tolerance * 10.0f;  // Slightly larger than tolerance for hashing
+    
+    // Hash function for spatial grid
+    auto hashPoint = [cellSize](const glm::vec2& p) -> int64_t {
+        int64_t x = static_cast<int64_t>(std::floor(p.x / cellSize));
+        int64_t y = static_cast<int64_t>(std::floor(p.y / cellSize));
+        // Combine x and y into a single hash
+        return x * 73856093LL ^ y * 19349663LL;
+    };
     
     // Get start/end points for each entity
     struct Endpoint {
@@ -344,16 +354,46 @@ std::vector<std::vector<uint64_t>> Sketch::findClosedLoops() const {
         endpoints.push_back({entity->getId(), entity->evaluate(1.0f), false});
     }
     
-    // Build adjacency: for each endpoint, find connected endpoints
+    // Build spatial hash map: cell -> list of endpoint indices
+    std::unordered_map<int64_t, std::vector<size_t>> spatialHash;
+    for (size_t i = 0; i < endpoints.size(); ++i) {
+        int64_t hash = hashPoint(endpoints[i].point);
+        spatialHash[hash].push_back(i);
+    }
+    
+    // Build adjacency using spatial hash - check only nearby cells
     std::unordered_map<uint64_t, std::vector<uint64_t>> adjacency;
+    std::unordered_set<uint64_t> processedPairs;  // Avoid duplicate edges
     
     for (size_t i = 0; i < endpoints.size(); ++i) {
-        for (size_t j = i + 1; j < endpoints.size(); ++j) {
-            if (endpoints[i].entityId == endpoints[j].entityId) continue;
-            
-            if (glm::length(endpoints[i].point - endpoints[j].point) < tolerance) {
-                adjacency[endpoints[i].entityId].push_back(endpoints[j].entityId);
-                adjacency[endpoints[j].entityId].push_back(endpoints[i].entityId);
+        const auto& ep = endpoints[i];
+        
+        // Check 9 neighboring cells (current + 8 neighbors)
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                glm::vec2 neighborPt = ep.point + glm::vec2(dx * cellSize, dy * cellSize);
+                int64_t neighborHash = hashPoint(neighborPt);
+                
+                auto it = spatialHash.find(neighborHash);
+                if (it == spatialHash.end()) continue;
+                
+                for (size_t j : it->second) {
+                    if (i >= j) continue;  // Only process each pair once
+                    if (endpoints[i].entityId == endpoints[j].entityId) continue;
+                    
+                    if (glm::length(endpoints[i].point - endpoints[j].point) < tolerance) {
+                        // Create canonical pair key to avoid duplicates
+                        uint64_t minId = std::min(endpoints[i].entityId, endpoints[j].entityId);
+                        uint64_t maxId = std::max(endpoints[i].entityId, endpoints[j].entityId);
+                        uint64_t pairKey = (minId << 32) | maxId;
+                        
+                        if (processedPairs.find(pairKey) == processedPairs.end()) {
+                            processedPairs.insert(pairKey);
+                            adjacency[endpoints[i].entityId].push_back(endpoints[j].entityId);
+                            adjacency[endpoints[j].entityId].push_back(endpoints[i].entityId);
+                        }
+                    }
+                }
             }
         }
     }

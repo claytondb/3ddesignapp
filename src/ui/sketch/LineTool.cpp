@@ -10,6 +10,11 @@
 #include <QKeyEvent>
 #include <cmath>
 
+// M_PI is not standard C++, provide fallback for Windows portability
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 namespace dc {
 
 LineTool::LineTool(SketchMode* sketchMode, QObject* parent)
@@ -268,7 +273,9 @@ void LineTool::createLine()
     m_sketchMode->sketchData()->addEntity(line);
     */
     
-    emit entityCreated();
+    // TODO: Uncomment entityCreated() when entity creation is implemented
+    // Don't emit signal since nothing was actually created yet
+    // emit entityCreated();
 }
 
 void LineTool::startNewLine(const QPointF& point)
