@@ -15,24 +15,26 @@ set(UI_SOURCES
     Toolbar.h
 )
 
-# Sketch UI sources
+# Sketch UI sources - DISABLED: requires incomplete geometry classes and Viewport methods
+# To re-enable, implement dc3d::geometry::SketchData, SketchPlane
+# and add Viewport methods: zoomToBox, viewMatrix, projectionMatrix, etc.
 set(SKETCH_UI_SOURCES
-    sketch/SketchMode.cpp
-    sketch/SketchMode.h
-    sketch/SketchToolbox.cpp
-    sketch/SketchToolbox.h
-    sketch/SketchViewport.cpp
-    sketch/SketchViewport.h
-    sketch/SketchTool.cpp
-    sketch/SketchTool.h
-    sketch/LineTool.cpp
-    sketch/LineTool.h
-    sketch/ArcTool.cpp
-    sketch/ArcTool.h
-    sketch/SplineTool.cpp
-    sketch/SplineTool.h
-    sketch/DimensionTool.cpp
-    sketch/DimensionTool.h
+    # sketch/SketchMode.cpp
+    # sketch/SketchMode.h
+    # sketch/SketchToolbox.cpp
+    # sketch/SketchToolbox.h
+    # sketch/SketchViewport.cpp
+    # sketch/SketchViewport.h
+    # sketch/SketchTool.cpp
+    # sketch/SketchTool.h
+    # sketch/LineTool.cpp
+    # sketch/LineTool.h
+    # sketch/ArcTool.cpp
+    # sketch/ArcTool.h
+    # sketch/SplineTool.cpp
+    # sketch/SplineTool.h
+    # sketch/DimensionTool.cpp
+    # sketch/DimensionTool.h
 )
 
 # Dialog sources
@@ -108,5 +110,5 @@ target_link_libraries(dc3d_ui PUBLIC
     Qt6::Widgets
     Qt6::OpenGLWidgets
     dc3d_renderer
-    dc3d_sketch
+    # dc3d_sketch  # Disabled - sketch UI not built
 )
