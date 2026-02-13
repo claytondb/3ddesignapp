@@ -24,6 +24,9 @@
 #include <QUndoStack>
 #include <QFileInfo>
 #include <QDebug>
+#include <QMessageBox>
+#include <QProgressDialog>
+#include <QApplication>
 
 namespace dc3d {
 
@@ -150,29 +153,97 @@ bool Application::importMesh(const QString& filePath)
             return false;
         }
         
+        // File size protection for large files
+        constexpr qint64 LARGE_FILE_WARNING_BYTES = 50 * 1024 * 1024;  // 50 MB
+        constexpr qint64 MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024;      // 500 MB hard limit
+        constexpr qint64 MEMORY_MULTIPLIER = 10;  // Estimated memory overhead for mesh data
+        
+        qint64 fileSize = fileInfo.size();
+        qint64 estimatedMemory = fileSize * MEMORY_MULTIPLIER;
+        
+        // Hard limit check
+        if (fileSize > MAX_FILE_SIZE_BYTES) {
+            QString error = QString("File too large (%1 MB). Maximum supported size is %2 MB.")
+                .arg(fileSize / (1024 * 1024))
+                .arg(MAX_FILE_SIZE_BYTES / (1024 * 1024));
+            qWarning() << error;
+            emit importFailed(error);
+            return false;
+        }
+        
+        // Warning for large files
+        if (fileSize > LARGE_FILE_WARNING_BYTES) {
+            QString warning = QString(
+                "This file is large (%1 MB) and may require approximately %2 MB of memory.\n\n"
+                "Large files can take a long time to load and may cause the application to become unresponsive.\n\n"
+                "Do you want to continue?")
+                .arg(fileSize / (1024 * 1024))
+                .arg(estimatedMemory / (1024 * 1024));
+            
+            QMessageBox::StandardButton reply = QMessageBox::warning(
+                m_mainWindow,
+                "Large File Warning",
+                warning,
+                QMessageBox::Yes | QMessageBox::No,
+                QMessageBox::No);
+            
+            if (reply != QMessageBox::Yes) {
+                qDebug() << "User cancelled import of large file";
+                return false;
+            }
+        }
+        
         QString extension = fileInfo.suffix().toLower();
         std::filesystem::path path = filePath.toStdString();
         
         // Import based on file extension
         geometry::Result<geometry::MeshData> result;
         
+        // Show progress dialog for larger files (> 10MB)
+        constexpr qint64 PROGRESS_DIALOG_THRESHOLD = 10 * 1024 * 1024;
+        std::unique_ptr<QProgressDialog> progressDialog;
+        
+        if (fileSize > PROGRESS_DIALOG_THRESHOLD && m_mainWindow) {
+            progressDialog = std::make_unique<QProgressDialog>(
+                QString("Importing %1...").arg(fileInfo.fileName()),
+                "Cancel",
+                0, 100,
+                m_mainWindow);
+            progressDialog->setWindowModality(Qt::WindowModal);
+            progressDialog->setMinimumDuration(0);
+            progressDialog->setValue(0);
+            QApplication::processEvents();
+        }
+        
+        // Progress callback for importers
+        auto progressCallback = [&progressDialog](float progress) -> bool {
+            if (progressDialog) {
+                if (progressDialog->wasCanceled()) {
+                    return false;  // Cancel import
+                }
+                progressDialog->setValue(static_cast<int>(progress * 100));
+                QApplication::processEvents();
+            }
+            return true;  // Continue import
+        };
+        
         try {
             if (extension == "stl") {
                 io::STLImportOptions options;
                 options.computeNormals = true;
                 options.mergeVertexTolerance = 1e-6f;
-                result = io::STLImporter::import(path, options);
+                result = io::STLImporter::import(path, options, progressCallback);
             } 
             else if (extension == "obj") {
                 io::OBJImportOptions options;
                 options.computeNormalsIfMissing = true;
                 options.triangulate = true;
-                result = io::OBJImporter::import(path, options);
+                result = io::OBJImporter::import(path, options, progressCallback);
             }
             else if (extension == "ply") {
                 io::PLYImportOptions options;
                 options.computeNormalsIfMissing = true;
-                result = io::PLYImporter::import(path, options);
+                result = io::PLYImporter::import(path, options, progressCallback);
             }
             else {
                 QString error = QString("Unsupported file format: %1").arg(extension);
@@ -185,6 +256,11 @@ bool Application::importMesh(const QString& filePath)
             qWarning() << error;
             emit importFailed(error);
             return false;
+        }
+        
+        // Close progress dialog
+        if (progressDialog) {
+            progressDialog->close();
         }
         
         if (!result.ok()) {
@@ -236,6 +312,20 @@ bool Application::importMesh(const QString& filePath)
     } catch (const std::bad_alloc& e) {
         QString error = QString("Out of memory while importing mesh: %1").arg(e.what());
         qWarning() << error;
+        
+        // Show user-friendly error dialog
+        if (m_mainWindow) {
+            QMessageBox::critical(
+                m_mainWindow,
+                "Import Failed - Out of Memory",
+                QString("The file is too large to import. Your system ran out of memory.\n\n"
+                        "Suggestions:\n"
+                        "• Close other applications to free memory\n"
+                        "• Try a smaller file or reduce the mesh in another application\n"
+                        "• Restart the application and try again\n\n"
+                        "Technical details: %1").arg(e.what()));
+        }
+        
         emit importFailed(error);
         return false;
     } catch (const std::exception& e) {

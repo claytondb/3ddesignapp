@@ -617,6 +617,14 @@ void MainWindow::setupConnections()
     connect(m_menuBar, &MenuBar::openProjectRequested, this, &MainWindow::onOpenProjectRequested);
     connect(m_menuBar, &MenuBar::importMeshRequested, this, &MainWindow::onImportMeshRequested);
     
+    // Toolbar connections - connect toolbar signals to the same slots as menu
+    connect(m_toolbar, &Toolbar::openRequested, this, &MainWindow::onOpenProjectRequested);
+    connect(m_toolbar, &Toolbar::newRequested, m_menuBar, &MenuBar::newProjectRequested);
+    connect(m_toolbar, &Toolbar::saveRequested, m_menuBar, &MenuBar::saveProjectRequested);
+    connect(m_toolbar, &Toolbar::importRequested, this, &MainWindow::onImportMeshRequested);
+    connect(m_toolbar, &Toolbar::undoRequested, this, &MainWindow::onUndoRequested);
+    connect(m_toolbar, &Toolbar::redoRequested, this, &MainWindow::onRedoRequested);
+    
     // View menu connections
     connect(m_menuBar, &MenuBar::viewFrontRequested, this, &MainWindow::onViewFrontRequested);
     connect(m_menuBar, &MenuBar::viewBackRequested, this, &MainWindow::onViewBackRequested);
