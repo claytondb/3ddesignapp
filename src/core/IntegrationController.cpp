@@ -104,9 +104,12 @@ void IntegrationController::connectPropertiesPanel()
 
 void IntegrationController::connectViewport()
 {
-    // Viewport picking connections are handled through mouse event override
-    // The Application class can install an event filter or the viewport
-    // can emit signals that we connect here
+    if (!m_viewport) return;
+    
+    connect(m_viewport, &dc::Viewport::selectionClick,
+            this, &IntegrationController::onViewportSelectionClick);
+    connect(m_viewport, &dc::Viewport::boxSelectionComplete,
+            this, &IntegrationController::onViewportBoxSelection);
 }
 
 // ===================
@@ -467,6 +470,57 @@ void IntegrationController::updateStatusBarForSelection()
     } else {
         m_mainWindow->setSelectionInfo(QString("Selected: %1 objects").arg(meshIds.size()));
     }
+}
+
+void IntegrationController::onViewportSelectionClick(const QPoint& pos, bool addToSelection, bool toggleSelection)
+{
+    if (!m_picking || !m_selection || !m_viewport) return;
+    
+    // Perform pick at click position
+    core::HitInfo hit = m_picking->pick(pos, m_viewport->size(), m_viewport->camera());
+    
+    if (!hit.hit) {
+        // Clicked on nothing - deselect unless adding to selection
+        if (!addToSelection && !toggleSelection) {
+            m_selection->clear();
+        }
+        return;
+    }
+    
+    // Determine selection operation
+    core::SelectionOp op = core::SelectionOp::Replace;
+    if (addToSelection) {
+        op = core::SelectionOp::Add;
+    } else if (toggleSelection) {
+        op = core::SelectionOp::Toggle;
+    }
+    
+    // Select based on current mode
+    m_selection->selectFromHit(hit, op);
+    
+    qDebug() << "Pick hit mesh" << hit.meshId << "face" << hit.faceIndex;
+}
+
+void IntegrationController::onViewportBoxSelection(const QRect& rect, bool addToSelection)
+{
+    if (!m_picking || !m_selection || !m_viewport) return;
+    
+    // Perform box selection
+    auto elements = m_picking->boxSelect(rect, m_viewport->size(), 
+                                         m_viewport->camera(), m_selection->mode());
+    
+    if (elements.empty()) {
+        if (!addToSelection) {
+            m_selection->clear();
+        }
+        return;
+    }
+    
+    // Select all elements in the box
+    core::SelectionOp op = addToSelection ? core::SelectionOp::Add : core::SelectionOp::Replace;
+    m_selection->select(elements, op);
+    
+    qDebug() << "Box selection found" << elements.size() << "elements";
 }
 
 } // namespace dc3d

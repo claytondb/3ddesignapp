@@ -570,6 +570,7 @@ BoundingBox Viewport::computeSceneBounds() const
 void Viewport::mousePressEvent(QMouseEvent* event)
 {
     m_lastMousePos = event->pos();
+    m_mouseDownPos = event->pos();
     
     if (event->button() == Qt::MiddleButton) {
         if (m_shiftPressed) {
@@ -581,6 +582,9 @@ void Viewport::mousePressEvent(QMouseEvent* event)
     } else if (event->button() == Qt::RightButton) {
         m_navMode = NavigationMode::Zoom;
         setCursor(Qt::SizeVerCursor);
+    } else if (event->button() == Qt::LeftButton) {
+        // Left click could be selection or box selection start
+        m_isBoxSelecting = false;
     }
     
     event->accept();
@@ -590,6 +594,22 @@ void Viewport::mouseReleaseEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::MiddleButton || event->button() == Qt::RightButton) {
         m_navMode = NavigationMode::None;
+        setCursor(Qt::ArrowCursor);
+    } else if (event->button() == Qt::LeftButton) {
+        // Check if this was a click or a drag
+        QPoint delta = event->pos() - m_mouseDownPos;
+        bool isDrag = (delta.manhattanLength() > 5);
+        
+        if (isDrag && m_isBoxSelecting) {
+            // Complete box selection
+            QRect selectionRect = QRect(m_mouseDownPos, event->pos()).normalized();
+            emit boxSelectionComplete(selectionRect, m_shiftPressed);
+        } else if (!isDrag) {
+            // Single click selection
+            emit selectionClick(event->pos(), m_shiftPressed, m_ctrlPressed);
+        }
+        
+        m_isBoxSelecting = false;
         setCursor(Qt::ArrowCursor);
     }
     

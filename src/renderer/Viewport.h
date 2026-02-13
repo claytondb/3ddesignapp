@@ -215,6 +215,21 @@ signals:
      * @brief Emitted when display mode changes
      */
     void displayModeChanged(DisplayMode mode);
+    
+    /**
+     * @brief Emitted when user clicks for selection
+     * @param pos Screen position of click
+     * @param addToSelection Whether to add to existing selection (Shift held)
+     * @param toggleSelection Whether to toggle selection (Ctrl held)
+     */
+    void selectionClick(const QPoint& pos, bool addToSelection, bool toggleSelection);
+    
+    /**
+     * @brief Emitted when user completes a box selection
+     * @param rect Selection rectangle in screen coords
+     * @param addToSelection Whether to add to existing selection
+     */
+    void boxSelectionComplete(const QRect& rect, bool addToSelection);
 
 protected:
     // QOpenGLWidget overrides
@@ -263,9 +278,11 @@ private:
     // Navigation state
     NavigationMode m_navMode = NavigationMode::None;
     QPoint m_lastMousePos;
+    QPoint m_mouseDownPos;
     bool m_shiftPressed = false;
     bool m_ctrlPressed = false;
     bool m_altPressed = false;
+    bool m_isBoxSelecting = false;
     
     // Display settings
     DisplayMode m_displayMode = DisplayMode::Shaded;

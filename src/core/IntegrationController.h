@@ -170,6 +170,10 @@ private slots:
     void onObjectBrowserItemDoubleClicked(const QString& id);
     void onObjectBrowserVisibilityToggled(const QString& id, bool visible);
     
+    // Viewport signals
+    void onViewportSelectionClick(const QPoint& pos, bool addToSelection, bool toggleSelection);
+    void onViewportBoxSelection(const QRect& rect, bool addToSelection);
+    
 private:
     void connectSceneManager();
     void connectSelection();
