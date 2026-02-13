@@ -179,9 +179,9 @@ size_t SmoothCommand::memoryUsage() const {
     return sizeof(*this) + beforeMesh_.memoryUsage();
 }
 
-bool SmoothCommand::canMergeWith(const Command& other) const {
+bool SmoothCommand::canMergeWith(const Command* other) const {
     // Can merge consecutive smoothing commands of the same type
-    auto* otherSmooth = dynamic_cast<const SmoothCommand*>(&other);
+    auto* otherSmooth = dynamic_cast<const SmoothCommand*>(other);
     if (!otherSmooth) return false;
     
     // Same mesh and algorithm
@@ -194,8 +194,8 @@ bool SmoothCommand::canMergeWith(const Command& other) const {
     return diff.count() < 2;
 }
 
-bool SmoothCommand::mergeWith(const Command& other) {
-    auto* otherSmooth = dynamic_cast<const SmoothCommand*>(&other);
+bool SmoothCommand::mergeWith(const Command* other) {
+    auto* otherSmooth = dynamic_cast<const SmoothCommand*>(other);
     if (!otherSmooth) return false;
     
     // Keep our before state, use other's after state (current mesh)
@@ -406,8 +406,8 @@ bool CommandHistory::execute(CommandPtr cmd) {
     if (!cmd) return false;
     
     // Try to merge with previous command
-    if (!undoStack_.empty() && undoStack_.back()->canMergeWith(*cmd)) {
-        if (undoStack_.back()->mergeWith(*cmd)) {
+    if (!undoStack_.empty() && undoStack_.back()->canMergeWith(cmd.get())) {
+        if (undoStack_.back()->mergeWith(cmd.get())) {
             // Merged successfully, don't add new command
             notifyHistoryChanged();
             return true;
@@ -415,9 +415,7 @@ bool CommandHistory::execute(CommandPtr cmd) {
     }
     
     // Execute the command
-    if (!cmd->execute()) {
-        return false;
-    }
+    cmd->execute();
     
     // Clear redo stack
     currentMemoryUsage_ -= std::accumulate(

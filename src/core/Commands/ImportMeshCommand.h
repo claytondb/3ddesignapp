@@ -17,6 +17,7 @@ namespace dc3d {
 namespace core {
 
 class SceneManager;
+class MeshNode;
 
 /**
  * @class ImportMeshCommand
@@ -72,7 +73,8 @@ private:
     
     SceneManager* m_sceneManager;
     QString m_filePath;
-    std::unique_ptr<geometry::MeshData> m_meshData;
+    std::unique_ptr<geometry::MeshData> m_meshData;     // For initial load
+    std::unique_ptr<MeshNode> m_detachedNode;           // For undo/redo cycle
     uint64_t m_nodeId;
     bool m_success;
     QString m_errorMessage;

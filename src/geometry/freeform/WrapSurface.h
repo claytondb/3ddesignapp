@@ -156,6 +156,8 @@ public:
         float smoothness = 0.5f;
         bool preserveVolume = false;
         float collisionOffset = 0.001f;
+        
+        ShrinkParams() = default;
     };
     
     // Shrink wrap a surface onto target

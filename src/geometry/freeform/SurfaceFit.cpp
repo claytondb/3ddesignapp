@@ -5,8 +5,11 @@
 #include "../mesh/TriangleMesh.h"
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
+#ifdef HAVE_EIGEN
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+#endif
 
 namespace dc {
 
@@ -37,6 +40,8 @@ SurfaceFitResult SurfaceFitter::fitToPoints(const std::vector<glm::vec3>& points
     centroid /= static_cast<float>(points.size());
     
     // Use PCA for principal directions
+    glm::vec3 uDir, vDir;
+#ifdef HAVE_EIGEN
     Eigen::Matrix3f covariance = Eigen::Matrix3f::Zero();
     for (const auto& p : points) {
         Eigen::Vector3f diff(p.x - centroid.x, p.y - centroid.y, p.z - centroid.z);
@@ -48,8 +53,22 @@ SurfaceFitResult SurfaceFitter::fitToPoints(const std::vector<glm::vec3>& points
     Eigen::Vector3f ev0 = solver.eigenvectors().col(2); // Largest eigenvalue
     Eigen::Vector3f ev1 = solver.eigenvectors().col(1);
     
-    glm::vec3 uDir(ev0.x(), ev0.y(), ev0.z());
-    glm::vec3 vDir(ev1.x(), ev1.y(), ev1.z());
+    uDir = glm::vec3(ev0.x(), ev0.y(), ev0.z());
+    vDir = glm::vec3(ev1.x(), ev1.y(), ev1.z());
+#else
+    // Fallback: use bounding box extents as principal directions
+    glm::vec3 extent = maxBound - minBound;
+    if (extent.x >= extent.y && extent.x >= extent.z) {
+        uDir = glm::vec3(1, 0, 0);
+        vDir = extent.y >= extent.z ? glm::vec3(0, 1, 0) : glm::vec3(0, 0, 1);
+    } else if (extent.y >= extent.z) {
+        uDir = glm::vec3(0, 1, 0);
+        vDir = extent.x >= extent.z ? glm::vec3(1, 0, 0) : glm::vec3(0, 0, 1);
+    } else {
+        uDir = glm::vec3(0, 0, 1);
+        vDir = extent.x >= extent.y ? glm::vec3(1, 0, 0) : glm::vec3(0, 1, 0);
+    }
+#endif
     
     // Parameterize points
     std::vector<glm::vec2> uvParams = parameterizePoints(points, uDir, vDir, centroid);
@@ -146,6 +165,7 @@ SurfaceFitResult SurfaceFitter::fitToMeshRegion(const TriangleMesh& mesh,
     std::vector<glm::vec3> normals;
     
     const auto& vertices = mesh.vertices();
+    const auto& meshNormals = mesh.normals();
     const auto& indices = mesh.indices();
     
     std::unordered_set<int> vertexSet;
@@ -158,8 +178,12 @@ SurfaceFitResult SurfaceFitter::fitToMeshRegion(const TriangleMesh& mesh,
     }
     
     for (int vIdx : vertexSet) {
-        points.push_back(vertices[vIdx].position);
-        normals.push_back(vertices[vIdx].normal);
+        points.push_back(vertices[vIdx]);
+        if (static_cast<size_t>(vIdx) < meshNormals.size()) {
+            normals.push_back(meshNormals[vIdx]);
+        } else {
+            normals.push_back(glm::vec3(0, 1, 0)); // Default normal
+        }
     }
     
     // Use parameterization based on mesh connectivity
@@ -298,6 +322,7 @@ SurfaceFitResult SurfaceFitter::fitWithConstraints(const std::vector<glm::vec3>&
                                                           glm::vec3(0, 0, 1),
                                                           centroid);
     
+#ifdef HAVE_EIGEN
     // Build constraint system
     int numPoints = static_cast<int>(points.size());
     int numConstraints = static_cast<int>(m_constraints.size());
@@ -375,6 +400,13 @@ SurfaceFitResult SurfaceFitter::fitWithConstraints(const std::vector<glm::vec3>&
     result.converged = true;
     
     return result;
+#else
+    // Fallback without Eigen - cannot perform constrained fit
+    SurfaceFitResult result;
+    result.converged = false;
+    result.message = "Constrained surface fitting requires Eigen library";
+    return result;
+#endif
 }
 
 SurfaceFitResult SurfaceFitter::refine(const NurbsSurface& surface,
@@ -534,8 +566,8 @@ std::vector<glm::vec2> SurfaceFitter::parameterizeFromMesh(const std::vector<glm
             int i1 = indices[faceIdx * 3 + 1];
             int i2 = indices[faceIdx * 3 + 2];
             
-            glm::vec3 e1 = vertices[i1].position - vertices[i0].position;
-            glm::vec3 e2 = vertices[i2].position - vertices[i0].position;
+            glm::vec3 e1 = vertices[i1] - vertices[i0];
+            glm::vec3 e2 = vertices[i2] - vertices[i0];
             normal += glm::cross(e1, e2);
         }
     }
@@ -558,6 +590,7 @@ std::unique_ptr<NurbsSurface> SurfaceFitter::solveLinearFit(
     const std::vector<glm::vec2>& params,
     const SurfaceFitParams& fitParams) {
     
+#ifdef HAVE_EIGEN
     int numPoints = static_cast<int>(points.size());
     int numCPs = fitParams.uControlPoints * fitParams.vControlPoints;
     
@@ -611,6 +644,36 @@ std::unique_ptr<NurbsSurface> SurfaceFitter::solveLinearFit(
     
     return std::make_unique<NurbsSurface>(controlPoints, uKnots, vKnots,
                                            fitParams.uDegree, fitParams.vDegree);
+#else
+    // Fallback without Eigen - use simple bounding box approach
+    (void)params; // unused
+    
+    // Generate knot vectors
+    std::vector<float> uKnots = NurbsSurface::generateUniformKnots(fitParams.uControlPoints, fitParams.uDegree);
+    std::vector<float> vKnots = NurbsSurface::generateUniformKnots(fitParams.vControlPoints, fitParams.vDegree);
+    
+    // Compute bounding box
+    glm::vec3 minB = points[0], maxB = points[0];
+    for (const auto& p : points) {
+        minB = glm::min(minB, p);
+        maxB = glm::max(maxB, p);
+    }
+    
+    // Create a simple planar grid of control points
+    std::vector<std::vector<glm::vec3>> controlPoints(fitParams.uControlPoints,
+                                                       std::vector<glm::vec3>(fitParams.vControlPoints));
+    
+    for (int i = 0; i < fitParams.uControlPoints; ++i) {
+        float u = static_cast<float>(i) / (fitParams.uControlPoints - 1);
+        for (int j = 0; j < fitParams.vControlPoints; ++j) {
+            float v = static_cast<float>(j) / (fitParams.vControlPoints - 1);
+            controlPoints[i][j] = minB + glm::vec3(u, 0, v) * (maxB - minB);
+        }
+    }
+    
+    return std::make_unique<NurbsSurface>(controlPoints, uKnots, vKnots,
+                                           fitParams.uDegree, fitParams.vDegree);
+#endif
 }
 
 void SurfaceFitter::applyBoundaryConditions(std::vector<std::vector<glm::vec3>>& controlPoints,

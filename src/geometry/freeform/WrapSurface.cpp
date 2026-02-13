@@ -434,9 +434,9 @@ bool SurfaceWrapper::rayMeshIntersect(const glm::vec3& origin,
     bool hit = false;
     
     for (size_t i = 0; i < indices.size(); i += 3) {
-        const glm::vec3& v0 = vertices[indices[i]].position;
-        const glm::vec3& v1 = vertices[indices[i + 1]].position;
-        const glm::vec3& v2 = vertices[indices[i + 2]].position;
+        const glm::vec3& v0 = vertices[indices[i]];
+        const glm::vec3& v1 = vertices[indices[i + 1]];
+        const glm::vec3& v2 = vertices[indices[i + 2]];
         
         // Möller–Trumbore intersection algorithm
         glm::vec3 edge1 = v1 - v0;
@@ -669,7 +669,7 @@ WrapResult ShrinkWrapper::shrinkWrapConstrained(const NurbsSurface& surface,
     // Apply constraints as a post-process
     // (more sophisticated implementation would include them in the iteration)
     
-    return result;
+    return std::move(result);
 }
 
 void ShrinkWrapper::setProgressCallback(WrapProgressCallback callback) {
@@ -697,9 +697,9 @@ glm::vec3 closestPointOnMesh(const glm::vec3& point, const TriangleMesh& mesh) {
     glm::vec3 closest = point;
     
     for (size_t i = 0; i < indices.size(); i += 3) {
-        const glm::vec3& v0 = vertices[indices[i]].position;
-        const glm::vec3& v1 = vertices[indices[i + 1]].position;
-        const glm::vec3& v2 = vertices[indices[i + 2]].position;
+        const glm::vec3& v0 = vertices[indices[i]];
+        const glm::vec3& v1 = vertices[indices[i + 1]];
+        const glm::vec3& v2 = vertices[indices[i + 2]];
         
         glm::vec3 cp = closestPointOnTriangle(point, v0, v1, v2);
         float distSq = glm::dot(cp - point, cp - point);
@@ -813,7 +813,7 @@ void MeshAccelerator::buildBVH() {
     root.rightChild = -1;
     
     for (size_t i = 0; i < indices.size(); ++i) {
-        const glm::vec3& p = vertices[indices[i]].position;
+        const glm::vec3& p = vertices[indices[i]];
         root.boundsMin = glm::min(root.boundsMin, p);
         root.boundsMax = glm::max(root.boundsMax, p);
     }
@@ -841,9 +841,9 @@ bool MeshAccelerator::rayIntersect(const glm::vec3& origin, const glm::vec3& dir
     bool hit = false;
     
     for (size_t i = 0; i < indices.size(); i += 3) {
-        const glm::vec3& v0 = vertices[indices[i]].position;
-        const glm::vec3& v1 = vertices[indices[i + 1]].position;
-        const glm::vec3& v2 = vertices[indices[i + 2]].position;
+        const glm::vec3& v0 = vertices[indices[i]];
+        const glm::vec3& v1 = vertices[indices[i + 1]];
+        const glm::vec3& v2 = vertices[indices[i + 2]];
         
         // Möller–Trumbore
         glm::vec3 edge1 = v1 - v0;

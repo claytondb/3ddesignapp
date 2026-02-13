@@ -8,6 +8,7 @@
 #include <cmath>
 #include <random>
 #include <glm/gtx/norm.hpp>
+#include <glm/gtc/constants.hpp>
 
 namespace dc3d {
 namespace geometry {

@@ -171,6 +171,14 @@ public:
     void addMeshNode(std::unique_ptr<MeshNode> node);
     
     /**
+     * @brief Add a mesh to the scene and create a node for it
+     * @param name Display name for the mesh
+     * @param meshData The mesh data (ownership transferred)
+     * @return The unique ID of the created mesh node, or 0 on failure
+     */
+    uint64_t addMeshNode(const std::string& name, std::unique_ptr<geometry::MeshData> meshData);
+    
+    /**
      * @brief Detach a mesh node from the scene without destroying it
      * @param id Mesh node identifier
      * @return The detached mesh node, or nullptr if not found
@@ -242,6 +250,7 @@ signals:
 private:
     std::vector<std::unique_ptr<SceneNode>> m_nodes;
     std::unordered_map<uint64_t, std::unique_ptr<MeshNode>> m_meshNodes;
+    uint64_t m_nextMeshId = 1;
 };
 
 } // namespace core

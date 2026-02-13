@@ -188,6 +188,32 @@ void SceneManager::addMeshNode(std::unique_ptr<MeshNode> node)
     emit sceneChanged();
 }
 
+uint64_t SceneManager::addMeshNode(const std::string& name, std::unique_ptr<geometry::MeshData> meshData)
+{
+    if (!meshData) {
+        qWarning() << "SceneManager::addMeshNode - null mesh data";
+        return 0;
+    }
+    
+    uint64_t id = m_nextMeshId++;
+    QString qname = QString::fromStdString(name);
+    
+    auto mesh = std::make_shared<geometry::MeshData>(std::move(*meshData));
+    auto node = std::make_unique<MeshNode>(id, qname, mesh);
+    
+    m_meshNodes[id] = std::move(node);
+    
+    qDebug() << "SceneManager::addMeshNode - Added mesh" << qname 
+             << "with id" << id
+             << "(" << mesh->vertexCount() << "vertices,"
+             << mesh->faceCount() << "faces)";
+    
+    emit meshAdded(id, qname);
+    emit sceneChanged();
+    
+    return id;
+}
+
 std::unique_ptr<MeshNode> SceneManager::detachMeshNode(uint64_t id)
 {
     auto it = m_meshNodes.find(id);

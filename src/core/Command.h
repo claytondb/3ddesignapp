@@ -49,6 +49,19 @@ public:
     virtual void undo() = 0;
     
     /**
+     * @brief Redo the command
+     * 
+     * Re-applies the command after an undo. Default calls execute().
+     */
+    virtual void redo() { execute(); }
+    
+    /**
+     * @brief Get estimated memory usage of this command
+     * @return Memory in bytes used by this command's stored state
+     */
+    virtual size_t memoryUsage() const { return sizeof(*this); }
+    
+    /**
      * @brief Get a human-readable description of the command
      * @return Description for display in Edit menu (e.g., "Undo Import Mesh")
      */

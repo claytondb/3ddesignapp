@@ -48,6 +48,14 @@ void ImportMeshCommand::execute()
         return;
     }
     
+    // Redo case: we have a detached node to re-add
+    if (m_detachedNode) {
+        m_sceneManager->addMeshNode(std::move(m_detachedNode));
+        m_isInScene = true;
+        m_success = true;
+        return;
+    }
+    
     // First execution - need to load the mesh
     if (!m_meshData) {
         if (!loadMeshFromFile()) {
@@ -55,11 +63,10 @@ void ImportMeshCommand::execute()
         }
     }
     
-    // Add mesh to scene (works for both first execution and redo)
+    // Add mesh to scene
     QFileInfo fileInfo(m_filePath);
     QString nodeName = fileInfo.baseName();
     
-    // For redo case, m_meshData was restored in undo(), so we can reuse it
     m_nodeId = m_sceneManager->addMeshNode(nodeName.toStdString(), std::move(m_meshData));
     
     if (m_nodeId != 0) {
@@ -77,8 +84,8 @@ void ImportMeshCommand::undo()
         return;
     }
     
-    // Remove the mesh from scene but keep the data for redo
-    m_meshData = m_sceneManager->detachMeshNode(m_nodeId);
+    // Remove the mesh from scene but keep the node for redo
+    m_detachedNode = m_sceneManager->detachMeshNode(m_nodeId);
     m_isInScene = false;
 }
 
