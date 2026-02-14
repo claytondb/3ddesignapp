@@ -67,7 +67,7 @@ bool Application::initialize()
     
     // Load undo limit from settings (default: 100 commands)
     QSettings settings("dc-3ddesignapp", "dc-3ddesignapp");
-    int undoLimit = settings.value("editor/undoLimit", 100).toInt();
+    int undoLimit = settings.value("preferences/performance/undoLimit", 100).toInt();
     m_undoStack->setUndoLimit(undoLimit);
     qDebug() << "Undo limit set to:" << undoLimit;
     
@@ -554,7 +554,7 @@ bool Application::createPrimitiveWithConfig(const QString& type,
         
         // Select the new primitive if requested
         if (selectAfterCreation && m_selection) {
-            m_selection->selectById(meshId);
+            m_selection->selectObject(static_cast<uint32_t>(meshId));
         }
         
         emit meshImported(meshName, meshId, mesh->vertexCount(), mesh->faceCount(), 0.0);
@@ -741,6 +741,25 @@ void Application::cleanupOldBackups()
             qDebug() << "Removed old backup:" << oldest.fileName();
         }
     }
+}
+
+void Application::reloadPreferences()
+{
+    QSettings settings("dc-3ddesignapp", "dc-3ddesignapp");
+    
+    // Update undo limit
+    if (m_undoStack) {
+        int undoLimit = settings.value("preferences/performance/undoLimit", 100).toInt();
+        m_undoStack->setUndoLimit(undoLimit);
+        qDebug() << "Undo limit updated to:" << undoLimit;
+    }
+    
+    // Future: add other preference reloading here
+    // - Auto-backup settings
+    // - Viewport settings
+    // - etc.
+    
+    qDebug() << "Preferences reloaded";
 }
 
 } // namespace dc3d

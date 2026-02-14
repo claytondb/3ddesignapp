@@ -180,6 +180,14 @@ public:
      */
     bool restoreFromBackup(const QString& backupPath);
 
+public slots:
+    /**
+     * @brief Reload preferences from settings
+     * 
+     * Called when PreferencesDialog is applied. Updates undo limit, etc.
+     */
+    void reloadPreferences();
+
 signals:
     /**
      * @brief Emitted when a mesh is imported successfully

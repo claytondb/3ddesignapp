@@ -77,6 +77,8 @@ set(DIALOG_SOURCES
     dialogs/UndoHistoryDialog.h
     dialogs/PrimitiveCreationDialog.cpp
     dialogs/PrimitiveCreationDialog.h
+    dialogs/MeshRepairWizard.cpp
+    dialogs/MeshRepairWizard.h
     # Excluded - requires imgui dependency:
     # dialogs/ExportDialog.cpp
     # dialogs/ExportDialog.h
@@ -97,6 +99,8 @@ set(PANEL_SOURCES
 set(TOOLS_SOURCES
     tools/AlignmentTool.cpp
     tools/AlignmentTool.h
+    tools/MeasureTool.cpp
+    tools/MeasureTool.h
     # Excluded - requires Tool.h base class (not implemented):
     # tools/FreeformTool.cpp
     # tools/FreeformTool.h

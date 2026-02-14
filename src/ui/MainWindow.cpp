@@ -716,6 +716,13 @@ void MainWindow::setupConnections()
         PreferencesDialog* dialog = new PreferencesDialog(this);
         dialog->setAttribute(Qt::WA_DeleteOnClose);
         connect(dialog, &PreferencesDialog::settingsChanged, this, &MainWindow::onSceneChanged);
+        
+        // Also reload preferences in Application (for undo limit, etc.)
+        auto* app = dc3d::Application::instance();
+        if (app) {
+            connect(dialog, &PreferencesDialog::settingsChanged, app, &dc3d::Application::reloadPreferences);
+        }
+        
         dialog->show();
     });
     
@@ -1097,7 +1104,7 @@ void MainWindow::createPrimitiveWithDialog(PrimitiveCreationDialog::PrimitiveTyp
     auto* app = dc3d::Application::instance();
     if (!app) return;
     
-    // Get view center for positioning
+    // Get view center (camera target) for positioning
     glm::vec3 viewCenter(0.0f);
     if (m_viewport) {
         QVector3D center = m_viewport->viewCenter();
