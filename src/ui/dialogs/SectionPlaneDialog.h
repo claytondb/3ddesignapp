@@ -21,6 +21,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QVector3D>
+#include <QSettings>
 #include <memory>
 
 namespace dc {
@@ -111,6 +112,11 @@ signals:
      * @brief Emitted when multiple sections should be created
      */
     void createMultipleRequested(const SectionPlaneParams& params);
+    
+    /**
+     * @brief Emitted when dialog is canceled to revert preview
+     */
+    void previewCanceled();
 
 private slots:
     void onOrientationChanged(int index);
@@ -131,12 +137,17 @@ private slots:
     void updateCountFromSpacing();
     void updateOffsetRange();
     void emitParametersChanged();
+    void onResetClicked();
+    void onCancelClicked();
 
 private:
     void setupUI();
     void setupConnections();
     void applyStylesheet();
     void updateMultipleControls();
+    void loadSettings();
+    void saveSettings();
+    void resetToDefaults();
     
     dc::Viewport* m_viewport = nullptr;
     
@@ -172,6 +183,7 @@ private:
     QLabel* m_previewInfoLabel;
     
     // Buttons
+    QPushButton* m_resetButton;
     QPushButton* m_previewButton;
     QPushButton* m_createButton;
     QPushButton* m_cancelButton;

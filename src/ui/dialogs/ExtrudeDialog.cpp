@@ -17,6 +17,7 @@ ExtrudeDialog::ExtrudeDialog(QWidget *parent)
     setupUI();
     setupConnections();
     applyStylesheet();
+    loadSettings();
 }
 
 void ExtrudeDialog::setupUI()
@@ -181,6 +182,10 @@ void ExtrudeDialog::setupUI()
     
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     
+    m_resetButton = new QPushButton(tr("Reset"));
+    m_resetButton->setToolTip(tr("Reset all parameters to default values"));
+    buttonLayout->addWidget(m_resetButton);
+    
     m_previewButton = new QPushButton(tr("Preview"));
     m_previewButton->setToolTip(tr("Generate preview of extrusion"));
     
@@ -237,9 +242,14 @@ void ExtrudeDialog::setupConnections()
     connect(m_flipDirection, &QCheckBox::toggled, this, &ExtrudeDialog::updatePreview);
     connect(m_capEndsCheck, &QCheckBox::toggled, this, &ExtrudeDialog::updatePreview);
     
-    connect(m_cancelButton, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_resetButton, &QPushButton::clicked, this, &ExtrudeDialog::onResetClicked);
+    connect(m_cancelButton, &QPushButton::clicked, this, &ExtrudeDialog::onCancelClicked);
     connect(m_applyButton, &QPushButton::clicked, this, &ExtrudeDialog::onApplyClicked);
-    connect(m_okButton, &QPushButton::clicked, this, &QDialog::accept);
+    connect(m_okButton, &QPushButton::clicked, this, [this]() {
+        saveSettings();
+        onApplyClicked();
+        accept();
+    });
 }
 
 void ExtrudeDialog::applyStylesheet()
@@ -617,4 +627,94 @@ void ExtrudeDialog::setTwoSided(bool twoSided)
 glm::vec3 ExtrudeDialog::parseCustomDirection() const
 {
     return customDirection();
+}
+
+void ExtrudeDialog::loadSettings()
+{
+    QSettings settings;
+    settings.beginGroup("ExtrudeDialog");
+    
+    // Direction
+    int dir = settings.value("direction", 0).toInt();
+    if (dir >= 0 && dir <= 3) {
+        m_directionCombo->setCurrentIndex(dir);
+    }
+    
+    // Distance
+    m_distanceSpinbox->setValue(settings.value("distance", 10.0).toDouble());
+    m_flipDirection->setChecked(settings.value("flipDirection", false).toBool());
+    
+    // Draft
+    m_draftGroup->setChecked(settings.value("useDraft", false).toBool());
+    m_draftAngleSpinbox->setValue(settings.value("draftAngle", 0.0).toDouble());
+    m_draftDirectionCombo->setCurrentIndex(settings.value("draftDirection", 0).toInt());
+    
+    // Two-sided
+    m_twoSidedGroup->setChecked(settings.value("twoSided", false).toBool());
+    m_ratioSpinbox->setValue(settings.value("twoSidedRatio", 0.5).toDouble());
+    
+    // Options
+    m_capEndsCheck->setChecked(settings.value("capEnds", true).toBool());
+    m_autoPreviewCheck->setChecked(settings.value("autoPreview", true).toBool());
+    
+    settings.endGroup();
+    
+    updateDirectionWidgets();
+    onRatioChanged(m_ratioSpinbox->value());
+}
+
+void ExtrudeDialog::saveSettings()
+{
+    QSettings settings;
+    settings.beginGroup("ExtrudeDialog");
+    
+    settings.setValue("direction", m_directionCombo->currentIndex());
+    settings.setValue("distance", m_distanceSpinbox->value());
+    settings.setValue("flipDirection", m_flipDirection->isChecked());
+    settings.setValue("useDraft", m_draftGroup->isChecked());
+    settings.setValue("draftAngle", m_draftAngleSpinbox->value());
+    settings.setValue("draftDirection", m_draftDirectionCombo->currentIndex());
+    settings.setValue("twoSided", m_twoSidedGroup->isChecked());
+    settings.setValue("twoSidedRatio", m_ratioSpinbox->value());
+    settings.setValue("capEnds", m_capEndsCheck->isChecked());
+    settings.setValue("autoPreview", m_autoPreviewCheck->isChecked());
+    
+    settings.endGroup();
+}
+
+void ExtrudeDialog::resetToDefaults()
+{
+    m_directionCombo->setCurrentIndex(0);  // Normal
+    m_distanceSpinbox->setValue(10.0);
+    m_flipDirection->setChecked(false);
+    m_draftGroup->setChecked(false);
+    m_draftAngleSpinbox->setValue(0.0);
+    m_draftDirectionCombo->setCurrentIndex(0);  // Outward
+    m_twoSidedGroup->setChecked(false);
+    m_ratioSpinbox->setValue(0.5);
+    m_capEndsCheck->setChecked(true);
+    m_autoPreviewCheck->setChecked(true);
+    
+    // Reset custom direction
+    m_dirXSpin->setValue(0.0);
+    m_dirYSpin->setValue(0.0);
+    m_dirZSpin->setValue(1.0);
+    
+    updateDirectionWidgets();
+    onRatioChanged(0.5);
+}
+
+void ExtrudeDialog::onResetClicked()
+{
+    resetToDefaults();
+    
+    if (m_autoPreviewCheck->isChecked()) {
+        emit previewRequested();
+    }
+}
+
+void ExtrudeDialog::onCancelClicked()
+{
+    emit previewCanceled();  // Signal to revert any preview changes
+    reject();
 }

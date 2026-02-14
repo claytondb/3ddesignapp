@@ -13,6 +13,7 @@
 #include <QLineEdit>
 
 #include <glm/glm.hpp>
+#include <QSettings>
 
 namespace dc {
 class Viewport;
@@ -70,6 +71,7 @@ signals:
     void applyRequested();
     void directionChanged();
     void parametersChanged();
+    void previewCanceled();  // Emitted to revert preview changes
 
 private slots:
     void onDirectionChanged(int index);
@@ -80,6 +82,8 @@ private slots:
     void onCustomDirectionChanged();
     void onPreviewToggled(bool checked);
     void onApplyClicked();
+    void onResetClicked();
+    void onCancelClicked();
     void onPickDirectionClicked();
     void updatePreview();
 
@@ -89,6 +93,9 @@ private:
     void applyStylesheet();
     void updateDirectionWidgets();
     glm::vec3 parseCustomDirection() const;
+    void loadSettings();
+    void saveSettings();
+    void resetToDefaults();
 
     // Viewport for preview
     dc::Viewport* m_viewport = nullptr;
@@ -126,6 +133,7 @@ private:
     QCheckBox* m_autoPreviewCheck;
 
     // Buttons
+    QPushButton* m_resetButton;
     QPushButton* m_previewButton;
     QPushButton* m_cancelButton;
     QPushButton* m_applyButton;

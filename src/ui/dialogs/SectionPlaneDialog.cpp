@@ -28,6 +28,7 @@ SectionPlaneDialog::SectionPlaneDialog(QWidget* parent)
     setupUI();
     setupConnections();
     applyStylesheet();
+    loadSettings();
     
     // Initialize with defaults
     updateOffsetRange();
@@ -480,6 +481,11 @@ void SectionPlaneDialog::setupUI()
     
     // ---- Buttons ----
     QHBoxLayout* buttonLayout = new QHBoxLayout();
+    
+    m_resetButton = new QPushButton("Reset");
+    m_resetButton->setToolTip("Reset all parameters to default values");
+    buttonLayout->addWidget(m_resetButton);
+    
     buttonLayout->addStretch();
     
     m_previewButton = new QPushButton("Preview");
@@ -525,9 +531,13 @@ void SectionPlaneDialog::setupConnections()
     connect(m_previewCheck, &QCheckBox::toggled,
             this, &SectionPlaneDialog::onPreviewToggled);
     
+    connect(m_resetButton, &QPushButton::clicked, this, &SectionPlaneDialog::onResetClicked);
     connect(m_previewButton, &QPushButton::clicked, this, &SectionPlaneDialog::previewRequested);
-    connect(m_createButton, &QPushButton::clicked, this, &SectionPlaneDialog::onCreateClicked);
-    connect(m_cancelButton, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_createButton, &QPushButton::clicked, this, [this]() {
+        saveSettings();
+        onCreateClicked();
+    });
+    connect(m_cancelButton, &QPushButton::clicked, this, &SectionPlaneDialog::onCancelClicked);
 }
 
 void SectionPlaneDialog::applyStylesheet()
@@ -629,4 +639,78 @@ void SectionPlaneDialog::updateMultipleControls()
     } else {
         m_createButton->setText("Create");
     }
+}
+
+void SectionPlaneDialog::loadSettings()
+{
+    QSettings settings;
+    settings.beginGroup("SectionPlaneDialog");
+    
+    // Orientation
+    int orient = settings.value("orientation", 0).toInt();
+    if (orient >= 0 && orient <= 3) {
+        m_orientationCombo->setCurrentIndex(orient);
+    }
+    
+    // Multiple sections
+    m_multipleCheck->setChecked(settings.value("createMultiple", false).toBool());
+    m_countSpinbox->setValue(settings.value("sectionCount", 5).toInt());
+    
+    // Options
+    m_autoFitCheck->setChecked(settings.value("autoFitCurves", true).toBool());
+    m_createSketchCheck->setChecked(settings.value("createSketch", true).toBool());
+    m_previewCheck->setChecked(settings.value("showPreview", true).toBool());
+    
+    settings.endGroup();
+}
+
+void SectionPlaneDialog::saveSettings()
+{
+    QSettings settings;
+    settings.beginGroup("SectionPlaneDialog");
+    
+    settings.setValue("orientation", m_orientationCombo->currentIndex());
+    settings.setValue("createMultiple", m_multipleCheck->isChecked());
+    settings.setValue("sectionCount", m_countSpinbox->value());
+    settings.setValue("autoFitCurves", m_autoFitCheck->isChecked());
+    settings.setValue("createSketch", m_createSketchCheck->isChecked());
+    settings.setValue("showPreview", m_previewCheck->isChecked());
+    
+    settings.endGroup();
+}
+
+void SectionPlaneDialog::resetToDefaults()
+{
+    m_updatingControls = true;
+    
+    m_orientationCombo->setCurrentIndex(0);  // XY Plane
+    m_offsetSpinbox->setValue(0.0);
+    m_offsetSlider->setValue(5000);
+    m_multipleCheck->setChecked(false);
+    m_countSpinbox->setValue(5);
+    m_autoFitCheck->setChecked(true);
+    m_createSketchCheck->setChecked(true);
+    m_previewCheck->setChecked(true);
+    
+    m_params = SectionPlaneParams();  // Reset to default params
+    
+    m_updatingControls = false;
+    
+    updateOffsetRange();
+    updateMultipleControls();
+}
+
+void SectionPlaneDialog::onResetClicked()
+{
+    resetToDefaults();
+    
+    if (m_previewCheck->isChecked()) {
+        emit previewRequested();
+    }
+}
+
+void SectionPlaneDialog::onCancelClicked()
+{
+    emit previewCanceled();  // Signal to revert any preview changes
+    reject();
 }
