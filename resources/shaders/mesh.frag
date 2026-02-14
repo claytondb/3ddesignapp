@@ -2,9 +2,7 @@
  * Mesh Fragment Shader
  * 
  * Blinn-Phong shading with support for:
- * - Directional light (key light)
- * - Fill light (softer secondary)
- * - Rim/back light
+ * - Single directional light
  * - Optional vertex colors
  * - Optional deviation colormap
  */
@@ -17,13 +15,6 @@ in vec2 vTexCoord;
 in vec4 vVertexColor;
 in vec3 vViewPosition;
 
-// Light structure
-struct DirectionalLight {
-    vec3 direction;
-    vec3 color;
-    float intensity;
-};
-
 // Material properties
 uniform vec3 baseColor;
 uniform float metallic;
@@ -32,11 +23,9 @@ uniform float ambientStrength;
 uniform bool useVertexColor;
 uniform bool useDeviation;
 
-// Lights
-uniform DirectionalLight keyLight;
-uniform DirectionalLight fillLight;
-uniform DirectionalLight rimLight;
-uniform vec3 ambientColor;
+// Lighting - simple uniforms matching Viewport.cpp
+uniform vec3 lightDir;      // Direction TO the light (or FROM light, we normalize)
+uniform vec3 lightColor;    // Light color/intensity
 
 // Camera
 uniform vec3 cameraPosition;
@@ -52,28 +41,6 @@ out vec4 fragColor;
 // Fresnel-Schlick approximation
 vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
-}
-
-// Calculate lighting contribution from a directional light
-vec3 calculateLight(DirectionalLight light, vec3 normal, vec3 viewDir, vec3 albedo, float rough) {
-    vec3 lightDir = normalize(-light.direction);
-    vec3 halfDir = normalize(lightDir + viewDir);
-    
-    // Diffuse (Lambert)
-    float NdotL = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = albedo * NdotL;
-    
-    // Specular (Blinn-Phong)
-    float NdotH = max(dot(normal, halfDir), 0.0);
-    float shininess = max(2.0 / (rough * rough) - 2.0, 1.0);
-    float spec = pow(NdotH, shininess);
-    
-    // Fresnel
-    vec3 F0 = mix(vec3(0.04), albedo, metallic);
-    vec3 fresnel = fresnelSchlick(max(dot(halfDir, viewDir), 0.0), F0);
-    vec3 specular = fresnel * spec * (1.0 - rough);
-    
-    return (diffuse + specular) * light.color * light.intensity;
 }
 
 void main() {
@@ -92,25 +59,43 @@ void main() {
         normal = -normal;
     }
     
-    // Ambient
-    vec3 ambient = ambientColor * albedo * ambientStrength;
+    // Ambient lighting
+    vec3 ambient = albedo * ambientStrength;
     
-    // Calculate lighting from each light
-    vec3 lighting = vec3(0.0);
-    lighting += calculateLight(keyLight, normal, viewDir, albedo, roughness);
-    lighting += calculateLight(fillLight, normal, viewDir, albedo, roughness);
+    // Directional light calculation
+    // lightDir typically points FROM light TO surface, so we negate it
+    vec3 toLightDir = normalize(-lightDir);
+    vec3 halfDir = normalize(toLightDir + viewDir);
     
-    // Rim light (uses fresnel for edge highlighting)
+    // Diffuse (Lambert)
+    float NdotL = max(dot(normal, toLightDir), 0.0);
+    vec3 diffuse = albedo * NdotL;
+    
+    // Specular (Blinn-Phong)
+    float NdotH = max(dot(normal, halfDir), 0.0);
+    float rough = max(roughness, 0.05); // Prevent division issues
+    float shininess = max(2.0 / (rough * rough) - 2.0, 1.0);
+    float spec = pow(NdotH, shininess);
+    
+    // Fresnel for specular
+    float metallicVal = max(metallic, 0.0);
+    vec3 F0 = mix(vec3(0.04), albedo, metallicVal);
+    vec3 fresnel = fresnelSchlick(max(dot(halfDir, viewDir), 0.0), F0);
+    vec3 specular = fresnel * spec * (1.0 - rough) * 0.5;
+    
+    // Combine direct lighting
+    vec3 directLight = (diffuse + specular) * lightColor;
+    
+    // Simple rim light effect based on view angle (built-in, no extra uniform needed)
     float rimFactor = 1.0 - max(dot(normal, viewDir), 0.0);
     rimFactor = pow(rimFactor, 3.0);
-    lighting += rimLight.color * rimLight.intensity * rimFactor * 0.5;
+    vec3 rimLight = lightColor * rimFactor * 0.15;
     
-    // Combine
-    vec3 color = ambient + lighting;
+    // Final color
+    vec3 color = ambient + directLight + rimLight;
     
     // Apply deviation colormap if enabled
     if (useDeviation) {
-        // Assuming deviation is stored in vVertexColor.a or a separate attribute
         float deviation = vVertexColor.a;
         float normalizedDev = (deviation - deviationMin) / (deviationMax - deviationMin);
         normalizedDev = clamp(normalizedDev, 0.0, 1.0);

@@ -302,8 +302,12 @@ void Viewport::renderMeshes()
     m_meshShader->setUniform("lightColor", QVector3D(1.0f, 1.0f, 1.0f));
     m_meshShader->setUniform("ambientStrength", 0.2f);
     
-    // Material color
+    // Material properties
     m_meshShader->setUniform("baseColor", QVector3D(0.7f, 0.7f, 0.75f));
+    m_meshShader->setUniform("metallic", 0.0f);
+    m_meshShader->setUniform("roughness", 0.5f);
+    m_meshShader->setUniform("useVertexColor", false);
+    m_meshShader->setUniform("useDeviation", false);
     
     // Render based on display mode
     switch (m_displayMode) {
