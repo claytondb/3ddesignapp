@@ -25,6 +25,8 @@ Toolbar::Toolbar(QWidget *parent)
     setupCreateGroup();
     addSeparator();
     setupMeshToolsGroup();
+    addSeparator();
+    setupMeasureToolsGroup();
     
     // Add expanding spacer
     QWidget* spacer = new QWidget(this);
@@ -73,7 +75,11 @@ QAction* Toolbar::createAction(const QString& text, const QString& iconName,
             {"mesh-reduce", QStyle::SP_BrowserReload},
             {"mesh-smooth", QStyle::SP_MediaVolume},
             {"mesh-fill", QStyle::SP_MediaVolumeMuted},
-            {"mesh-clip", QStyle::SP_DialogDiscardButton}
+            {"mesh-clip", QStyle::SP_DialogDiscardButton},
+            {"measure-distance", QStyle::SP_DialogHelpButton},
+            {"measure-angle", QStyle::SP_DialogHelpButton},
+            {"measure-radius", QStyle::SP_DialogHelpButton},
+            {"measure-clear", QStyle::SP_DialogResetButton}
         };
         
         if (iconMap.contains(iconName)) {
@@ -374,6 +380,42 @@ void Toolbar::setupMeshToolsGroup()
         tr("Create a clipping box to hide or remove parts of the mesh outside the box."), "Ctrl+Shift+B");
     connect(m_actionClippingBox, &QAction::triggered, this, &Toolbar::clippingBoxRequested);
     addAction(m_actionClippingBox);
+}
+
+void Toolbar::setupMeasureToolsGroup()
+{
+    m_measureGroup = new QActionGroup(this);
+    m_measureGroup->setExclusive(true);
+    
+    // Distance measurement - ruler icon
+    m_actionMeasureDistance = createAction(tr("Dist"), "measure-distance", 
+        tr("Measure point-to-point distance. Click two points to measure."), "M");
+    m_actionMeasureDistance->setCheckable(true);
+    m_measureGroup->addAction(m_actionMeasureDistance);
+    connect(m_actionMeasureDistance, &QAction::triggered, this, &Toolbar::measureDistanceRequested);
+    addAction(m_actionMeasureDistance);
+    
+    // Angle measurement
+    m_actionMeasureAngle = createAction(tr("Angle"), "measure-angle", 
+        tr("Measure angle between three points. Click vertex and two arm endpoints."), "");
+    m_actionMeasureAngle->setCheckable(true);
+    m_measureGroup->addAction(m_actionMeasureAngle);
+    connect(m_actionMeasureAngle, &QAction::triggered, this, &Toolbar::measureAngleRequested);
+    addAction(m_actionMeasureAngle);
+    
+    // Radius measurement
+    m_actionMeasureRadius = createAction(tr("Rad"), "measure-radius", 
+        tr("Measure radius of curved surface. Click on a curved region."), "");
+    m_actionMeasureRadius->setCheckable(true);
+    m_measureGroup->addAction(m_actionMeasureRadius);
+    connect(m_actionMeasureRadius, &QAction::triggered, this, &Toolbar::measureRadiusRequested);
+    addAction(m_actionMeasureRadius);
+    
+    // Clear measurements
+    m_actionClearMeasurements = createAction(tr("Clear"), "measure-clear", 
+        tr("Clear all measurements from the viewport."), "");
+    connect(m_actionClearMeasurements, &QAction::triggered, this, &Toolbar::clearMeasurementsRequested);
+    addAction(m_actionClearMeasurements);
 }
 
 void Toolbar::setupSearchWidget()

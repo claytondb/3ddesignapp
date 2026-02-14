@@ -74,6 +74,12 @@ signals:
     void fillHolesRequested();
     void clippingBoxRequested();
     
+    // Measure tools
+    void measureDistanceRequested();
+    void measureAngleRequested();
+    void measureRadiusRequested();
+    void clearMeasurementsRequested();
+    
     // Transform tools
     void translateModeRequested();
     void rotateModeRequested();
@@ -90,6 +96,7 @@ private:
     void setupViewGroup();
     void setupCreateGroup();
     void setupMeshToolsGroup();
+    void setupMeasureToolsGroup();
     void setupSearchWidget();
 
     QAction* createAction(const QString& text, const QString& iconName,
@@ -143,6 +150,13 @@ private:
     QAction* m_actionSmoothing;
     QAction* m_actionFillHoles;
     QAction* m_actionClippingBox;
+    
+    // Measure tools actions
+    QActionGroup* m_measureGroup;
+    QAction* m_actionMeasureDistance;
+    QAction* m_actionMeasureAngle;
+    QAction* m_actionMeasureRadius;
+    QAction* m_actionClearMeasurements;
 
     // Search widget
     QLineEdit* m_searchEdit;

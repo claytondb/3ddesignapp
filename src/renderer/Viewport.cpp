@@ -13,12 +13,16 @@
 #include "geometry/MeshData.h"
 #include "core/Selection.h"
 #include "app/Application.h"
+#include "ui/ViewPresetsWidget.h"
 
 #include <algorithm>
 #include <QApplication>
 #include <QMouseEvent>
 #include <QKeyEvent>
 #include <QWheelEvent>
+#include <QPainter>
+#include <QPaintEvent>
+#include <QResizeEvent>
 #include <QDebug>
 #include <QtMath>
 #include <QFile>
@@ -109,6 +113,48 @@ void main() {
 }
 )";
 
+// Gradient background shaders - professional look like Blender/Maya
+static const char* GRADIENT_VERTEX_SHADER = R"(
+#version 410 core
+
+layout(location = 0) in vec2 position;
+
+out vec2 vUV;
+
+void main() {
+    vUV = position * 0.5 + 0.5;  // Map from [-1,1] to [0,1]
+    gl_Position = vec4(position, 0.999, 1.0);  // Far depth to render behind everything
+}
+)";
+
+static const char* GRADIENT_FRAGMENT_SHADER = R"(
+#version 410 core
+
+in vec2 vUV;
+
+uniform vec3 topColor;
+uniform vec3 bottomColor;
+
+out vec4 fragColor;
+
+void main() {
+    // Smooth gradient from bottom to top with slight vignette
+    float t = vUV.y;
+    
+    // Apply slight ease for smoother gradient
+    t = t * t * (3.0 - 2.0 * t);
+    
+    vec3 color = mix(bottomColor, topColor, t);
+    
+    // Subtle radial vignette (darker at edges)
+    vec2 center = vUV - 0.5;
+    float vignette = 1.0 - dot(center, center) * 0.15;
+    color *= vignette;
+    
+    fragColor = vec4(color, 1.0);
+}
+)";
+
 Viewport::Viewport(QWidget* parent)
     : QOpenGLWidget(parent)
     , m_camera(std::make_unique<Camera>())
@@ -169,8 +215,14 @@ void Viewport::initializeGL()
     qDebug() << "GLSL Version:" << reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
     qDebug() << "Renderer:" << reinterpret_cast<const char*>(glGetString(GL_RENDERER));
     
+    // Check MSAA support
+    GLint samples = 0;
+    glGetIntegerv(GL_SAMPLES, &samples);
+    qDebug() << "MSAA Samples:" << samples;
+    
     setupOpenGLState();
     setupMeshShader();
+    setupGradientShader();
     
     // Initialize grid renderer
     if (!m_gridRenderer->initialize()) {
@@ -195,6 +247,9 @@ void Viewport::initializeGL()
         QVector3D(0.0f, 0.0f, 0.0f),    // Target
         QVector3D(0.0f, 1.0f, 0.0f)     // Up
     );
+    
+    // Setup view presets widget (after GL init)
+    setupViewPresetsWidget();
     
     m_initialized = true;
 }
@@ -243,6 +298,131 @@ void Viewport::setupMeshShader()
     }
 }
 
+void Viewport::setupGradientShader()
+{
+    m_gradientShader = std::make_unique<QOpenGLShaderProgram>();
+    
+    if (!m_gradientShader->addShaderFromSourceCode(QOpenGLShader::Vertex, GRADIENT_VERTEX_SHADER)) {
+        qWarning() << "Gradient vertex shader compile error:" << m_gradientShader->log();
+        return;
+    }
+    
+    if (!m_gradientShader->addShaderFromSourceCode(QOpenGLShader::Fragment, GRADIENT_FRAGMENT_SHADER)) {
+        qWarning() << "Gradient fragment shader compile error:" << m_gradientShader->log();
+        return;
+    }
+    
+    if (!m_gradientShader->link()) {
+        qWarning() << "Gradient shader link error:" << m_gradientShader->log();
+        return;
+    }
+    
+    // Create fullscreen quad VAO/VBO
+    static const float quadVertices[] = {
+        -1.0f, -1.0f,  // Bottom-left
+         1.0f, -1.0f,  // Bottom-right
+        -1.0f,  1.0f,  // Top-left
+         1.0f,  1.0f   // Top-right
+    };
+    
+    m_gradientVAO.create();
+    m_gradientVAO.bind();
+    
+    m_gradientVBO.create();
+    m_gradientVBO.bind();
+    m_gradientVBO.allocate(quadVertices, sizeof(quadVertices));
+    
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+    
+    m_gradientVBO.release();
+    m_gradientVAO.release();
+    
+    qDebug() << "Gradient background shader initialized";
+}
+
+void Viewport::setupViewPresetsWidget()
+{
+    m_viewPresetsWidget = new ViewPresetsWidget(this, this);
+    m_viewPresetsWidget->show();
+    
+    // Position in top-right corner
+    int margin = 8;
+    m_viewPresetsWidget->move(width() - m_viewPresetsWidget->width() - margin, margin);
+    
+    // Connect view change signal
+    connect(m_viewPresetsWidget, &ViewPresetsWidget::viewChanged, this, [this](const QString& name) {
+        updateViewName();
+    });
+}
+
+void Viewport::renderGradientBackground()
+{
+    if (!m_gradientEnabled || !m_gradientShader || !m_gradientShader->isLinked()) {
+        // Fall back to solid color clear
+        glClearColor(m_backgroundColor.redF(), m_backgroundColor.greenF(), 
+                     m_backgroundColor.blueF(), 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        return;
+    }
+    
+    // Clear depth but not color (gradient will fill it)
+    glClear(GL_DEPTH_BUFFER_BIT);
+    
+    // Disable depth writing for background
+    glDepthMask(GL_FALSE);
+    glDisable(GL_DEPTH_TEST);
+    
+    m_gradientShader->bind();
+    
+    // Set gradient colors (convert from sRGB to linear)
+    auto toLinear = [](const QColor& c) -> QVector3D {
+        // Simple gamma approximation for sRGB
+        float r = std::pow(c.redF(), 2.2f);
+        float g = std::pow(c.greenF(), 2.2f);
+        float b = std::pow(c.blueF(), 2.2f);
+        return QVector3D(r, g, b);
+    };
+    
+    m_gradientShader->setUniformValue("topColor", toLinear(m_gradientTopColor));
+    m_gradientShader->setUniformValue("bottomColor", toLinear(m_gradientBottomColor));
+    
+    m_gradientVAO.bind();
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    m_gradientVAO.release();
+    
+    m_gradientShader->release();
+    
+    // Re-enable depth testing
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+}
+
+void Viewport::updateViewName()
+{
+    // Determine view name based on camera orientation
+    QVector3D forward = m_camera->forwardVector();
+    QVector3D up = m_camera->upVector();
+    
+    // Threshold for considering a view as orthographic
+    const float threshold = 0.98f;
+    
+    // Check standard views
+    if (qAbs(forward.z()) > threshold && qAbs(up.y()) > threshold) {
+        m_currentViewName = forward.z() > 0 ? "Back" : "Front";
+    } else if (qAbs(forward.x()) > threshold && qAbs(up.y()) > threshold) {
+        m_currentViewName = forward.x() > 0 ? "Left" : "Right";
+    } else if (qAbs(forward.y()) > threshold) {
+        m_currentViewName = forward.y() > 0 ? "Bottom" : "Top";
+    } else {
+        // Check for isometric-ish view
+        bool isOrtho = !m_camera->isPerspective();
+        m_currentViewName = isOrtho ? "Orthographic" : "Perspective";
+    }
+    
+    update();  // Trigger repaint to update overlay
+}
+
 void Viewport::paintGL()
 {
     // Update camera animation if active
@@ -261,10 +441,11 @@ void Viewport::paintGL()
             update();
         }
         emit cameraChanged();
+        updateViewName();
     }
     
-    // Clear buffers
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // Render gradient background (or clear with solid color)
+    renderGradientBackground();
     
     // Render grid
     renderGrid();

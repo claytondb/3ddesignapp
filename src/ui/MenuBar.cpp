@@ -1,6 +1,7 @@
 #include "MenuBar.h"
 #include "../core/CommandStack.h"
 #include <QUndoStack>
+#include "dialogs/MeshRepairWizard.h"
 #include "dialogs/PolygonReductionDialog.h"
 #include "dialogs/SmoothingDialog.h"
 #include "dialogs/HoleFillDialog.h"
@@ -29,6 +30,7 @@ MenuBar::MenuBar(QWidget *parent)
     setupEditMenu();
     setupViewMenu();
     setupMeshMenu();
+    setupToolsMenu();
     setupCreateMenu();
     setupHelpMenu();
     createMeshDialogs();
@@ -334,6 +336,18 @@ void MenuBar::setupViewMenu()
 void MenuBar::setupMeshMenu()
 {
     m_meshMenu = addMenu(tr("&Mesh"));
+
+    // Repair Wizard - one-click mesh repair for beginners
+    m_actionMeshRepairWizard = createAction(tr("&Repair Wizard..."), "Ctrl+Shift+W", tr("One-click mesh repair wizard"));
+    m_actionMeshRepairWizard->setWhatsThis(
+        tr("<b>Mesh Repair Wizard</b><br><br>"
+           "Automatically detect and fix common mesh problems with one click.<br><br>"
+           "Fixes holes, non-manifold geometry, degenerate faces, and more. "
+           "Perfect for cleaning up scanned meshes."));
+    connect(m_actionMeshRepairWizard, &QAction::triggered, this, &MenuBar::showMeshRepairWizard);
+    m_meshMenu->addAction(m_actionMeshRepairWizard);
+
+    m_meshMenu->addSeparator();
 
     // Polygon Reduction
     m_actionPolygonReduction = createAction(tr("&Polygon Reduction..."), "Ctrl+Shift+R", tr("Reduce polygon count"));

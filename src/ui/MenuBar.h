@@ -11,6 +11,7 @@ class SmoothingDialog;
 class HoleFillDialog;
 class OutlierRemovalDialog;
 class ClippingBoxDialog;
+class MeshRepairWizard;
 
 class QUndoStack;
 
@@ -97,6 +98,7 @@ public:
     HoleFillDialog* holeFillDialog() const { return m_holeFillDialog; }
     OutlierRemovalDialog* outlierRemovalDialog() const { return m_outlierRemovalDialog; }
     ClippingBoxDialog* clippingBoxDialog() const { return m_clippingBoxDialog; }
+    MeshRepairWizard* meshRepairWizard() const { return m_meshRepairWizard; }
 
 signals:
     // File menu signals
@@ -149,6 +151,7 @@ signals:
     void fullScreenRequested();
 
     // Mesh menu signals
+    void meshRepairWizardRequested();
     void polygonReductionRequested();
     void smoothingRequested();
     void fillHolesRequested();
@@ -177,6 +180,13 @@ signals:
     void sweepRequested();
     void freeformSurfaceRequested();
 
+    // Tools menu signals
+    void measureDistanceRequested();
+    void measureAngleRequested();
+    void measureRadiusRequested();
+    void clearMeasurementsRequested();
+    void alignmentToolRequested();
+    
     // Help menu signals
     void gettingStartedRequested();
     void tutorialsRequested();
@@ -187,6 +197,7 @@ signals:
     void aboutRequested();
 
 private slots:
+    void showMeshRepairWizard();
     void showPolygonReductionDialog();
     void showSmoothingDialog();
     void showHoleFillDialog();
@@ -198,6 +209,7 @@ private:
     void setupEditMenu();
     void setupViewMenu();
     void setupMeshMenu();
+    void setupToolsMenu();
     void setupCreateMenu();
     void setupHelpMenu();
     void createMeshDialogs();
@@ -210,6 +222,7 @@ private:
     QMenu* m_editMenu;
     QMenu* m_viewMenu;
     QMenu* m_meshMenu;
+    QMenu* m_toolsMenu;
     QMenu* m_createMenu;
     QMenu* m_helpMenu;
     QMenu* m_recentFilesMenu;
@@ -263,6 +276,7 @@ private:
     QAction* m_actionFullScreen;
 
     // Mesh actions
+    QAction* m_actionMeshRepairWizard;
     QAction* m_actionPolygonReduction;
     QAction* m_actionSmoothing;
     QAction* m_actionFillHoles;
@@ -270,6 +284,7 @@ private:
     QAction* m_actionClippingBox;
     
     // Mesh dialogs
+    MeshRepairWizard* m_meshRepairWizard;
     PolygonReductionDialog* m_polygonReductionDialog;
     SmoothingDialog* m_smoothingDialog;
     HoleFillDialog* m_holeFillDialog;

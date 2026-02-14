@@ -9,6 +9,9 @@
  * - Mesh rendering with shading
  * - Mouse-based selection (click and box selection)
  * - Selection highlighting
+ * - Professional gradient background
+ * - Viewport info overlay (view name, selection count)
+ * - View presets toolbar
  */
 
 #pragma once
@@ -18,6 +21,7 @@
 #include <QOpenGLFunctions_4_1_Core>
 #include <QOpenGLVertexArrayObject>
 #include <QOpenGLBuffer>
+#include <QOpenGLShaderProgram>
 #include <QElapsedTimer>
 #include <memory>
 #include <unordered_map>
@@ -25,6 +29,7 @@
 
 namespace dc {
 class TransformGizmo;
+class ViewPresetsWidget;
 }
 
 namespace dc3d {
@@ -209,6 +214,43 @@ public:
      */
     QColor backgroundColor() const { return m_backgroundColor; }
     
+    /**
+     * @brief Set gradient background colors
+     * @param topColor Color at top of viewport
+     * @param bottomColor Color at bottom of viewport
+     */
+    void setGradientBackground(const QColor& topColor, const QColor& bottomColor);
+    
+    /**
+     * @brief Enable/disable gradient background
+     */
+    void setGradientEnabled(bool enabled);
+    
+    /**
+     * @brief Check if gradient background is enabled
+     */
+    bool isGradientEnabled() const { return m_gradientEnabled; }
+    
+    /**
+     * @brief Get current view name (e.g., "Front", "Perspective")
+     */
+    QString currentViewName() const { return m_currentViewName; }
+    
+    /**
+     * @brief Get view center point
+     */
+    QVector3D viewCenter() const;
+    
+    /**
+     * @brief Enable/disable viewport info overlay
+     */
+    void setInfoOverlayEnabled(bool enabled) { m_showInfoOverlay = enabled; update(); }
+    
+    /**
+     * @brief Check if info overlay is enabled
+     */
+    bool isInfoOverlayEnabled() const { return m_showInfoOverlay; }
+    
     // ---- Performance ----
     
     /**
@@ -320,16 +362,32 @@ protected:
     void focusInEvent(QFocusEvent* event) override;
     void focusOutEvent(QFocusEvent* event) override;
 
+protected:
+    /**
+     * @brief Override to render 2D overlays on top of GL content
+     */
+    void paintEvent(QPaintEvent* event) override;
+    
+    /**
+     * @brief Override to reposition overlay widgets
+     */
+    void resizeEvent(QResizeEvent* event) override;
+
 private:
     void setupOpenGLState();
     void setupMeshShader();
+    void setupGradientShader();
+    void setupViewPresetsWidget();
+    void renderGradientBackground();
     void renderGrid();
     void renderMeshes();
     void renderMesh(MeshGPUData& gpuData);
+    void renderInfoOverlay(QPainter& painter);
     void updateFPS();
     void uploadMeshToGPU(uint64_t id, const dc3d::geometry::MeshData& mesh);
     BoundingBox computeSceneBounds() const;
     void renderFPSOverlay();
+    void updateViewName();
     
     QVector3D screenToWorld(const QPoint& screenPos, float depth = 0.0f) const;
     QVector3D unprojectMouse(const QPoint& pos) const;
@@ -366,6 +424,21 @@ private:
     // Display settings
     DisplayMode m_displayMode = DisplayMode::Shaded;
     QColor m_backgroundColor{45, 50, 55};
+    
+    // Gradient background
+    bool m_gradientEnabled = true;
+    QColor m_gradientTopColor{60, 65, 75};      // Slightly lighter at top
+    QColor m_gradientBottomColor{30, 32, 38};   // Darker at bottom
+    std::unique_ptr<QOpenGLShaderProgram> m_gradientShader;
+    QOpenGLVertexArrayObject m_gradientVAO;
+    QOpenGLBuffer m_gradientVBO{QOpenGLBuffer::VertexBuffer};
+    
+    // Viewport info overlay
+    bool m_showInfoOverlay = true;
+    QString m_currentViewName{"Perspective"};
+    
+    // View presets widget
+    ViewPresetsWidget* m_viewPresetsWidget = nullptr;
     
     // FPS tracking
     QElapsedTimer m_frameTimer;
