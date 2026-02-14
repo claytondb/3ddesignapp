@@ -1009,14 +1009,186 @@ void Viewport::keyPressEvent(QKeyEvent* event)
     // Numpad 1/3/7 = Front/Right/Top, with Ctrl = Back/Left/Bottom
     bool handled = true;
     switch (event->key()) {
-        case Qt::Key_F:
-            // Tinkercad-style: F key = Zoom to fit / focus on selection
-            fitView();
+        // ========== Transform Mode Shortcuts (Blender-style) ==========
+        case Qt::Key_W:
+            // W = Move/Translate mode
+            setGizmoMode(static_cast<int>(GizmoMode::Translate));
+            emit transformModeChanged(static_cast<int>(GizmoMode::Translate));
+            break;
+            
+        case Qt::Key_E:
+            // E = Rotate mode
+            setGizmoMode(static_cast<int>(GizmoMode::Rotate));
+            emit transformModeChanged(static_cast<int>(GizmoMode::Rotate));
+            break;
+            
+        case Qt::Key_R:
+            // R = Scale mode (unless Ctrl is held for other function)
+            if (!m_ctrlPressed) {
+                setGizmoMode(static_cast<int>(GizmoMode::Scale));
+                emit transformModeChanged(static_cast<int>(GizmoMode::Scale));
+            } else {
+                handled = false;
+            }
+            break;
+            
+        // ========== Axis Constraint Shortcuts ==========
+        case Qt::Key_X:
+            // X = Constrain to X axis, Shift+X = Constrain to YZ plane
+            if (m_gizmo) {
+                if (m_shiftPressed) {
+                    m_gizmo->setAxisConstraint(AxisConstraint::PlaneYZ);
+                } else {
+                    // Toggle: if already X, clear; otherwise set X
+                    if (m_gizmo->axisConstraint() == AxisConstraint::X) {
+                        m_gizmo->clearAxisConstraint();
+                    } else {
+                        m_gizmo->setAxisConstraint(AxisConstraint::X);
+                    }
+                }
+                emit axisConstraintChanged(m_gizmo->axisConstraint());
+                update();
+            }
+            break;
+            
+        case Qt::Key_Y:
+            // Y = Constrain to Y axis, Shift+Y = Constrain to XZ plane
+            if (m_gizmo) {
+                if (m_shiftPressed) {
+                    m_gizmo->setAxisConstraint(AxisConstraint::PlaneXZ);
+                } else {
+                    if (m_gizmo->axisConstraint() == AxisConstraint::Y) {
+                        m_gizmo->clearAxisConstraint();
+                    } else {
+                        m_gizmo->setAxisConstraint(AxisConstraint::Y);
+                    }
+                }
+                emit axisConstraintChanged(m_gizmo->axisConstraint());
+                update();
+            }
             break;
             
         case Qt::Key_Z:
-            // Z key = Zoom to selection (if selection exists, otherwise fit all)
-            zoomToSelection();
+            // Z = Constrain to Z axis (unless Ctrl+Z for undo)
+            // Shift+Z = Constrain to XY plane
+            if (m_ctrlPressed) {
+                // Ctrl+Z is undo - don't handle here
+                handled = false;
+            } else if (m_gizmo) {
+                if (m_shiftPressed) {
+                    m_gizmo->setAxisConstraint(AxisConstraint::PlaneXY);
+                } else {
+                    if (m_gizmo->axisConstraint() == AxisConstraint::Z) {
+                        m_gizmo->clearAxisConstraint();
+                    } else {
+                        m_gizmo->setAxisConstraint(AxisConstraint::Z);
+                    }
+                }
+                emit axisConstraintChanged(m_gizmo->axisConstraint());
+                update();
+            }
+            break;
+            
+        // ========== Coordinate Space Toggle ==========
+        case Qt::Key_L:
+            // L = Toggle Local/World coordinate space
+            if (m_gizmo) {
+                m_gizmo->toggleCoordinateSpace();
+                emit coordinateSpaceChanged(m_gizmo->coordinateSpace());
+                update();
+            }
+            break;
+            
+        // ========== Pivot Point ==========
+        case Qt::Key_Period:
+            // . = Cycle through pivot point options
+            if (m_gizmo) {
+                m_gizmo->cyclePivotPoint();
+                emit pivotPointChanged(m_gizmo->pivotPoint());
+                update();
+            }
+            break;
+            
+        // ========== Numeric Input ==========
+        case Qt::Key_Minus:
+        case Qt::Key_0:
+        case Qt::Key_1:
+        case Qt::Key_2:
+        case Qt::Key_3:
+        case Qt::Key_4:
+        case Qt::Key_5:
+        case Qt::Key_6:
+        case Qt::Key_7:
+        case Qt::Key_8:
+        case Qt::Key_9:
+            // Handle numeric input during transform
+            if (m_gizmo && m_gizmo->isVisible() && !m_ctrlPressed && !m_altPressed) {
+                if (!m_gizmo->isNumericInputActive()) {
+                    m_gizmo->startNumericInput();
+                    emit numericInputStarted();
+                }
+                
+                QChar c;
+                if (event->key() == Qt::Key_Minus) {
+                    c = '-';
+                } else if (event->key() >= Qt::Key_0 && event->key() <= Qt::Key_9) {
+                    c = QChar('0' + (event->key() - Qt::Key_0));
+                }
+                
+                if (!c.isNull()) {
+                    m_gizmo->appendNumericInput(c);
+                    emit numericInputChanged(m_gizmo->numericInputString());
+                }
+            } else {
+                // Fall through for view shortcuts when gizmo not active
+                if (event->key() == Qt::Key_0) {
+                    setStandardView("isometric");
+                } else if (event->key() == Qt::Key_1) {
+                    if (event->modifiers() & Qt::KeypadModifier) {
+                        if (m_ctrlPressed) setStandardView("back");
+                        else setStandardView("front");
+                    } else {
+                        setStandardView("front");
+                    }
+                } else if (event->key() == Qt::Key_3) {
+                    if (event->modifiers() & Qt::KeypadModifier) {
+                        if (m_ctrlPressed) setStandardView("left");
+                        else setStandardView("right");
+                    } else {
+                        setStandardView("left");
+                    }
+                } else if (event->key() == Qt::Key_7) {
+                    if (event->modifiers() & Qt::KeypadModifier) {
+                        if (m_ctrlPressed) setStandardView("bottom");
+                        else setStandardView("top");
+                    } else {
+                        setStandardView("top");
+                    }
+                } else {
+                    handled = false;
+                }
+            }
+            break;
+            
+        case Qt::Key_Comma:
+            // Comma for vector input separation
+            if (m_gizmo && m_gizmo->isNumericInputActive()) {
+                m_gizmo->appendNumericInput(',');
+                emit numericInputChanged(m_gizmo->numericInputString());
+            } else {
+                handled = false;
+            }
+            break;
+            
+        case Qt::Key_Tab:
+            // Tab could cycle through numeric input fields
+            handled = false;
+            break;
+            
+        // ========== Standard View & Navigation Shortcuts ==========
+        case Qt::Key_F:
+            // Tinkercad-style: F key = Zoom to fit / focus on selection
+            fitView();
             break;
             
         case Qt::Key_Home:
@@ -1033,81 +1205,40 @@ void Viewport::keyPressEvent(QKeyEvent* event)
             toggleFPS();
             break;
             
-        // Standard view shortcuts (Blender-style numpad)
-        case Qt::Key_1:
-            if (event->modifiers() & Qt::KeypadModifier) {
-                // Numpad 1 = Front, Ctrl+Numpad 1 = Back
-                if (m_ctrlPressed) {
-                    setStandardView("back");
-                } else {
-                    setStandardView("front");
-                }
-            } else {
-                // Regular 1 = Front view (menu shortcut)
-                setStandardView("front");
-            }
-            break;
-            
-        case Qt::Key_3:
-            if (event->modifiers() & Qt::KeypadModifier) {
-                // Numpad 3 = Right, Ctrl+Numpad 3 = Left
-                if (m_ctrlPressed) {
-                    setStandardView("left");
-                } else {
-                    setStandardView("right");
-                }
-            } else {
-                // Regular 3 = Left view (menu shortcut)
-                setStandardView("left");
-            }
-            break;
-            
-        case Qt::Key_7:
-            if (event->modifiers() & Qt::KeypadModifier) {
-                // Numpad 7 = Top, Ctrl+Numpad 7 = Bottom
-                if (m_ctrlPressed) {
-                    setStandardView("bottom");
-                } else {
-                    setStandardView("top");
-                }
-            } else {
-                // Regular 7 = Top view (menu shortcut)
-                setStandardView("top");
-            }
-            break;
-            
-        case Qt::Key_0:
-            // 0 = Isometric view
-            setStandardView("isometric");
-            break;
-            
-        // Display mode shortcuts (Alt+number)
-        case Qt::Key_2:
-            if (!(event->modifiers() & Qt::KeypadModifier)) {
-                // Regular 2 key not used for views
-                handled = false;
-            }
-            break;
-        case Qt::Key_4:
-            if (!(event->modifiers() & Qt::KeypadModifier)) {
-                handled = false;
-            }
-            break;
-        case Qt::Key_5:
-            if (!(event->modifiers() & Qt::KeypadModifier)) {
-                handled = false;
-            }
-            break;
-            
         case Qt::Key_Delete:
         case Qt::Key_Backspace:
-            // Delete selected objects
-            emit deleteRequested();
+            // During numeric input, backspace deletes characters
+            if (m_gizmo && m_gizmo->isNumericInputActive()) {
+                m_gizmo->backspaceNumericInput();
+                emit numericInputChanged(m_gizmo->numericInputString());
+            } else {
+                // Delete selected objects
+                emit deleteRequested();
+            }
+            break;
+            
+        case Qt::Key_Return:
+        case Qt::Key_Enter:
+            // Confirm numeric input
+            if (m_gizmo && m_gizmo->isNumericInputActive()) {
+                m_gizmo->endNumericInput(true);
+                emit numericInputConfirmed(m_gizmo->numericInputVector());
+            } else {
+                handled = false;
+            }
             break;
             
         case Qt::Key_Escape:
-            // Cancel box selection or clear selection
-            if (m_isBoxSelecting) {
+            // Cancel numeric input, box selection, or clear selection
+            if (m_gizmo && m_gizmo->isNumericInputActive()) {
+                m_gizmo->endNumericInput(false);
+                emit numericInputCancelled();
+            } else if (m_gizmo && m_gizmo->axisConstraint() != AxisConstraint::None) {
+                // Clear axis constraint
+                m_gizmo->clearAxisConstraint();
+                emit axisConstraintChanged(m_gizmo->axisConstraint());
+                update();
+            } else if (m_isBoxSelecting) {
                 m_isBoxSelecting = false;
                 setCursor(Qt::ArrowCursor);
                 update();

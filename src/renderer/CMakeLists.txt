@@ -21,6 +21,8 @@ set(RENDERER_SOURCES
     PrimitiveRenderer.h
     TransformGizmo.cpp
     TransformGizmo.h
+    SnapIndicatorRenderer.cpp
+    SnapIndicatorRenderer.h
 )
 
 add_library(dc3d_renderer STATIC

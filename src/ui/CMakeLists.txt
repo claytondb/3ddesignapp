@@ -67,6 +67,10 @@ set(DIALOG_SOURCES
     dialogs/RevolveDialog.h
     dialogs/ExportFormatDialog.cpp
     dialogs/ExportFormatDialog.h
+    dialogs/ExportPresetManager.cpp
+    dialogs/ExportPresetManager.h
+    dialogs/ExportPresetsDialog.cpp
+    dialogs/ExportPresetsDialog.h
     dialogs/KeyboardShortcutsDialog.cpp
     dialogs/KeyboardShortcutsDialog.h
     dialogs/AboutDialog.cpp
@@ -79,6 +83,8 @@ set(DIALOG_SOURCES
     dialogs/PrimitiveCreationDialog.h
     dialogs/MeshRepairWizard.cpp
     dialogs/MeshRepairWizard.h
+    dialogs/SnapSettingsDialog.cpp
+    dialogs/SnapSettingsDialog.h
     # Excluded - requires imgui dependency:
     # dialogs/ExportDialog.cpp
     # dialogs/ExportDialog.h

@@ -357,6 +357,14 @@ void Toolbar::setupCreateGroup()
 
 void Toolbar::setupMeshToolsGroup()
 {
+    // Repair Wizard - one-click mesh repair
+    m_actionMeshRepairWizard = createAction(tr("Repair"), "mesh-repair", 
+        tr("One-click mesh repair wizard. Fixes holes, non-manifold edges, and more."), "Ctrl+Shift+W");
+    connect(m_actionMeshRepairWizard, &QAction::triggered, this, &Toolbar::meshRepairWizardRequested);
+    addAction(m_actionMeshRepairWizard);
+
+    addSeparator();
+
     // Polygon Reduction - simplify mesh
     m_actionPolygonReduction = createAction(tr("Reduce"), "mesh-reduce", 
         tr("Reduce polygon count while preserving shape. Great for large scanned meshes."), "Ctrl+Shift+R");

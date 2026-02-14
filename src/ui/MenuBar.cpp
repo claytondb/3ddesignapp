@@ -197,6 +197,18 @@ void MenuBar::setupEditMenu()
     m_editMenu->addAction(m_actionInvertSelection);
 
     m_editMenu->addSeparator();
+    
+    // Export Presets
+    m_actionExportPresets = createAction(tr("Export &Presets..."), "", 
+        tr("Manage export presets"));
+    m_actionExportPresets->setWhatsThis(tr("<b>Export Presets</b><br><br>Create, edit, and manage export presets for quick access to common export configurations.<br><br>Set a default preset for Quick Export (Ctrl+Shift+E)."));
+    connect(m_actionExportPresets, &QAction::triggered, this, [this]() {
+        ExportPresetsDialog dialog(window());
+        dialog.exec();
+    });
+    m_editMenu->addAction(m_actionExportPresets);
+
+    m_editMenu->addSeparator();
 
     // Preferences
     m_actionPreferences = createAction(tr("Pre&ferences..."), "Ctrl+,", tr("Open application preferences"));

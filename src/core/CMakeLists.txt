@@ -13,6 +13,10 @@ set(CORE_SOURCES
     OperationResult.cpp
     OperationResult.h
     
+    # Snap system
+    SnapManager.cpp
+    SnapManager.h
+    
     # Commands subdirectory
     Commands/DeleteCommand.cpp
     Commands/DeleteCommand.h
@@ -22,6 +26,8 @@ set(CORE_SOURCES
     Commands/MeshEditCommand.h
     Commands/TransformCommand.cpp
     Commands/TransformCommand.h
+    Commands/AlignmentCommand.cpp
+    Commands/AlignmentCommand.h
 )
 
 add_library(dc3d_core STATIC

@@ -30,6 +30,10 @@
 namespace dc {
 class TransformGizmo;
 class ViewPresetsWidget;
+enum class GizmoMode;
+enum class AxisConstraint;
+enum class CoordinateSpace;
+enum class PivotPoint;
 }
 
 namespace dc3d {
@@ -341,6 +345,52 @@ signals:
      * @param fps Current frames per second
      */
     void fpsUpdated(int fps);
+    
+    /**
+     * @brief Emitted when transform mode changes (via W/E/R keys)
+     * @param mode 0=Translate, 1=Rotate, 2=Scale
+     */
+    void transformModeChanged(int mode);
+    
+    /**
+     * @brief Emitted when axis constraint changes (via X/Y/Z keys)
+     * @param constraint Current axis constraint
+     */
+    void axisConstraintChanged(dc::AxisConstraint constraint);
+    
+    /**
+     * @brief Emitted when coordinate space changes (via L key)
+     * @param space World or Local coordinates
+     */
+    void coordinateSpaceChanged(dc::CoordinateSpace space);
+    
+    /**
+     * @brief Emitted when pivot point changes (via . key)
+     * @param pivot Current pivot point mode
+     */
+    void pivotPointChanged(dc::PivotPoint pivot);
+    
+    /**
+     * @brief Emitted when numeric input mode starts
+     */
+    void numericInputStarted();
+    
+    /**
+     * @brief Emitted when numeric input text changes
+     * @param text Current input string
+     */
+    void numericInputChanged(const QString& text);
+    
+    /**
+     * @brief Emitted when numeric input is confirmed
+     * @param value The entered value as a 3D vector
+     */
+    void numericInputConfirmed(const QVector3D& value);
+    
+    /**
+     * @brief Emitted when numeric input is cancelled
+     */
+    void numericInputCancelled();
 
 protected:
     // QOpenGLWidget overrides

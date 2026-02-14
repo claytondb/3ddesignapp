@@ -69,6 +69,7 @@ signals:
     void createSketchRequested();
 
     // Mesh tools
+    void meshRepairWizardRequested();
     void polygonReductionRequested();
     void smoothingRequested();
     void fillHolesRequested();
@@ -146,6 +147,7 @@ private:
     QAction* m_actionCreateSketch;
 
     // Mesh tools actions
+    QAction* m_actionMeshRepairWizard;
     QAction* m_actionPolygonReduction;
     QAction* m_actionSmoothing;
     QAction* m_actionFillHoles;
