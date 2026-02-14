@@ -244,26 +244,26 @@ void Toolbar::setupTransformGroup()
     m_transformGroup = new QActionGroup(this);
     m_transformGroup->setExclusive(true);
     
-    // Translate - move objects
+    // Translate - move objects (W key - Blender-style)
     m_actionTranslate = createAction(tr("Move"), "transform-move",
-        tr("Move selected objects. Drag gizmo axes or enter values."), "G");
+        tr("Move selected objects. Press W or drag gizmo axes. X/Y/Z to constrain to axis."), "W");
     m_actionTranslate->setCheckable(true);
     m_actionTranslate->setChecked(true);  // Default mode
     m_transformGroup->addAction(m_actionTranslate);
     connect(m_actionTranslate, &QAction::triggered, this, &Toolbar::translateModeRequested);
     addAction(m_actionTranslate);
     
-    // Rotate - rotate objects
+    // Rotate - rotate objects (E key - Blender-style)
     m_actionRotate = createAction(tr("Rotate"), "transform-rotate",
-        tr("Rotate selected objects. Drag rotation rings or enter angles."), "R");
+        tr("Rotate selected objects. Press E or drag rotation rings. X/Y/Z to constrain."), "E");
     m_actionRotate->setCheckable(true);
     m_transformGroup->addAction(m_actionRotate);
     connect(m_actionRotate, &QAction::triggered, this, &Toolbar::rotateModeRequested);
     addAction(m_actionRotate);
     
-    // Scale - resize objects
+    // Scale - resize objects (R key - Blender-style)
     m_actionScale = createAction(tr("Scale"), "transform-scale",
-        tr("Scale selected objects. Drag handles or enter scale factors."), "S");
+        tr("Scale selected objects. Press R or drag handles. X/Y/Z to constrain."), "R");
     m_actionScale->setCheckable(true);
     m_transformGroup->addAction(m_actionScale);
     connect(m_actionScale, &QAction::triggered, this, &Toolbar::scaleModeRequested);

@@ -13,6 +13,12 @@
 #include "geometry/MeshData.h"
 #include "core/Selection.h"
 #include "app/Application.h"
+
+// Use gizmo types in this file
+using dc::GizmoMode;
+using dc::AxisConstraint;
+using dc::CoordinateSpace;
+using dc::PivotPoint;
 #include "ui/ViewPresetsWidget.h"
 
 #include <algorithm>
