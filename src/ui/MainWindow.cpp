@@ -7,6 +7,8 @@
 #include "HelpSystem.h"
 #include "dialogs/GettingStartedDialog.h"
 #include "dialogs/UndoHistoryDialog.h"
+#include "dialogs/PreferencesDialog.h"
+#include "dialogs/PrimitiveCreationDialog.h"
 #include "renderer/Viewport.h"
 #include "app/Application.h"
 
@@ -710,6 +712,12 @@ void MainWindow::setupConnections()
     connect(m_menuBar, &MenuBar::undoRequested, this, &MainWindow::onUndoRequested);
     connect(m_menuBar, &MenuBar::redoRequested, this, &MainWindow::onRedoRequested);
     connect(m_menuBar, &MenuBar::undoHistoryRequested, this, &MainWindow::onUndoHistoryRequested);
+    connect(m_menuBar, &MenuBar::preferencesRequested, this, [this]() {
+        PreferencesDialog* dialog = new PreferencesDialog(this);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        connect(dialog, &PreferencesDialog::settingsChanged, this, &MainWindow::onSceneChanged);
+        dialog->show();
+    });
     
     // Primitive creation connections
     connect(m_menuBar, &MenuBar::createSphereRequested, this, &MainWindow::onCreateSphereRequested);
