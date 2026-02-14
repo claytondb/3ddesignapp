@@ -108,6 +108,7 @@ signals:
     void cutRequested();
     void copyRequested();
     void pasteRequested();
+    void duplicateRequested();
     void deleteRequested();
     void selectAllRequested();
     void deselectAllRequested();
@@ -219,6 +220,7 @@ private:
     QAction* m_actionCut;
     QAction* m_actionCopy;
     QAction* m_actionPaste;
+    QAction* m_actionDuplicate;
     QAction* m_actionDelete;
     QAction* m_actionSelectAll;
     QAction* m_actionDeselectAll;

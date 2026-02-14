@@ -10,6 +10,7 @@
 #include <QApplication>
 #include <QSettings>
 #include <QCloseEvent>
+#include <QKeyEvent>
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QFileDialog>
@@ -972,5 +973,42 @@ void MainWindow::onCreatePlaneRequested()
             QMessageBox::warning(this, tr("Create Error"), 
                 tr("Failed to create plane primitive."));
         }
+    }
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    // Handle Escape key to cancel current operation
+    if (event->key() == Qt::Key_Escape) {
+        cancelCurrentOperation();
+        event->accept();
+        return;
+    }
+    
+    QMainWindow::keyPressEvent(event);
+}
+
+void MainWindow::cancelCurrentOperation()
+{
+    // Deselect all objects
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        app->deselectAll();
+    }
+    
+    // Reset tool to default selection mode
+    if (m_toolbar) {
+        m_toolbar->actionSelect()->setChecked(true);
+    }
+    
+    // Clear any active tool hints
+    if (m_statusBar) {
+        m_statusBar->clearToolHint();
+        m_statusBar->showInfo(tr("Operation cancelled - returned to Select mode"));
+    }
+    
+    // Reset to default mode if in special mode
+    if (m_currentMode != "Mesh") {
+        setMeshMode();
     }
 }

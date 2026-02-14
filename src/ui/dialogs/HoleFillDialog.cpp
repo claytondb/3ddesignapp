@@ -15,6 +15,7 @@ HoleFillDialog::HoleFillDialog(QWidget *parent)
     setupUI();
     setupConnections();
     applyStylesheet();
+    loadSettings();
 }
 
 void HoleFillDialog::setupUI()
@@ -90,15 +91,17 @@ void HoleFillDialog::setupUI()
     QVBoxLayout* methodLayout = new QVBoxLayout(methodGroup);
     
     m_fillMethodCombo = new QComboBox();
-    m_fillMethodCombo->addItem(tr("Flat"), static_cast<int>(FillMethod::Flat));
-    m_fillMethodCombo->addItem(tr("Smooth"), static_cast<int>(FillMethod::Smooth));
-    m_fillMethodCombo->addItem(tr("Curvature-based"), static_cast<int>(FillMethod::CurvatureBased));
+    m_fillMethodCombo->addItem(tr("Flat (Fast)"), static_cast<int>(FillMethod::Flat));
+    m_fillMethodCombo->addItem(tr("Smooth (Recommended)"), static_cast<int>(FillMethod::Smooth));
+    m_fillMethodCombo->addItem(tr("Curvature-based (Best Quality)"), static_cast<int>(FillMethod::CurvatureBased));
+    // Default to Smooth - best for most scanned meshes
+    m_fillMethodCombo->setCurrentIndex(1);
     methodLayout->addWidget(m_fillMethodCombo);
     
     m_methodDescription = new QLabel();
     m_methodDescription->setObjectName("descriptionLabel");
     m_methodDescription->setWordWrap(true);
-    m_methodDescription->setText(tr("Creates a flat triangulated patch to close the hole."));
+    m_methodDescription->setText(tr("Creates a smooth surface patch that blends with surrounding geometry."));
     methodLayout->addWidget(m_methodDescription);
     
     mainLayout->addWidget(methodGroup);
@@ -114,6 +117,11 @@ void HoleFillDialog::setupUI()
 
     // Action buttons
     QHBoxLayout* buttonLayout = new QHBoxLayout();
+    
+    m_resetButton = new QPushButton(tr("Reset"));
+    m_resetButton->setObjectName("secondaryButton");
+    m_resetButton->setToolTip(tr("Reset all parameters to default values"));
+    buttonLayout->addWidget(m_resetButton);
     
     m_fillSelectedButton = new QPushButton(tr("Fill Selected"));
     m_fillSelectedButton->setObjectName("primaryButton");
@@ -159,9 +167,13 @@ void HoleFillDialog::setupConnections()
             this, &HoleFillDialog::onFillSelectedClicked);
     connect(m_fillAllButton, &QPushButton::clicked,
             this, &HoleFillDialog::onFillAllClicked);
+    connect(m_resetButton, &QPushButton::clicked,
+            this, &HoleFillDialog::onResetClicked);
     
-    connect(m_closeButton, &QPushButton::clicked,
-            this, &QDialog::accept);
+    connect(m_closeButton, &QPushButton::clicked, this, [this]() {
+        saveSettings();
+        accept();
+    });
 }
 
 void HoleFillDialog::applyStylesheet()
@@ -463,13 +475,13 @@ void HoleFillDialog::onFillMethodChanged(int index)
     QString description;
     switch (fillMethod()) {
         case FillMethod::Flat:
-            description = tr("Creates a flat triangulated patch to close the hole.");
+            description = tr("Fastest option. Creates a simple flat patch. Good for holes in flat areas or when speed matters.");
             break;
         case FillMethod::Smooth:
-            description = tr("Creates a smooth surface patch that blends with surrounding geometry.");
+            description = tr("Best for most cases. Creates a smooth patch that blends naturally with the surrounding surface.");
             break;
         case FillMethod::CurvatureBased:
-            description = tr("Creates a patch that follows the surrounding surface curvature. Best for organic shapes.");
+            description = tr("Highest quality. Analyzes surrounding curvature to create the most natural fill. Best for organic shapes like faces or sculptures.");
             break;
     }
     m_methodDescription->setText(description);
@@ -573,4 +585,55 @@ void HoleFillDialog::filterHolesBySize()
             m_filteredHoles.append(hole);
         }
     }
+}
+
+void HoleFillDialog::loadSettings()
+{
+    QSettings settings;
+    settings.beginGroup("HoleFillDialog");
+    
+    // Fill method
+    int method = settings.value("fillMethod", 0).toInt();
+    if (method >= 0 && method <= 2) {
+        m_fillMethodCombo->setCurrentIndex(method);
+    }
+    
+    // Filter settings
+    m_maxHoleFilterCheck->setChecked(settings.value("useMaxFilter", false).toBool());
+    m_maxHoleSizeSpinbox->setValue(settings.value("maxHoleSize", 100).toInt());
+    m_maxHoleSizeSpinbox->setEnabled(m_maxHoleFilterCheck->isChecked());
+    
+    settings.endGroup();
+    
+    onFillMethodChanged(m_fillMethodCombo->currentIndex());
+}
+
+void HoleFillDialog::saveSettings()
+{
+    QSettings settings;
+    settings.beginGroup("HoleFillDialog");
+    
+    settings.setValue("fillMethod", m_fillMethodCombo->currentIndex());
+    settings.setValue("useMaxFilter", m_maxHoleFilterCheck->isChecked());
+    settings.setValue("maxHoleSize", m_maxHoleSizeSpinbox->value());
+    
+    settings.endGroup();
+}
+
+void HoleFillDialog::resetToDefaults()
+{
+    m_fillMethodCombo->setCurrentIndex(0);  // Flat
+    m_maxHoleFilterCheck->setChecked(false);
+    m_maxHoleSizeSpinbox->setValue(100);
+    m_maxHoleSizeSpinbox->setEnabled(false);
+    
+    onFillMethodChanged(0);
+    filterHolesBySize();
+    updateHoleTable();
+    updateButtonStates();
+}
+
+void HoleFillDialog::onResetClicked()
+{
+    resetToDefaults();
 }

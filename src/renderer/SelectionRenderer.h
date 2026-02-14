@@ -61,15 +61,16 @@ struct SelectionRenderConfig {
     glm::vec4 faceColor{0.3f, 0.6f, 1.0f, 0.5f};      // Blue
     glm::vec4 vertexColor{0.2f, 1.0f, 0.3f, 1.0f};    // Green
     glm::vec4 edgeColor{1.0f, 0.9f, 0.2f, 1.0f};      // Yellow
-    glm::vec4 hoverColor{1.0f, 1.0f, 1.0f, 0.3f};     // White
+    glm::vec4 hoverColor{1.0f, 0.75f, 0.4f, 0.6f};    // Lighter orange for hover
     glm::vec4 boxSelectColor{0.3f, 0.6f, 1.0f, 0.2f}; // Light blue
     
     // Rendering options
-    float outlineWidth = 0.003f;       // Outline scale factor
-    float vertexSize = 8.0f;           // Point size for vertices
-    float edgeWidth = 2.0f;            // Line width for edges
+    float outlineWidth = 3.0f;         // Outline width in pixels (screen-space)
+    float vertexSize = 10.0f;          // Point size for vertices
+    float edgeWidth = 2.5f;            // Line width for edges
     bool xrayMode = false;             // Draw through geometry
     float opacity = 1.0f;              // Overall opacity
+    bool showHover = true;             // Show hover highlighting
 };
 
 /**

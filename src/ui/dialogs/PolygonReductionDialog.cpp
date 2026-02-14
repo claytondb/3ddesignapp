@@ -19,6 +19,7 @@ PolygonReductionDialog::PolygonReductionDialog(QWidget *parent)
     setupUI();
     setupConnections();
     applyStylesheet();
+    loadSettings();
 }
 
 void PolygonReductionDialog::setupUI()
@@ -125,19 +126,22 @@ void PolygonReductionDialog::setupUI()
 
     m_preserveBoundaries = new QCheckBox(tr("Preserve boundary edges"));
     m_preserveBoundaries->setChecked(true);
+    m_preserveBoundaries->setToolTip(tr("Keep the outer edges of the mesh intact.\nDisable only if you want to simplify open mesh boundaries."));
     optionsLayout->addWidget(m_preserveBoundaries);
 
-    // Sharp features with angle
+    // Sharp features with angle - protect edges/corners from being smoothed away
     QHBoxLayout* sharpLayout = new QHBoxLayout();
-    m_preserveSharpFeatures = new QCheckBox(tr("Preserve sharp features (angle >"));
+    m_preserveSharpFeatures = new QCheckBox(tr("Preserve sharp edges (angle >"));
     m_preserveSharpFeatures->setChecked(true);
+    m_preserveSharpFeatures->setToolTip(tr("Edges sharper than this angle will be preserved.\nLower values protect more edges. 30° is good for mechanical parts."));
     sharpLayout->addWidget(m_preserveSharpFeatures);
 
     m_sharpAngleSpinbox = new QDoubleSpinBox();
     m_sharpAngleSpinbox->setRange(1.0, 90.0);
-    m_sharpAngleSpinbox->setValue(30.0);
+    m_sharpAngleSpinbox->setValue(30.0);  // 30° is a good default for mechanical parts
     m_sharpAngleSpinbox->setSuffix("°");
     m_sharpAngleSpinbox->setFixedWidth(70);
+    m_sharpAngleSpinbox->setToolTip(tr("30° for mechanical parts, 60° for organic shapes"));
     sharpLayout->addWidget(m_sharpAngleSpinbox);
 
     QLabel* closeParen = new QLabel(")");
@@ -183,6 +187,12 @@ void PolygonReductionDialog::setupUI()
 
     // Button box
     QHBoxLayout* buttonLayout = new QHBoxLayout();
+    
+    m_resetButton = new QPushButton(tr("Reset"));
+    m_resetButton->setObjectName("secondaryButton");
+    m_resetButton->setToolTip(tr("Reset all parameters to default values"));
+    buttonLayout->addWidget(m_resetButton);
+    
     buttonLayout->addStretch();
 
     m_cancelButton = new QPushButton(tr("Cancel"));
@@ -221,9 +231,11 @@ void PolygonReductionDialog::setupConnections()
     connect(m_autoPreviewCheck, &QCheckBox::toggled, this, &PolygonReductionDialog::onPreviewToggled);
 
     // Buttons
-    connect(m_cancelButton, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_resetButton, &QPushButton::clicked, this, &PolygonReductionDialog::onResetClicked);
+    connect(m_cancelButton, &QPushButton::clicked, this, &PolygonReductionDialog::onCancelClicked);
     connect(m_applyButton, &QPushButton::clicked, this, &PolygonReductionDialog::onApplyClicked);
     connect(m_okButton, &QPushButton::clicked, this, [this]() {
+        saveSettings();
         onApplyClicked();
         accept();
     });
@@ -605,4 +617,87 @@ void PolygonReductionDialog::updateControlVisibility()
 {
     // Currently all controls are always visible, just enabled/disabled
     // This method is available for future use if we want to hide controls
+}
+
+void PolygonReductionDialog::loadSettings()
+{
+    QSettings settings;
+    settings.beginGroup("PolygonReductionDialog");
+    
+    // Target type
+    int targetType = settings.value("targetType", 0).toInt();
+    if (targetType >= 0 && targetType <= 2) {
+        switch (static_cast<TargetType>(targetType)) {
+            case TargetType::Percentage:
+                m_radioPercentage->setChecked(true);
+                break;
+            case TargetType::VertexCount:
+                m_radioVertexCount->setChecked(true);
+                break;
+            case TargetType::FaceCount:
+                m_radioFaceCount->setChecked(true);
+                break;
+        }
+    }
+    
+    // Values
+    m_percentageSpinbox->setValue(settings.value("percentage", 50.0).toDouble());
+    m_percentageSlider->setValue(static_cast<int>(m_percentageSpinbox->value()));
+    
+    // Options
+    m_preserveBoundaries->setChecked(settings.value("preserveBoundaries", true).toBool());
+    m_preserveSharpFeatures->setChecked(settings.value("preserveSharpFeatures", true).toBool());
+    m_sharpAngleSpinbox->setValue(settings.value("sharpAngle", 30.0).toDouble());
+    m_lockVertexColors->setChecked(settings.value("lockVertexColors", false).toBool());
+    m_autoPreviewCheck->setChecked(settings.value("autoPreview", true).toBool());
+    
+    settings.endGroup();
+    
+    onTargetTypeChanged();
+}
+
+void PolygonReductionDialog::saveSettings()
+{
+    QSettings settings;
+    settings.beginGroup("PolygonReductionDialog");
+    
+    settings.setValue("targetType", static_cast<int>(targetType()));
+    settings.setValue("percentage", m_percentageSpinbox->value());
+    settings.setValue("preserveBoundaries", m_preserveBoundaries->isChecked());
+    settings.setValue("preserveSharpFeatures", m_preserveSharpFeatures->isChecked());
+    settings.setValue("sharpAngle", m_sharpAngleSpinbox->value());
+    settings.setValue("lockVertexColors", m_lockVertexColors->isChecked());
+    settings.setValue("autoPreview", m_autoPreviewCheck->isChecked());
+    
+    settings.endGroup();
+}
+
+void PolygonReductionDialog::resetToDefaults()
+{
+    m_radioPercentage->setChecked(true);
+    m_percentageSpinbox->setValue(50.0);
+    m_percentageSlider->setValue(50);
+    m_preserveBoundaries->setChecked(true);
+    m_preserveSharpFeatures->setChecked(true);
+    m_sharpAngleSpinbox->setValue(30.0);
+    m_lockVertexColors->setChecked(false);
+    m_autoPreviewCheck->setChecked(true);
+    
+    onTargetTypeChanged();
+    updateEstimatedResult();
+}
+
+void PolygonReductionDialog::onResetClicked()
+{
+    resetToDefaults();
+    
+    if (m_autoPreviewCheck->isChecked()) {
+        emit previewRequested();
+    }
+}
+
+void PolygonReductionDialog::onCancelClicked()
+{
+    emit previewCanceled();  // Signal to revert any preview changes
+    reject();
 }

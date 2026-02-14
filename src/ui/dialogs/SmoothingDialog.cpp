@@ -15,6 +15,7 @@ SmoothingDialog::SmoothingDialog(QWidget *parent)
     setupUI();
     setupConnections();
     applyStylesheet();
+    loadSettings();
 }
 
 void SmoothingDialog::setupUI()
@@ -29,9 +30,11 @@ void SmoothingDialog::setupUI()
     algorithmLayout->setSpacing(12);
 
     m_algorithmCombo = new QComboBox();
-    m_algorithmCombo->addItem(tr("Laplacian"), static_cast<int>(Algorithm::Laplacian));
-    m_algorithmCombo->addItem(tr("Taubin"), static_cast<int>(Algorithm::Taubin));
-    m_algorithmCombo->addItem(tr("HC (Humphrey's Classes)"), static_cast<int>(Algorithm::HC));
+    m_algorithmCombo->addItem(tr("Laplacian (Fast)"), static_cast<int>(Algorithm::Laplacian));
+    m_algorithmCombo->addItem(tr("Taubin (Recommended)"), static_cast<int>(Algorithm::Taubin));
+    m_algorithmCombo->addItem(tr("HC (Best Quality)"), static_cast<int>(Algorithm::HC));
+    // Default to Taubin - best balance for most users
+    m_algorithmCombo->setCurrentIndex(1);
     algorithmLayout->addWidget(m_algorithmCombo);
 
     m_algorithmDescription = new QLabel();
@@ -56,7 +59,7 @@ void SmoothingDialog::setupUI()
     taubinLayout->addWidget(m_passBandSpinbox);
     taubinLayout->addStretch();
     
-    m_taubinWidget->setVisible(false);
+    m_taubinWidget->setVisible(true);  // Visible by default since Taubin is selected
     algorithmLayout->addWidget(m_taubinWidget);
 
     mainLayout->addWidget(algorithmGroup);
@@ -128,6 +131,12 @@ void SmoothingDialog::setupUI()
 
     // Button box
     QHBoxLayout* buttonLayout = new QHBoxLayout();
+    
+    m_resetButton = new QPushButton(tr("Reset"));
+    m_resetButton->setObjectName("secondaryButton");
+    m_resetButton->setToolTip(tr("Reset all parameters to default values"));
+    buttonLayout->addWidget(m_resetButton);
+    
     buttonLayout->addStretch();
 
     m_cancelButton = new QPushButton(tr("Cancel"));
@@ -165,9 +174,11 @@ void SmoothingDialog::setupConnections()
     connect(m_autoPreviewCheck, &QCheckBox::toggled,
             this, &SmoothingDialog::onPreviewToggled);
 
-    connect(m_cancelButton, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_resetButton, &QPushButton::clicked, this, &SmoothingDialog::onResetClicked);
+    connect(m_cancelButton, &QPushButton::clicked, this, &SmoothingDialog::onCancelClicked);
     connect(m_applyButton, &QPushButton::clicked, this, &SmoothingDialog::onApplyClicked);
     connect(m_okButton, &QPushButton::clicked, this, [this]() {
+        saveSettings();
         onApplyClicked();
         accept();
     });
@@ -461,15 +472,84 @@ void SmoothingDialog::updateAlgorithmDescription()
     
     switch (algorithm()) {
         case Algorithm::Laplacian:
-            description = tr("Standard Laplacian smoothing. Fast but may cause volume shrinkage with many iterations.");
+            description = tr("Fastest option. Good for quick previews. May shrink the mesh slightly with many iterations - use 1-3 iterations.");
             break;
         case Algorithm::Taubin:
-            description = tr("Two-step smoothing that minimizes shrinkage. Good balance of smoothness and volume preservation.");
+            description = tr("Best for most use cases. Smooths without shrinking your model. Start with default settings, increase iterations if needed.");
             break;
         case Algorithm::HC:
-            description = tr("Preserves volume better than Laplacian. Slower but produces high-quality results.");
+            description = tr("Highest quality results, especially for organic shapes. Slower but preserves volume and features very well.");
             break;
     }
     
     m_algorithmDescription->setText(description);
+}
+
+void SmoothingDialog::loadSettings()
+{
+    QSettings settings;
+    settings.beginGroup("SmoothingDialog");
+    
+    // Algorithm
+    int algo = settings.value("algorithm", 0).toInt();
+    if (algo >= 0 && algo <= 2) {
+        m_algorithmCombo->setCurrentIndex(algo);
+    }
+    
+    // Parameters
+    m_iterationsSpinbox->setValue(settings.value("iterations", 5).toInt());
+    m_strengthSpinbox->setValue(settings.value("strength", 0.5).toDouble());
+    m_strengthSlider->setValue(static_cast<int>(m_strengthSpinbox->value() * 100));
+    m_passBandSpinbox->setValue(settings.value("passBand", 0.1).toDouble());
+    
+    // Options
+    m_preserveBoundaries->setChecked(settings.value("preserveBoundaries", true).toBool());
+    m_autoPreviewCheck->setChecked(settings.value("autoPreview", true).toBool());
+    
+    settings.endGroup();
+    
+    updateAlgorithmDescription();
+}
+
+void SmoothingDialog::saveSettings()
+{
+    QSettings settings;
+    settings.beginGroup("SmoothingDialog");
+    
+    settings.setValue("algorithm", m_algorithmCombo->currentIndex());
+    settings.setValue("iterations", m_iterationsSpinbox->value());
+    settings.setValue("strength", m_strengthSpinbox->value());
+    settings.setValue("passBand", m_passBandSpinbox->value());
+    settings.setValue("preserveBoundaries", m_preserveBoundaries->isChecked());
+    settings.setValue("autoPreview", m_autoPreviewCheck->isChecked());
+    
+    settings.endGroup();
+}
+
+void SmoothingDialog::resetToDefaults()
+{
+    m_algorithmCombo->setCurrentIndex(0);  // Laplacian
+    m_iterationsSpinbox->setValue(5);
+    m_strengthSpinbox->setValue(0.5);
+    m_strengthSlider->setValue(50);
+    m_passBandSpinbox->setValue(0.1);
+    m_preserveBoundaries->setChecked(true);
+    m_autoPreviewCheck->setChecked(true);
+    
+    updateAlgorithmDescription();
+}
+
+void SmoothingDialog::onResetClicked()
+{
+    resetToDefaults();
+    
+    if (m_autoPreviewCheck->isChecked()) {
+        emit previewRequested();
+    }
+}
+
+void SmoothingDialog::onCancelClicked()
+{
+    emit previewCanceled();  // Signal to revert any preview changes
+    reject();
 }

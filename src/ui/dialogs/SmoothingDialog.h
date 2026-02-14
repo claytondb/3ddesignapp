@@ -10,6 +10,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QGroupBox>
+#include <QSettings>
 
 namespace dc {
 class Viewport;
@@ -56,6 +57,7 @@ public:
 signals:
     void previewRequested();
     void applyRequested();
+    void previewCanceled();  // Emitted to revert preview changes
 
 private slots:
     void onAlgorithmChanged(int index);
@@ -64,12 +66,17 @@ private slots:
     void onIterationsChanged(int value);
     void onPreviewToggled(bool checked);
     void onApplyClicked();
+    void onResetClicked();
+    void onCancelClicked();
     void updateAlgorithmDescription();
 
 private:
     void setupUI();
     void setupConnections();
     void applyStylesheet();
+    void loadSettings();
+    void saveSettings();
+    void resetToDefaults();
 
     // Viewport for preview
     dc::Viewport* m_viewport;
@@ -92,6 +99,7 @@ private:
     QCheckBox* m_autoPreviewCheck;
 
     // Buttons
+    QPushButton* m_resetButton;
     QPushButton* m_cancelButton;
     QPushButton* m_applyButton;
     QPushButton* m_okButton;

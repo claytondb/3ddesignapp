@@ -527,7 +527,8 @@ void SelectionRenderer::renderHover(const dc::Camera& camera,
 }
 
 void SelectionRenderer::renderObjectSelection(const dc::Camera& camera,
-                                              const std::vector<uint32_t>& meshIds)
+                                              const std::vector<uint32_t>& meshIds,
+                                              bool isHover)
 {
     if (!m_selectionShader) return;
     
@@ -541,12 +542,16 @@ void SelectionRenderer::renderObjectSelection(const dc::Camera& camera,
     m_selectionShader->setUniformValue("selectionMode", 0);
     m_selectionShader->setUniformValue("opacity", m_config.opacity);
     m_selectionShader->setUniformValue("xrayMode", m_config.xrayMode);
+    m_selectionShader->setUniformValue("isHover", isHover);
     m_selectionShader->setUniformValue("highlightColor",
         QVector4D(m_config.objectColor.r, m_config.objectColor.g,
                   m_config.objectColor.b, m_config.objectColor.a));
     
     QVector3D camPos = camera.position();
     m_selectionShader->setUniformValue("cameraPosition", camPos);
+    
+    // Pass viewport size for screen-space outline
+    m_selectionShader->setUniformValue("viewportSize", QVector2D(m_viewportWidth, m_viewportHeight));
     
     for (uint32_t meshId : meshIds) {
         const SelectionMeshInfo* info = findMesh(meshId);
@@ -566,17 +571,17 @@ void SelectionRenderer::renderObjectSelection(const dc::Camera& camera,
         
         glBindVertexArray(info->vao);
         
-        // First pass: fill
+        // First pass: fill with semi-transparent overlay
         m_selectionShader->setUniformValue("highlightPass", 0);
         m_selectionShader->setUniformValue("outlineScale", 0.0f);
         glDrawElements(GL_TRIANGLES, 
                       static_cast<GLsizei>(info->mesh->indexCount()),
                       GL_UNSIGNED_INT, nullptr);
         
-        // Second pass: outline
+        // Second pass: outline (screen-space consistent width)
         glCullFace(GL_FRONT);  // Draw back faces expanded
         m_selectionShader->setUniformValue("highlightPass", 1);
-        m_selectionShader->setUniformValue("outlineScale", m_config.outlineWidth);
+        m_selectionShader->setUniformValue("outlineScale", isHover ? m_config.outlineWidth * 0.7f : m_config.outlineWidth);
         glDrawElements(GL_TRIANGLES,
                       static_cast<GLsizei>(info->mesh->indexCount()),
                       GL_UNSIGNED_INT, nullptr);

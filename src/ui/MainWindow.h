@@ -64,12 +64,16 @@ public slots:
     
     // Scene updates
     void onSceneChanged();
+    
+    // Tool/operation cancellation
+    void cancelCurrentOperation();
 
 signals:
     void modeChanged(const QString& mode);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
 private slots:
     void onOpenProjectRequested();

@@ -12,6 +12,7 @@
 #include <QPushButton>
 #include <QButtonGroup>
 #include <QGroupBox>
+#include <QSettings>
 
 namespace dc {
 class Viewport;
@@ -69,6 +70,7 @@ signals:
     void applyRequested();
     void reductionStarted();
     void reductionFinished();
+    void previewCanceled();  // Emitted to revert preview changes
 
 protected:
     void showEvent(QShowEvent *event) override;
@@ -81,6 +83,8 @@ private slots:
     void onFaceCountChanged(int value);
     void onPreviewToggled(bool checked);
     void onApplyClicked();
+    void onResetClicked();
+    void onCancelClicked();
     void updateEstimatedResult();
 
 private:
@@ -88,6 +92,9 @@ private:
     void setupConnections();
     void applyStylesheet();
     void updateControlVisibility();
+    void loadSettings();
+    void saveSettings();
+    void resetToDefaults();
 
     // Original mesh statistics
     int m_originalTriangleCount;
@@ -133,6 +140,7 @@ private:
     QLabel* m_progressLabel;
 
     // Buttons
+    QPushButton* m_resetButton;
     QPushButton* m_cancelButton;
     QPushButton* m_applyButton;
     QPushButton* m_okButton;

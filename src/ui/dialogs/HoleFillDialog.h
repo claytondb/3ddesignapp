@@ -10,6 +10,7 @@
 #include <QPushButton>
 #include <QGroupBox>
 #include <QVector>
+#include <QSettings>
 
 namespace dc {
 class Viewport;
@@ -78,6 +79,7 @@ private slots:
     void onSelectNoneClicked();
     void onFillSelectedClicked();
     void onFillAllClicked();
+    void onResetClicked();
 
 private:
     void setupUI();
@@ -86,6 +88,9 @@ private:
     void updateHoleTable();
     void updateButtonStates();
     void filterHolesBySize();
+    void loadSettings();
+    void saveSettings();
+    void resetToDefaults();
 
     // Viewport for preview
     dc::Viewport* m_viewport;
@@ -114,6 +119,7 @@ private:
     QPushButton* m_selectNoneButton;
 
     // Action buttons
+    QPushButton* m_resetButton;
     QPushButton* m_fillSelectedButton;
     QPushButton* m_fillAllButton;
     QPushButton* m_closeButton;

@@ -2,9 +2,10 @@
  * Selection Vertex Shader
  * 
  * Renders selection highlights:
- * - Outlined selected objects
+ * - Outlined selected objects (smooth screen-space outline)
  * - Highlighted selected faces
  * - Selected vertex/edge indicators
+ * - Hover highlighting before click
  */
 #version 410 core
 
@@ -18,40 +19,55 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 uniform mat3 normalMatrix;
+uniform vec2 viewportSize;       // For screen-space outline
 
 // Selection-specific uniforms
-uniform float outlineScale;      // For outline pass (>1.0)
+uniform float outlineScale;      // For outline pass (pixels in screen space)
 uniform int selectionMode;       // 0=Object, 1=Face, 2=Vertex, 3=Edge
 uniform int highlightPass;       // 0=fill, 1=outline
+uniform bool isHover;            // Hover highlight (pre-selection feedback)
 
 // Outputs
 out vec3 vWorldPosition;
 out vec3 vWorldNormal;
 out vec2 vTexCoord;
 out vec3 vViewPosition;
+out float vOutlineAlpha;
 
 void main() {
     vec3 pos = position;
+    vec3 norm = normalize(normal);
+    vOutlineAlpha = 1.0;
     
-    // For outline pass, expand along normal
+    // Transform to world and view space first
+    vec4 worldPos = model * vec4(pos, 1.0);
+    vec4 viewPos = view * worldPos;
+    vec4 clipPos = projection * viewPos;
+    
+    // For outline pass, expand in screen space for consistent width
     if (highlightPass == 1 && outlineScale > 0.0) {
-        pos = position + normalize(normal) * outlineScale;
+        // Transform normal to view space
+        vec3 viewNormal = normalize(mat3(view) * normalMatrix * norm);
+        
+        // Project normal to screen space
+        vec2 screenNormal = normalize(viewNormal.xy);
+        
+        // Compute screen-space offset (consistent pixel width)
+        float pixelScale = outlineScale * 2.0 / viewportSize.y;
+        float zScale = clipPos.w * pixelScale;
+        
+        // Offset in clip space
+        clipPos.xy += screenNormal * zScale;
+        
+        // Fade outline at glancing angles for smoother appearance
+        float facing = abs(dot(normalize(viewNormal), vec3(0.0, 0.0, 1.0)));
+        vOutlineAlpha = smoothstep(0.0, 0.3, facing);
     }
     
-    // Transform to world space
-    vec4 worldPos = model * vec4(pos, 1.0);
     vWorldPosition = worldPos.xyz;
-    
-    // Transform normal
-    vWorldNormal = normalize(normalMatrix * normal);
-    
-    // Pass through texcoords
+    vWorldNormal = normalize(normalMatrix * norm);
     vTexCoord = texCoord;
-    
-    // View space position
-    vec4 viewPos = view * worldPos;
     vViewPosition = viewPos.xyz;
     
-    // Clip space
-    gl_Position = projection * viewPos;
+    gl_Position = clipPos;
 }

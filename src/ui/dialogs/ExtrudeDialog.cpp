@@ -92,11 +92,12 @@ void ExtrudeDialog::setupUI()
     
     m_distanceSpinbox = new QDoubleSpinBox();
     m_distanceSpinbox->setRange(0.001, 10000.0);
-    m_distanceSpinbox->setDecimals(4);
+    m_distanceSpinbox->setDecimals(3);
     m_distanceSpinbox->setSingleStep(1.0);
-    m_distanceSpinbox->setValue(10.0);
+    m_distanceSpinbox->setValue(10.0);  // 10mm is a sensible default
     m_distanceSpinbox->setSuffix(" mm");
     m_distanceSpinbox->setMinimumWidth(120);
+    m_distanceSpinbox->setToolTip(tr("How far to extrude. Use negative values or Flip to go the other direction."));
     
     m_flipDirection = new QCheckBox(tr("Flip"));
     m_flipDirection->setToolTip(tr("Reverse extrusion direction"));

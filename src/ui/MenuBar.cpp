@@ -73,26 +73,26 @@ void MenuBar::setupFileMenu()
     // Import submenu
     QMenu* importMenu = m_fileMenu->addMenu(tr("&Import"));
     
-    m_actionImportMesh = createAction(tr("Mesh (STL, OBJ, PLY)..."), "", tr("Import a mesh file"));
+    m_actionImportMesh = createAction(tr("Mesh (STL, OBJ, PLY)..."), "Ctrl+I", tr("Import mesh from STL, OBJ, or PLY file"));
     connect(m_actionImportMesh, &QAction::triggered, this, &MenuBar::importMeshRequested);
     importMenu->addAction(m_actionImportMesh);
     
-    m_actionImportCAD = createAction(tr("CAD (STEP, IGES)..."), "", tr("Import a CAD file"));
+    m_actionImportCAD = createAction(tr("CAD (STEP, IGES)..."), "Ctrl+Shift+I", tr("Import CAD geometry from STEP or IGES"));
     connect(m_actionImportCAD, &QAction::triggered, this, &MenuBar::importCADRequested);
     importMenu->addAction(m_actionImportCAD);
 
     // Export submenu
     QMenu* exportMenu = m_fileMenu->addMenu(tr("&Export"));
     
-    m_actionExportMesh = createAction(tr("Mesh (STL)..."), "", tr("Export as STL mesh"));
+    m_actionExportMesh = createAction(tr("Mesh (STL)..."), "Ctrl+E", tr("Export selected mesh to STL file"));
     connect(m_actionExportMesh, &QAction::triggered, this, &MenuBar::exportMeshRequested);
     exportMenu->addAction(m_actionExportMesh);
     
-    m_actionExportSTEP = createAction(tr("CAD (STEP)..."), "", tr("Export as STEP file"));
+    m_actionExportSTEP = createAction(tr("CAD (STEP)..."), "", tr("Export surfaces to STEP CAD file"));
     connect(m_actionExportSTEP, &QAction::triggered, this, &MenuBar::exportSTEPRequested);
     exportMenu->addAction(m_actionExportSTEP);
     
-    m_actionExportIGES = createAction(tr("CAD (IGES)..."), "", tr("Export as IGES file"));
+    m_actionExportIGES = createAction(tr("CAD (IGES)..."), "", tr("Export surfaces to IGES CAD file"));
     connect(m_actionExportIGES, &QAction::triggered, this, &MenuBar::exportIGESRequested);
     exportMenu->addAction(m_actionExportIGES);
 
