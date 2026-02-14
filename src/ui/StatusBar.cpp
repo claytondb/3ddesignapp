@@ -3,7 +3,10 @@
 
 StatusBar::StatusBar(QWidget *parent)
     : QStatusBar(parent)
+    , m_messageTimer(new QTimer(this))
 {
+    m_messageTimer->setSingleShot(true);
+    connect(m_messageTimer, &QTimer::timeout, this, &StatusBar::clearTemporaryMessage);
     setupUI();
 }
 
@@ -18,13 +21,26 @@ void StatusBar::setupUI()
             background-color: #2a2a2a;
             color: #b3b3b3;
             border-top: 1px solid #4a4a4a;
-            min-height: 24px;
+            min-height: 26px;
         }
         QStatusBar::item {
             border: none;
         }
         QLabel {
             padding: 2px 8px;
+        }
+        QProgressBar {
+            background-color: #333333;
+            border: none;
+            border-radius: 3px;
+            height: 14px;
+            text-align: center;
+            font-size: 10px;
+            color: #ffffff;
+        }
+        QProgressBar::chunk {
+            background-color: #0078d4;
+            border-radius: 3px;
         }
     )");
 
@@ -47,6 +63,31 @@ void StatusBar::setupUI()
     m_messageLabel = new QLabel(tr(""));
     m_messageLabel->setStyleSheet("color: #b3b3b3;");
     addWidget(m_messageLabel, 1); // Stretch factor 1
+    
+    // Tool hint label (shows current tool usage hints)
+    m_toolHintLabel = new QLabel();
+    m_toolHintLabel->setStyleSheet("color: #6a9ed9; font-style: italic;");
+    m_toolHintLabel->setVisible(false);
+    addWidget(m_toolHintLabel);
+    
+    // Progress widget (hidden by default)
+    m_progressWidget = new QWidget(this);
+    QHBoxLayout* progressLayout = new QHBoxLayout(m_progressWidget);
+    progressLayout->setContentsMargins(4, 0, 4, 0);
+    progressLayout->setSpacing(6);
+    
+    m_progressLabel = new QLabel();
+    m_progressLabel->setStyleSheet("color: #b3b3b3; font-size: 11px;");
+    progressLayout->addWidget(m_progressLabel);
+    
+    m_progressBar = new QProgressBar();
+    m_progressBar->setRange(0, 100);
+    m_progressBar->setFixedWidth(120);
+    m_progressBar->setTextVisible(true);
+    progressLayout->addWidget(m_progressBar);
+    
+    m_progressWidget->setVisible(false);
+    addWidget(m_progressWidget);
 
     // Separator
     addWidget(createSeparator());
@@ -135,7 +176,9 @@ QString StatusBar::modeIndicator() const
 
 void StatusBar::setMessage(const QString& message)
 {
+    m_permanentMessage = message;
     m_messageLabel->setText(message);
+    m_messageLabel->setStyleSheet("color: #b3b3b3;");
 }
 
 void StatusBar::setSelectionInfo(const QString& info)
@@ -193,4 +236,85 @@ void StatusBar::setFPS(int fps)
 void StatusBar::setFPSVisible(bool visible)
 {
     m_fpsLabel->setVisible(visible);
+}
+
+void StatusBar::showTemporaryMessage(const QString& message, int timeoutMs)
+{
+    m_messageLabel->setText(message);
+    m_messageLabel->setStyleSheet("color: #b3b3b3;");
+    m_messageTimer->start(timeoutMs);
+}
+
+void StatusBar::showSuccess(const QString& message, int timeoutMs)
+{
+    m_messageLabel->setText(QString("✓ %1").arg(message));
+    m_messageLabel->setStyleSheet("color: #4caf50;");  // Green
+    m_messageTimer->start(timeoutMs);
+}
+
+void StatusBar::showWarning(const QString& message, int timeoutMs)
+{
+    m_messageLabel->setText(QString("⚠ %1").arg(message));
+    m_messageLabel->setStyleSheet("color: #ff9800;");  // Orange
+    m_messageTimer->start(timeoutMs);
+}
+
+void StatusBar::showError(const QString& message, int timeoutMs)
+{
+    m_messageLabel->setText(QString("✗ %1").arg(message));
+    m_messageLabel->setStyleSheet("color: #f44336;");  // Red
+    m_messageTimer->start(timeoutMs);
+}
+
+void StatusBar::showInfo(const QString& message, int timeoutMs)
+{
+    m_messageLabel->setText(QString("ℹ %1").arg(message));
+    m_messageLabel->setStyleSheet("color: #2196f3;");  // Blue
+    m_messageTimer->start(timeoutMs);
+}
+
+void StatusBar::clearTemporaryMessage()
+{
+    m_messageLabel->setText(m_permanentMessage);
+    m_messageLabel->setStyleSheet("color: #b3b3b3;");
+}
+
+void StatusBar::showProgress(const QString& operation, int percent)
+{
+    m_progressLabel->setText(operation);
+    m_progressBar->setValue(percent);
+    m_progressWidget->setVisible(true);
+}
+
+void StatusBar::hideProgress()
+{
+    m_progressWidget->setVisible(false);
+    m_progressBar->setValue(0);
+}
+
+void StatusBar::setProgressRange(int min, int max)
+{
+    m_progressBar->setRange(min, max);
+}
+
+void StatusBar::setProgressValue(int value)
+{
+    m_progressBar->setValue(value);
+}
+
+bool StatusBar::isProgressVisible() const
+{
+    return m_progressWidget->isVisible();
+}
+
+void StatusBar::setToolHint(const QString& hint)
+{
+    m_toolHintLabel->setText(hint);
+    m_toolHintLabel->setVisible(!hint.isEmpty());
+}
+
+void StatusBar::clearToolHint()
+{
+    m_toolHintLabel->clear();
+    m_toolHintLabel->setVisible(false);
 }

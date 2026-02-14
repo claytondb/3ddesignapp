@@ -144,6 +144,11 @@ void MenuBar::setupEditMenu()
     connect(m_actionPaste, &QAction::triggered, this, &MenuBar::pasteRequested);
     m_editMenu->addAction(m_actionPaste);
 
+    // Duplicate - create a copy in place
+    m_actionDuplicate = createAction(tr("D&uplicate"), "Ctrl+D", tr("Create a copy of selected objects"));
+    connect(m_actionDuplicate, &QAction::triggered, this, &MenuBar::duplicateRequested);
+    m_editMenu->addAction(m_actionDuplicate);
+
     // Delete
     m_actionDelete = createAction(tr("&Delete"), "Delete", tr("Delete selected objects"));
     connect(m_actionDelete, &QAction::triggered, this, &MenuBar::deleteRequested);
@@ -227,32 +232,32 @@ void MenuBar::setupViewMenu()
     
     QActionGroup* displayModeGroup = new QActionGroup(this);
     
-    m_actionDisplayShaded = createAction(tr("&Shaded"), "1", tr("Shaded display mode"));
+    m_actionDisplayShaded = createAction(tr("&Shaded"), "Alt+1", tr("Solid shaded view with lighting"));
     m_actionDisplayShaded->setCheckable(true);
     m_actionDisplayShaded->setChecked(true);
     displayModeGroup->addAction(m_actionDisplayShaded);
     connect(m_actionDisplayShaded, &QAction::triggered, this, &MenuBar::displayModeShadedRequested);
     displayModeMenu->addAction(m_actionDisplayShaded);
     
-    m_actionDisplayWireframe = createAction(tr("&Wireframe"), "2", tr("Wireframe display mode"));
+    m_actionDisplayWireframe = createAction(tr("&Wireframe"), "Alt+2", tr("Show mesh edges only"));
     m_actionDisplayWireframe->setCheckable(true);
     displayModeGroup->addAction(m_actionDisplayWireframe);
     connect(m_actionDisplayWireframe, &QAction::triggered, this, &MenuBar::displayModeWireframeRequested);
     displayModeMenu->addAction(m_actionDisplayWireframe);
     
-    m_actionDisplayShadedWire = createAction(tr("Shaded + &Wireframe"), "3", tr("Shaded with wireframe overlay"));
+    m_actionDisplayShadedWire = createAction(tr("Shaded + &Wireframe"), "Alt+3", tr("Shaded with wireframe overlay"));
     m_actionDisplayShadedWire->setCheckable(true);
     displayModeGroup->addAction(m_actionDisplayShadedWire);
     connect(m_actionDisplayShadedWire, &QAction::triggered, this, &MenuBar::displayModeShadedWireRequested);
     displayModeMenu->addAction(m_actionDisplayShadedWire);
     
-    m_actionDisplayXRay = createAction(tr("&X-Ray"), "4", tr("X-Ray transparent display mode"));
+    m_actionDisplayXRay = createAction(tr("&X-Ray"), "Alt+4", tr("Transparent view to see through surfaces"));
     m_actionDisplayXRay->setCheckable(true);
     displayModeGroup->addAction(m_actionDisplayXRay);
     connect(m_actionDisplayXRay, &QAction::triggered, this, &MenuBar::displayModeXRayRequested);
     displayModeMenu->addAction(m_actionDisplayXRay);
     
-    m_actionDisplayDeviation = createAction(tr("&Deviation Map"), "5", tr("Show deviation color map"));
+    m_actionDisplayDeviation = createAction(tr("&Deviation Map"), "Alt+5", tr("Color map showing deviation from reference"));
     m_actionDisplayDeviation->setCheckable(true);
     displayModeGroup->addAction(m_actionDisplayDeviation);
     connect(m_actionDisplayDeviation, &QAction::triggered, this, &MenuBar::displayModeDeviationRequested);
@@ -312,8 +317,8 @@ void MenuBar::setupMeshMenu()
     connect(m_actionPolygonReduction, &QAction::triggered, this, &MenuBar::showPolygonReductionDialog);
     m_meshMenu->addAction(m_actionPolygonReduction);
 
-    // Smoothing
-    m_actionSmoothing = createAction(tr("&Smoothing..."), "Ctrl+Shift+S", tr("Smooth mesh surface"));
+    // Smoothing - changed from Ctrl+Shift+S (conflicts with Save As) to Ctrl+Shift+M
+    m_actionSmoothing = createAction(tr("&Smoothing..."), "Ctrl+Shift+M", tr("Smooth mesh to reduce noise and bumps"));
     connect(m_actionSmoothing, &QAction::triggered, this, &MenuBar::showSmoothingDialog);
     m_meshMenu->addAction(m_actionSmoothing);
 
