@@ -101,53 +101,64 @@ void Camera::setStandardView(StandardView view)
     float distance = m_orbitRadius;
     QVector3D target = m_target;
     
+    float newYaw = m_yaw;
+    float newPitch = m_pitch;
+    
     switch (view) {
         case StandardView::Front:
-            m_yaw = 0.0f;
-            m_pitch = 0.0f;
+            newYaw = 0.0f;
+            newPitch = 0.0f;
             break;
             
         case StandardView::Back:
-            m_yaw = 180.0f;
-            m_pitch = 0.0f;
+            newYaw = 180.0f;
+            newPitch = 0.0f;
             break;
             
         case StandardView::Top:
-            m_yaw = 0.0f;
-            m_pitch = 89.9f;  // Nearly 90 to avoid gimbal lock
+            newYaw = 0.0f;
+            newPitch = 89.9f;  // Nearly 90 to avoid gimbal lock
             break;
             
         case StandardView::Bottom:
-            m_yaw = 0.0f;
-            m_pitch = -89.9f;
+            newYaw = 0.0f;
+            newPitch = -89.9f;
             break;
             
         case StandardView::Left:
-            m_yaw = -90.0f;
-            m_pitch = 0.0f;
+            newYaw = -90.0f;
+            newPitch = 0.0f;
             break;
             
         case StandardView::Right:
-            m_yaw = 90.0f;
-            m_pitch = 0.0f;
+            newYaw = 90.0f;
+            newPitch = 0.0f;
             break;
             
         case StandardView::Isometric:
-            m_yaw = 45.0f;
-            m_pitch = 35.264f;  // arctan(1/sqrt(2)) for true isometric
+            newYaw = 45.0f;
+            newPitch = 35.264f;  // arctan(1/sqrt(2)) for true isometric
             break;
     }
     
-    // Recalculate position
-    float yawRad = qDegreesToRadians(m_yaw);
-    float pitchRad = qDegreesToRadians(m_pitch);
+    // Calculate new position
+    float yawRad = qDegreesToRadians(newYaw);
+    float pitchRad = qDegreesToRadians(newPitch);
     
     float cosPitch = qCos(pitchRad);
-    m_position.setX(target.x() + distance * cosPitch * qSin(yawRad));
-    m_position.setY(target.y() + distance * qSin(pitchRad));
-    m_position.setZ(target.z() + distance * cosPitch * qCos(yawRad));
+    QVector3D newPosition;
+    newPosition.setX(target.x() + distance * cosPitch * qSin(yawRad));
+    newPosition.setY(target.y() + distance * qSin(pitchRad));
+    newPosition.setZ(target.z() + distance * cosPitch * qCos(yawRad));
     
-    updateViewMatrix();
+    if (m_animationEnabled) {
+        startAnimation(newPosition, target, newYaw, newPitch, distance);
+    } else {
+        m_yaw = newYaw;
+        m_pitch = newPitch;
+        m_position = newPosition;
+        updateViewMatrix();
+    }
 }
 
 void Camera::fitToView(const BoundingBox& bounds, float padding)
@@ -156,37 +167,46 @@ void Camera::fitToView(const BoundingBox& bounds, float padding)
         return;
     }
     
-    // Center on bounding box
-    m_target = bounds.center();
+    // Calculate new target (center of bounding box)
+    QVector3D newTarget = bounds.center();
     
     // Calculate required distance to fit bounding box
     float diagonal = bounds.diagonal() * padding;
+    float newRadius = m_orbitRadius;
     
     if (m_isPerspective) {
         // For perspective, calculate distance based on FOV
         float fovRad = qDegreesToRadians(m_fov);
         float halfFov = fovRad * 0.5f;
-        m_orbitRadius = (diagonal * 0.5f) / qTan(halfFov);
+        newRadius = (diagonal * 0.5f) / qTan(halfFov);
     } else {
         // For orthographic, adjust the view width
         m_orthoWidth = diagonal;
-        m_orbitRadius = diagonal;
+        newRadius = diagonal;
         updateProjectionMatrix();
     }
     
     // Clamp distance
-    m_orbitRadius = std::clamp(m_orbitRadius, m_minDistance, m_maxDistance);
+    newRadius = std::clamp(newRadius, m_minDistance, m_maxDistance);
     
-    // Recalculate position with current orientation
+    // Calculate new position with current orientation
     float yawRad = qDegreesToRadians(m_yaw);
     float pitchRad = qDegreesToRadians(m_pitch);
     
     float cosPitch = qCos(pitchRad);
-    m_position.setX(m_target.x() + m_orbitRadius * cosPitch * qSin(yawRad));
-    m_position.setY(m_target.y() + m_orbitRadius * qSin(pitchRad));
-    m_position.setZ(m_target.z() + m_orbitRadius * cosPitch * qCos(yawRad));
+    QVector3D newPosition;
+    newPosition.setX(newTarget.x() + newRadius * cosPitch * qSin(yawRad));
+    newPosition.setY(newTarget.y() + newRadius * qSin(pitchRad));
+    newPosition.setZ(newTarget.z() + newRadius * cosPitch * qCos(yawRad));
     
-    updateViewMatrix();
+    if (m_animationEnabled) {
+        startAnimation(newPosition, newTarget, m_yaw, m_pitch, newRadius);
+    } else {
+        m_target = newTarget;
+        m_orbitRadius = newRadius;
+        m_position = newPosition;
+        updateViewMatrix();
+    }
 }
 
 void Camera::lookAt(const QVector3D& position, const QVector3D& target, const QVector3D& up)
@@ -289,6 +309,99 @@ void Camera::clampPitch()
     // Clamp to just under 90 degrees to prevent gimbal lock
     const float maxPitch = 89.0f;
     m_pitch = std::clamp(m_pitch, -maxPitch, maxPitch);
+}
+
+// ---- Animation Methods ----
+
+void Camera::startAnimation(const QVector3D& targetPos, const QVector3D& targetTarget,
+                            float targetYaw, float targetPitch, float targetRadius)
+{
+    // Store start state
+    m_startPosition = m_position;
+    m_startTarget = m_target;
+    m_startYaw = m_yaw;
+    m_startPitch = m_pitch;
+    m_startRadius = m_orbitRadius;
+    
+    // Store end state
+    m_endPosition = targetPos;
+    m_endTarget = targetTarget;
+    m_endYaw = targetYaw;
+    m_endPitch = targetPitch;
+    m_endRadius = targetRadius;
+    
+    // Handle yaw wraparound (take shortest path)
+    float yawDiff = m_endYaw - m_startYaw;
+    if (yawDiff > 180.0f) {
+        m_startYaw += 360.0f;
+    } else if (yawDiff < -180.0f) {
+        m_endYaw += 360.0f;
+    }
+    
+    // Start animation
+    m_animationTime = 0.0f;
+    m_isAnimating = true;
+}
+
+bool Camera::updateAnimation(float deltaTime)
+{
+    if (!m_isAnimating) {
+        return false;
+    }
+    
+    m_animationTime += deltaTime;
+    float t = m_animationTime / m_animationDuration;
+    
+    if (t >= 1.0f) {
+        // Animation complete - snap to final values
+        m_position = m_endPosition;
+        m_target = m_endTarget;
+        m_yaw = std::fmod(m_endYaw, 360.0f);
+        if (m_yaw < 0.0f) m_yaw += 360.0f;
+        m_pitch = m_endPitch;
+        m_orbitRadius = m_endRadius;
+        m_isAnimating = false;
+        updateViewMatrix();
+        return false;
+    }
+    
+    // Apply easing
+    float easedT = easeInOutCubic(t);
+    
+    // Interpolate values
+    m_position = m_startPosition + (m_endPosition - m_startPosition) * easedT;
+    m_target = m_startTarget + (m_endTarget - m_startTarget) * easedT;
+    m_yaw = m_startYaw + (m_endYaw - m_startYaw) * easedT;
+    m_pitch = m_startPitch + (m_endPitch - m_startPitch) * easedT;
+    m_orbitRadius = m_startRadius + (m_endRadius - m_startRadius) * easedT;
+    
+    updateViewMatrix();
+    return true;
+}
+
+void Camera::applyAnimationState()
+{
+    // Recalculate position from orbit parameters
+    float yawRad = qDegreesToRadians(m_yaw);
+    float pitchRad = qDegreesToRadians(m_pitch);
+    
+    float cosPitch = qCos(pitchRad);
+    m_position.setX(m_target.x() + m_orbitRadius * cosPitch * qSin(yawRad));
+    m_position.setY(m_target.y() + m_orbitRadius * qSin(pitchRad));
+    m_position.setZ(m_target.z() + m_orbitRadius * cosPitch * qCos(yawRad));
+    
+    updateViewMatrix();
+}
+
+float Camera::easeInOutCubic(float t)
+{
+    // Smooth ease-in-out curve
+    if (t < 0.5f) {
+        return 4.0f * t * t * t;
+    } else {
+        float f = 2.0f * t - 2.0f;
+        return 0.5f * f * f * f + 1.0f;
+    }
 }
 
 } // namespace dc

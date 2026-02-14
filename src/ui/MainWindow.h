@@ -86,6 +86,7 @@ private slots:
     void onViewBottomRequested();
     void onViewIsometricRequested();
     void onZoomToFitRequested();
+    void onZoomToSelectionRequested();
     void onToggleGridRequested();
     void onDisplayModeShadedRequested();
     void onDisplayModeWireframeRequested();

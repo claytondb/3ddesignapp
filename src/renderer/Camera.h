@@ -62,6 +62,31 @@ public:
     Camera(Camera&&) = default;
     Camera& operator=(Camera&&) = default;
     
+    // ---- Animation ----
+    
+    /**
+     * @brief Check if camera is currently animating
+     */
+    bool isAnimating() const { return m_isAnimating; }
+    
+    /**
+     * @brief Update animation state (call each frame)
+     * @param deltaTime Time since last update in seconds
+     * @return true if animation is still in progress
+     */
+    bool updateAnimation(float deltaTime);
+    
+    /**
+     * @brief Set animation duration for view transitions
+     * @param seconds Duration in seconds (default 0.3)
+     */
+    void setAnimationDuration(float seconds) { m_animationDuration = seconds; }
+    
+    /**
+     * @brief Enable or disable smooth animation for view changes
+     */
+    void setAnimationEnabled(bool enabled) { m_animationEnabled = enabled; }
+    
     // ---- Matrix Access ----
     
     /**
@@ -236,6 +261,10 @@ private:
     void updateViewMatrix();
     void updateProjectionMatrix();
     void clampPitch();
+    void startAnimation(const QVector3D& targetPos, const QVector3D& targetTarget, 
+                        float targetYaw, float targetPitch, float targetRadius);
+    void applyAnimationState();
+    static float easeInOutCubic(float t);
     
     // Camera state
     QVector3D m_position{0.0f, 5.0f, 10.0f};
@@ -246,6 +275,25 @@ private:
     float m_yaw = 0.0f;     // Horizontal rotation
     float m_pitch = -30.0f; // Vertical rotation (negative = looking down)
     float m_orbitRadius = 10.0f;
+    
+    // Animation state
+    bool m_animationEnabled = true;
+    bool m_isAnimating = false;
+    float m_animationDuration = 0.3f;  // seconds
+    float m_animationTime = 0.0f;
+    
+    // Animation start/end values
+    QVector3D m_startPosition;
+    QVector3D m_startTarget;
+    float m_startYaw = 0.0f;
+    float m_startPitch = 0.0f;
+    float m_startRadius = 0.0f;
+    
+    QVector3D m_endPosition;
+    QVector3D m_endTarget;
+    float m_endYaw = 0.0f;
+    float m_endPitch = 0.0f;
+    float m_endRadius = 0.0f;
     
     // Matrices
     QMatrix4x4 m_viewMatrix;

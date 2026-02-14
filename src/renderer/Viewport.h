@@ -29,7 +29,6 @@ class MeshData;
 }
 namespace core {
 class Selection;
-struct HitInfo;
 enum class SelectionMode;
 enum class SelectionOp;
 }
@@ -39,6 +38,9 @@ class SelectionRenderer;
 class BoxSelector;
 }
 }
+
+// Include HitInfo for hover tracking
+#include "core/Selection.h"
 
 // Forward declare
 namespace dc3d { namespace renderer { class SelectionRenderer; } }
@@ -161,6 +163,12 @@ public:
     void fitView(const BoundingBox& bounds);
     
     /**
+     * @brief Fit view to current selection
+     * Falls back to fitView() if nothing selected
+     */
+    void zoomToSelection();
+    
+    /**
      * @brief Reset view to default
      */
     void resetView();
@@ -240,6 +248,17 @@ signals:
      * @param addToSelection Whether to add to existing selection
      */
     void boxSelectionComplete(const QRect& rect, bool addToSelection);
+    
+    /**
+     * @brief Emitted when user presses Delete key
+     */
+    void deleteRequested();
+    
+    /**
+     * @brief Emitted when hover state changes
+     * @param hitInfo Current hover target (or empty if nothing hovered)
+     */
+    void hoverChanged(const dc3d::core::HitInfo& hitInfo);
 
 protected:
     // QOpenGLWidget overrides
@@ -297,6 +316,10 @@ private:
     bool m_ctrlPressed = false;
     bool m_altPressed = false;
     bool m_isBoxSelecting = false;
+    
+    // Hover tracking for pre-selection feedback
+    dc3d::core::HitInfo m_hoverHitInfo;
+    bool m_hoverEnabled = true;
     
     // Display settings
     DisplayMode m_displayMode = DisplayMode::Shaded;

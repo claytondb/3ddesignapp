@@ -8,8 +8,10 @@
 #include "GridRenderer.h"
 #include "ShaderProgram.h"
 #include "SelectionRenderer.h"
+#include "Picking.h"
 #include "geometry/MeshData.h"
 #include "core/Selection.h"
+#include "app/Application.h"
 
 #include <algorithm>
 #include <QApplication>
@@ -233,6 +235,24 @@ void Viewport::setupMeshShader()
 
 void Viewport::paintGL()
 {
+    // Update camera animation if active
+    if (m_camera->isAnimating()) {
+        // Calculate delta time (approximate - better to use QElapsedTimer)
+        static qint64 lastTime = m_frameTimer.elapsed();
+        qint64 currentTime = m_frameTimer.elapsed();
+        float deltaTime = (currentTime - lastTime) / 1000.0f;
+        lastTime = currentTime;
+        
+        // Cap delta time to prevent huge jumps
+        deltaTime = std::min(deltaTime, 0.1f);
+        
+        if (m_camera->updateAnimation(deltaTime)) {
+            // Animation still in progress - request another frame
+            update();
+        }
+        emit cameraChanged();
+    }
+    
     // Clear buffers
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
@@ -242,9 +262,18 @@ void Viewport::paintGL()
     // Render meshes
     renderMeshes();
     
+    // Render hover highlight (pre-selection feedback)
+    if (m_selectionRenderer && m_selection && m_hoverEnabled && m_hoverHitInfo.hit) {
+        // Don't show hover for already-selected objects
+        bool isAlreadySelected = m_selection->isObjectSelected(m_hoverHitInfo.meshId);
+        if (!isAlreadySelected) {
+            m_selectionRenderer->renderHover(*m_camera, m_hoverHitInfo, m_selection->mode(), size());
+        }
+    }
+    
     // Render selection highlights
     if (m_selectionRenderer && m_selection) {
-        m_selectionRenderer->render(*m_camera, *m_selection);
+        m_selectionRenderer->render(*m_camera, *m_selection, size());
     }
     
     // Render box selection overlay if active
@@ -696,6 +725,38 @@ void Viewport::mouseMoveEvent(QMouseEvent* event)
             {
                 QVector3D worldPos = unprojectMouse(event->pos());
                 emit cursorMoved(worldPos);
+                
+                // Track hover for pre-selection feedback
+                if (m_hoverEnabled) {
+                    auto* app = dc3d::Application::instance();
+                    if (app && app->picking()) {
+                        dc3d::core::HitInfo newHit = app->picking()->pick(event->pos(), size(), *m_camera);
+                        
+                        // Only update if hover target changed
+                        if (newHit.hit != m_hoverHitInfo.hit || 
+                            (newHit.hit && newHit.meshId != m_hoverHitInfo.meshId)) {
+                            m_hoverHitInfo = newHit;
+                            emit hoverChanged(m_hoverHitInfo);
+                            update();
+                        } else if (newHit.hit && newHit.faceIndex != m_hoverHitInfo.faceIndex) {
+                            // For face mode, update on face change too
+                            m_hoverHitInfo = newHit;
+                            update();
+                        }
+                    }
+                }
+                
+                // Check if this should start a box selection
+                if (event->buttons() & Qt::LeftButton) {
+                    QPoint dragDelta = event->pos() - m_mouseDownPos;
+                    if (dragDelta.manhattanLength() > 5 && !m_isBoxSelecting) {
+                        m_isBoxSelecting = true;
+                        setCursor(Qt::CrossCursor);
+                    }
+                    if (m_isBoxSelecting) {
+                        update();  // Redraw box selection overlay
+                    }
+                }
             }
             break;
     }
@@ -729,10 +790,18 @@ void Viewport::keyPressEvent(QKeyEvent* event)
         m_altPressed = true;
     }
     
+    // Handle standard view shortcuts (numpad and regular keys)
+    // Numpad 1/3/7 = Front/Right/Top, with Ctrl = Back/Left/Bottom
+    bool handled = true;
     switch (event->key()) {
         case Qt::Key_F:
             // Tinkercad-style: F key = Zoom to fit / focus on selection
             fitView();
+            break;
+            
+        case Qt::Key_Z:
+            // Z key = Zoom to selection (if selection exists, otherwise fit all)
+            zoomToSelection();
             break;
             
         case Qt::Key_Home:
@@ -745,25 +814,106 @@ void Viewport::keyPressEvent(QKeyEvent* event)
             update();
             break;
             
+        // Standard view shortcuts (Blender-style numpad)
         case Qt::Key_1:
-            setDisplayMode(DisplayMode::Shaded);
+            if (event->modifiers() & Qt::KeypadModifier) {
+                // Numpad 1 = Front, Ctrl+Numpad 1 = Back
+                if (m_ctrlPressed) {
+                    setStandardView("back");
+                } else {
+                    setStandardView("front");
+                }
+            } else {
+                // Regular 1 = Front view (menu shortcut)
+                setStandardView("front");
+            }
             break;
-        case Qt::Key_2:
-            setDisplayMode(DisplayMode::Wireframe);
-            break;
+            
         case Qt::Key_3:
-            setDisplayMode(DisplayMode::ShadedWireframe);
+            if (event->modifiers() & Qt::KeypadModifier) {
+                // Numpad 3 = Right, Ctrl+Numpad 3 = Left
+                if (m_ctrlPressed) {
+                    setStandardView("left");
+                } else {
+                    setStandardView("right");
+                }
+            } else {
+                // Regular 3 = Left view (menu shortcut)
+                setStandardView("left");
+            }
+            break;
+            
+        case Qt::Key_7:
+            if (event->modifiers() & Qt::KeypadModifier) {
+                // Numpad 7 = Top, Ctrl+Numpad 7 = Bottom
+                if (m_ctrlPressed) {
+                    setStandardView("bottom");
+                } else {
+                    setStandardView("top");
+                }
+            } else {
+                // Regular 7 = Top view (menu shortcut)
+                setStandardView("top");
+            }
+            break;
+            
+        case Qt::Key_0:
+            // 0 = Isometric view
+            setStandardView("isometric");
+            break;
+            
+        // Display mode shortcuts (Alt+number)
+        case Qt::Key_2:
+            if (!(event->modifiers() & Qt::KeypadModifier)) {
+                // Regular 2 key not used for views
+                handled = false;
+            }
             break;
         case Qt::Key_4:
-            setDisplayMode(DisplayMode::XRay);
+            if (!(event->modifiers() & Qt::KeypadModifier)) {
+                handled = false;
+            }
             break;
         case Qt::Key_5:
-            setDisplayMode(DisplayMode::DeviationMap);
+            if (!(event->modifiers() & Qt::KeypadModifier)) {
+                handled = false;
+            }
+            break;
+            
+        case Qt::Key_Delete:
+        case Qt::Key_Backspace:
+            // Delete selected objects
+            emit deleteRequested();
+            break;
+            
+        case Qt::Key_Escape:
+            // Cancel box selection or clear selection
+            if (m_isBoxSelecting) {
+                m_isBoxSelecting = false;
+                setCursor(Qt::ArrowCursor);
+                update();
+            } else if (m_selection && !m_selection->isEmpty()) {
+                m_selection->clear();
+            }
+            break;
+            
+        case Qt::Key_A:
+            // Ctrl+A = Select all (when implemented)
+            if (m_ctrlPressed) {
+                // TODO: Implement select all
+            } else {
+                handled = false;
+            }
             break;
             
         default:
-            QOpenGLWidget::keyPressEvent(event);
-            return;
+            handled = false;
+            break;
+    }
+    
+    if (!handled) {
+        QOpenGLWidget::keyPressEvent(event);
+        return;
     }
     
     event->accept();
@@ -830,8 +980,13 @@ void Viewport::setStandardView(const QString& viewName)
         m_camera->setStandardView(StandardView::Isometric);
     }
     
-    emit cameraChanged();
-    update();
+    // If animation started, request continuous redraws
+    if (m_camera->isAnimating()) {
+        update();  // First update triggers animation loop in paintGL
+    } else {
+        emit cameraChanged();
+        update();
+    }
 }
 
 void Viewport::fitView()
@@ -843,8 +998,57 @@ void Viewport::fitView()
 void Viewport::fitView(const BoundingBox& bounds)
 {
     m_camera->fitToView(bounds);
-    emit cameraChanged();
-    update();
+    
+    // If animation started, request continuous redraws
+    if (m_camera->isAnimating()) {
+        update();  // First update triggers animation loop in paintGL
+    } else {
+        emit cameraChanged();
+        update();
+    }
+}
+
+void Viewport::zoomToSelection()
+{
+    // If no selection manager or no selection, fall back to fit all
+    if (!m_selection || m_selection->isEmpty()) {
+        fitView();
+        return;
+    }
+    
+    // Compute bounds of selected objects
+    BoundingBox selectionBounds;
+    selectionBounds.min = QVector3D(std::numeric_limits<float>::max(),
+                                     std::numeric_limits<float>::max(),
+                                     std::numeric_limits<float>::max());
+    selectionBounds.max = QVector3D(std::numeric_limits<float>::lowest(),
+                                     std::numeric_limits<float>::lowest(),
+                                     std::numeric_limits<float>::lowest());
+    
+    bool hasBounds = false;
+    
+    // Get selected mesh IDs
+    auto selectedMeshIds = m_selection->selectedMeshIds();
+    
+    for (uint32_t meshId : selectedMeshIds) {
+        auto it = m_meshGPUData.find(static_cast<uint64_t>(meshId));
+        if (it != m_meshGPUData.end() && it->second && it->second->valid) {
+            selectionBounds.min.setX(std::min(selectionBounds.min.x(), it->second->boundsMin.x()));
+            selectionBounds.min.setY(std::min(selectionBounds.min.y(), it->second->boundsMin.y()));
+            selectionBounds.min.setZ(std::min(selectionBounds.min.z(), it->second->boundsMin.z()));
+            selectionBounds.max.setX(std::max(selectionBounds.max.x(), it->second->boundsMax.x()));
+            selectionBounds.max.setY(std::max(selectionBounds.max.y(), it->second->boundsMax.y()));
+            selectionBounds.max.setZ(std::max(selectionBounds.max.z(), it->second->boundsMax.z()));
+            hasBounds = true;
+        }
+    }
+    
+    if (hasBounds && selectionBounds.isValid()) {
+        fitView(selectionBounds);
+    } else {
+        // Fall back to fit all
+        fitView();
+    }
 }
 
 void Viewport::resetView()

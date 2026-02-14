@@ -642,6 +642,7 @@ void MainWindow::setupConnections()
     connect(m_menuBar, &MenuBar::viewBottomRequested, this, &MainWindow::onViewBottomRequested);
     connect(m_menuBar, &MenuBar::viewIsometricRequested, this, &MainWindow::onViewIsometricRequested);
     connect(m_menuBar, &MenuBar::zoomToFitRequested, this, &MainWindow::onZoomToFitRequested);
+    connect(m_menuBar, &MenuBar::zoomToSelectionRequested, this, &MainWindow::onZoomToSelectionRequested);
     connect(m_menuBar, &MenuBar::toggleGridRequested, this, &MainWindow::onToggleGridRequested);
     
     // Display mode connections
@@ -874,6 +875,13 @@ void MainWindow::onZoomToFitRequested()
 {
     if (m_viewport) {
         m_viewport->fitView();
+    }
+}
+
+void MainWindow::onZoomToSelectionRequested()
+{
+    if (m_viewport) {
+        m_viewport->zoomToSelection();
     }
 }
 
