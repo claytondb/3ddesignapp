@@ -33,6 +33,24 @@ public:
     QAction* actionUndo() const { return m_actionUndo; }
     QAction* actionRedo() const { return m_actionRedo; }
     QAction* actionSelect() const { return m_actionSelect; }
+    QAction* actionTranslate() const { return m_actionTranslate; }
+    QAction* actionRotate() const { return m_actionRotate; }
+    QAction* actionScale() const { return m_actionScale; }
+    
+    /**
+     * @brief Update transform button states from external source
+     */
+    void setTransformMode(int mode);
+    
+    /**
+     * @brief Show current constraint in toolbar (visual feedback)
+     */
+    void setAxisConstraint(int constraint);
+    
+    /**
+     * @brief Show current coordinate space
+     */
+    void setCoordinateSpace(int space);
 
 signals:
     // File operations

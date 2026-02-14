@@ -10,6 +10,8 @@
 #include "dialogs/PreferencesDialog.h"
 #include "dialogs/PrimitiveCreationDialog.h"
 #include "renderer/Viewport.h"
+#include "renderer/TransformGizmo.h"
+#include "tools/MeasureTool.h"
 #include "app/Application.h"
 
 #include <QApplication>
@@ -591,6 +593,71 @@ void MainWindow::setupCentralWidget()
     
     // Connect FPS updates to status bar
     connect(m_viewport, &dc::Viewport::fpsUpdated, this, &MainWindow::setFPS);
+    
+    // Create measure tool
+    m_measureTool = new dc::MeasureTool(m_viewport, this);
+    
+    // Connect measure tool signals to status bar
+    connect(m_measureTool, &dc::MeasureTool::statusUpdate, [this](const QString& text) {
+        m_statusBar->showTemporaryMessage(text);
+    });
+    connect(m_measureTool, &dc::MeasureTool::toolHintUpdate, [this](const QString& hint) {
+        m_statusBar->setToolHint(hint);
+    });
+    
+    // Connect transform mode changes to toolbar sync
+    connect(m_viewport, &dc::Viewport::transformModeChanged, [this](int mode) {
+        if (m_toolbar) {
+            m_toolbar->setTransformMode(mode);
+        }
+        // Update status bar with mode info
+        QString modeName;
+        switch (mode) {
+            case 0: modeName = tr("Move"); break;
+            case 1: modeName = tr("Rotate"); break;
+            case 2: modeName = tr("Scale"); break;
+        }
+        setStatusMessage(tr("Transform: %1").arg(modeName));
+    });
+    
+    // Connect axis constraint changes to status bar
+    connect(m_viewport, &dc::Viewport::axisConstraintChanged, [this](dc::AxisConstraint constraint) {
+        QString constraintStr = dc::axisConstraintToString(constraint);
+        if (!constraintStr.isEmpty()) {
+            setStatusMessage(tr("Constrained to: %1").arg(constraintStr));
+        } else {
+            setStatusMessage(tr("Free transform"));
+        }
+    });
+    
+    // Connect coordinate space changes
+    connect(m_viewport, &dc::Viewport::coordinateSpaceChanged, [this](dc::CoordinateSpace space) {
+        QString spaceStr = dc::coordinateSpaceToString(space);
+        setStatusMessage(tr("Coordinate Space: %1").arg(spaceStr));
+    });
+    
+    // Connect pivot point changes
+    connect(m_viewport, &dc::Viewport::pivotPointChanged, [this](dc::PivotPoint pivot) {
+        QString pivotStr = dc::pivotPointToString(pivot);
+        setStatusMessage(tr("Pivot: %1").arg(pivotStr));
+    });
+    
+    // Connect numeric input signals
+    connect(m_viewport, &dc::Viewport::numericInputStarted, [this]() {
+        setStatusMessage(tr("Enter value (comma for X,Y,Z)..."));
+    });
+    
+    connect(m_viewport, &dc::Viewport::numericInputChanged, [this](const QString& text) {
+        setStatusMessage(tr("Value: %1").arg(text.isEmpty() ? tr("(type number)") : text));
+    });
+    
+    connect(m_viewport, &dc::Viewport::numericInputConfirmed, [this](const QVector3D& value) {
+        setStatusMessage(tr("Applied: %.2f, %.2f, %.2f").arg(value.x()).arg(value.y()).arg(value.z()));
+    });
+    
+    connect(m_viewport, &dc::Viewport::numericInputCancelled, [this]() {
+        setStatusMessage(tr("Input cancelled"));
+    });
 }
 
 void MainWindow::setupMenuBar()
@@ -740,6 +807,18 @@ void MainWindow::setupConnections()
     connect(m_toolbar, &Toolbar::createCylinderRequested, this, &MainWindow::onCreateCylinderRequested);
     connect(m_toolbar, &Toolbar::createConeRequested, this, &MainWindow::onCreateConeRequested);
     connect(m_toolbar, &Toolbar::createPlaneRequested, this, &MainWindow::onCreatePlaneRequested);
+    
+    // Measure tool connections - menu
+    connect(m_menuBar, &MenuBar::measureDistanceRequested, this, &MainWindow::onMeasureDistanceRequested);
+    connect(m_menuBar, &MenuBar::measureAngleRequested, this, &MainWindow::onMeasureAngleRequested);
+    connect(m_menuBar, &MenuBar::measureRadiusRequested, this, &MainWindow::onMeasureRadiusRequested);
+    connect(m_menuBar, &MenuBar::clearMeasurementsRequested, this, &MainWindow::onClearMeasurementsRequested);
+    
+    // Measure tool connections - toolbar
+    connect(m_toolbar, &Toolbar::measureDistanceRequested, this, &MainWindow::onMeasureDistanceRequested);
+    connect(m_toolbar, &Toolbar::measureAngleRequested, this, &MainWindow::onMeasureAngleRequested);
+    connect(m_toolbar, &Toolbar::measureRadiusRequested, this, &MainWindow::onMeasureRadiusRequested);
+    connect(m_toolbar, &Toolbar::clearMeasurementsRequested, this, &MainWindow::onClearMeasurementsRequested);
 }
 
 void MainWindow::applyStylesheet()

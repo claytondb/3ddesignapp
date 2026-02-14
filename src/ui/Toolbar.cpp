@@ -451,3 +451,33 @@ void Toolbar::setupSearchWidget()
     connect(m_searchEdit, &QLineEdit::textChanged, this, &Toolbar::searchTextChanged);
     addWidget(m_searchEdit);
 }
+
+void Toolbar::setTransformMode(int mode)
+{
+    // Update the toolbar buttons to reflect the current mode
+    switch (mode) {
+        case 0: // Translate
+            m_actionTranslate->setChecked(true);
+            break;
+        case 1: // Rotate
+            m_actionRotate->setChecked(true);
+            break;
+        case 2: // Scale
+            m_actionScale->setChecked(true);
+            break;
+    }
+}
+
+void Toolbar::setAxisConstraint(int constraint)
+{
+    // Visual feedback for axis constraint could be added here
+    // For now, the constraint is shown in the status bar
+    Q_UNUSED(constraint);
+}
+
+void Toolbar::setCoordinateSpace(int space)
+{
+    // Visual feedback for coordinate space could be added here
+    // For now, the space is shown in the status bar
+    Q_UNUSED(space);
+}

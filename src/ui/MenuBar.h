@@ -187,6 +187,22 @@ signals:
     void clearMeasurementsRequested();
     void alignmentToolRequested();
     
+    // Alignment signals
+    void alignLeftRequested();
+    void alignCenterHRequested();
+    void alignRightRequested();
+    void alignTopRequested();
+    void alignMiddleVRequested();
+    void alignBottomRequested();
+    void distributeHorizontallyRequested();
+    void distributeVerticallyRequested();
+    
+    // Snap signals
+    void toggleSnapRequested();
+    void toggleGridSnapRequested();
+    void toggleObjectSnapRequested();
+    void snapSettingsRequested();
+    
     // Help menu signals
     void gettingStartedRequested();
     void tutorialsRequested();
@@ -301,6 +317,22 @@ private:
     QAction* m_actionSketch2D;
     QAction* m_actionExtrude;
     QAction* m_actionRevolve;
+    
+    // Alignment actions
+    QAction* m_actionAlignLeft;
+    QAction* m_actionAlignCenterH;
+    QAction* m_actionAlignRight;
+    QAction* m_actionAlignTop;
+    QAction* m_actionAlignMiddleV;
+    QAction* m_actionAlignBottom;
+    QAction* m_actionDistributeH;
+    QAction* m_actionDistributeV;
+    
+    // Snap actions
+    QAction* m_actionToggleSnap;
+    QAction* m_actionToggleGridSnap;
+    QAction* m_actionToggleObjectSnap;
+    QAction* m_actionSnapSettings;
 };
 
 #endif // DC_MENUBAR_H

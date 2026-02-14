@@ -17,6 +17,7 @@ class QDropEvent;
 
 namespace dc {
 class Viewport;
+class MeasureTool;
 }
 
 /**
@@ -129,6 +130,12 @@ private slots:
     void onTranslateModeRequested();
     void onRotateModeRequested();
     void onScaleModeRequested();
+    
+    // Measure tool
+    void onMeasureDistanceRequested();
+    void onMeasureAngleRequested();
+    void onMeasureRadiusRequested();
+    void onClearMeasurementsRequested();
 
 private:
     void setupUI();
@@ -158,6 +165,9 @@ private:
     
     // Central viewport (OpenGL)
     dc::Viewport* m_viewport;
+    
+    // Measure tool
+    dc::MeasureTool* m_measureTool;
     
     // Current mode
     QString m_currentMode;

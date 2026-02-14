@@ -15,6 +15,10 @@ set(UI_SOURCES
     Toolbar.h
     HelpSystem.cpp
     HelpSystem.h
+    TransformInputWidget.cpp
+    TransformInputWidget.h
+    ViewPresetsWidget.cpp
+    ViewPresetsWidget.h
 )
 
 # Sketch UI sources - DISABLED: requires incomplete geometry classes and Viewport methods
