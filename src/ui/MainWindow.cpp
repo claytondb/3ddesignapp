@@ -667,6 +667,11 @@ void MainWindow::setupConnections()
     connect(m_toolbar, &Toolbar::undoRequested, this, &MainWindow::onUndoRequested);
     connect(m_toolbar, &Toolbar::redoRequested, this, &MainWindow::onRedoRequested);
     
+    // Transform mode connections
+    connect(m_toolbar, &Toolbar::translateModeRequested, this, &MainWindow::onTranslateModeRequested);
+    connect(m_toolbar, &Toolbar::rotateModeRequested, this, &MainWindow::onRotateModeRequested);
+    connect(m_toolbar, &Toolbar::scaleModeRequested, this, &MainWindow::onScaleModeRequested);
+    
     // View menu connections
     connect(m_menuBar, &MenuBar::viewFrontRequested, this, &MainWindow::onViewFrontRequested);
     connect(m_menuBar, &MenuBar::viewBackRequested, this, &MainWindow::onViewBackRequested);
@@ -1076,6 +1081,27 @@ void MainWindow::onCreatePlaneRequested()
             QMessageBox::warning(this, tr("Create Error"), 
                 tr("Failed to create plane primitive."));
         }
+    }
+}
+
+void MainWindow::onTranslateModeRequested()
+{
+    if (m_viewport) {
+        m_viewport->setGizmoMode(0);  // GizmoMode::Translate
+    }
+}
+
+void MainWindow::onRotateModeRequested()
+{
+    if (m_viewport) {
+        m_viewport->setGizmoMode(1);  // GizmoMode::Rotate
+    }
+}
+
+void MainWindow::onScaleModeRequested()
+{
+    if (m_viewport) {
+        m_viewport->setGizmoMode(2);  // GizmoMode::Scale
     }
 }
 

@@ -32,6 +32,7 @@ public:
     QAction* actionSave() const { return m_actionSave; }
     QAction* actionUndo() const { return m_actionUndo; }
     QAction* actionRedo() const { return m_actionRedo; }
+    QAction* actionSelect() const { return m_actionSelect; }
 
 signals:
     // File operations
@@ -67,6 +68,11 @@ signals:
     void smoothingRequested();
     void fillHolesRequested();
     void clippingBoxRequested();
+    
+    // Transform tools
+    void translateModeRequested();
+    void rotateModeRequested();
+    void scaleModeRequested();
 
     // Search
     void searchTextChanged(const QString& text);
@@ -75,6 +81,7 @@ private:
     void setupFileGroup();
     void setupHistoryGroup();
     void setupSelectionGroup();
+    void setupTransformGroup();
     void setupViewGroup();
     void setupCreateGroup();
     void setupMeshToolsGroup();
@@ -101,6 +108,12 @@ private:
     QAction* m_actionBoxSelect;
     QAction* m_actionLassoSelect;
     QAction* m_actionBrushSelect;
+    
+    // Transform actions
+    QActionGroup* m_transformGroup;
+    QAction* m_actionTranslate;
+    QAction* m_actionRotate;
+    QAction* m_actionScale;
 
     // View mode actions
     QActionGroup* m_viewModeGroup;

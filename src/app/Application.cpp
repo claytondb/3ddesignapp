@@ -76,6 +76,9 @@ bool Application::initialize()
     // Initialize integration controller
     m_integrationController = std::make_unique<dc3d::IntegrationController>();
     
+    // Load backup settings
+    loadBackupSettings();
+    
     m_initialized = true;
     qDebug() << "Application initialized successfully";
     return true;
@@ -318,7 +321,7 @@ bool Application::importMesh(const QString& filePath)
                  << "Vertices:" << vertexCount
                  << "Faces:" << faceCount;
         
-        emit meshImported(meshName, meshId, vertexCount, faceCount, loadTimeMs);
+        emit meshImported(meshName, meshId);
         
         return true;
         
@@ -456,6 +459,176 @@ bool Application::createPrimitive(const QString& type)
     } catch (...) {
         qWarning() << "Unknown error creating primitive";
         return false;
+    }
+}
+
+// ============================================================================
+// Selection Management
+// ============================================================================
+
+void Application::deselectAll()
+{
+    if (m_selection) {
+        m_selection->clear();
+    }
+}
+
+// ============================================================================
+// Auto-Backup Functionality
+// ============================================================================
+
+void Application::loadBackupSettings()
+{
+    QSettings settings("dc-3ddesignapp", "dc-3ddesignapp");
+    m_autoBackupEnabled = settings.value("backup/enabled", true).toBool();
+    m_backupDirectory = settings.value("backup/directory", 
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/backups").toString();
+    
+    // Create backup directory if it doesn't exist
+    QDir dir(m_backupDirectory);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+}
+
+void Application::saveBackupSettings()
+{
+    QSettings settings("dc-3ddesignapp", "dc-3ddesignapp");
+    settings.setValue("backup/enabled", m_autoBackupEnabled);
+    settings.setValue("backup/directory", m_backupDirectory);
+}
+
+void Application::setAutoBackupEnabled(bool enabled)
+{
+    m_autoBackupEnabled = enabled;
+    saveBackupSettings();
+    qDebug() << "Auto-backup" << (enabled ? "enabled" : "disabled");
+}
+
+void Application::setBackupDirectory(const QString& dir)
+{
+    m_backupDirectory = dir;
+    
+    // Create directory if needed
+    QDir backupDir(dir);
+    if (!backupDir.exists()) {
+        backupDir.mkpath(".");
+    }
+    
+    saveBackupSettings();
+    qDebug() << "Backup directory set to:" << dir;
+}
+
+QString Application::createBackup(const QString& reason)
+{
+    if (!m_autoBackupEnabled) {
+        qDebug() << "Auto-backup is disabled, skipping backup creation";
+        return QString();
+    }
+    
+    if (!m_sceneManager || m_sceneManager->meshCount() == 0) {
+        qDebug() << "No meshes in scene, skipping backup";
+        return QString();
+    }
+    
+    // Create backup directory if needed
+    QDir backupDir(m_backupDirectory);
+    if (!backupDir.exists()) {
+        if (!backupDir.mkpath(".")) {
+            qWarning() << "Failed to create backup directory:" << m_backupDirectory;
+            return QString();
+        }
+    }
+    
+    // Generate backup filename with timestamp
+    QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+    QString reasonSuffix = reason.isEmpty() ? "" : "_" + reason.simplified().replace(" ", "-").left(30);
+    QString backupName = QString("backup_%1%2.dc3d").arg(timestamp).arg(reasonSuffix);
+    QString backupPath = backupDir.filePath(backupName);
+    
+    // TODO: Actually save the scene to backup file
+    // For now, we create a placeholder that demonstrates the structure
+    // In a full implementation, this would serialize the scene using NativeFormat
+    
+    QFile backupFile(backupPath);
+    if (backupFile.open(QIODevice::WriteOnly)) {
+        // Placeholder - in real implementation, use NativeFormat::save()
+        QTextStream stream(&backupFile);
+        stream << "# DC-3DDesignApp Backup\n";
+        stream << "# Created: " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
+        stream << "# Reason: " << reason << "\n";
+        stream << "# Mesh count: " << m_sceneManager->meshCount() << "\n";
+        backupFile.close();
+        
+        qDebug() << "Backup created:" << backupPath;
+        
+        // Clean up old backups
+        cleanupOldBackups();
+        
+        return backupPath;
+    } else {
+        qWarning() << "Failed to create backup file:" << backupPath;
+        return QString();
+    }
+}
+
+QStringList Application::recentBackups() const
+{
+    QDir backupDir(m_backupDirectory);
+    if (!backupDir.exists()) {
+        return QStringList();
+    }
+    
+    QStringList filters;
+    filters << "backup_*.dc3d";
+    
+    QFileInfoList files = backupDir.entryInfoList(filters, QDir::Files, QDir::Time);
+    
+    QStringList result;
+    for (const QFileInfo& info : files) {
+        result.append(info.absoluteFilePath());
+    }
+    
+    return result;
+}
+
+bool Application::restoreFromBackup(const QString& backupPath)
+{
+    if (!QFile::exists(backupPath)) {
+        qWarning() << "Backup file not found:" << backupPath;
+        return false;
+    }
+    
+    // TODO: Implement actual restore using NativeFormat::load()
+    // For now, just log the intent
+    qDebug() << "Restoring from backup:" << backupPath;
+    
+    // In full implementation:
+    // 1. Clear current scene
+    // 2. Load backup file
+    // 3. Rebuild viewport
+    
+    return true;
+}
+
+void Application::cleanupOldBackups()
+{
+    QDir backupDir(m_backupDirectory);
+    if (!backupDir.exists()) {
+        return;
+    }
+    
+    QStringList filters;
+    filters << "backup_*.dc3d";
+    
+    QFileInfoList files = backupDir.entryInfoList(filters, QDir::Files, QDir::Time);
+    
+    // Keep only MAX_BACKUPS most recent
+    while (files.size() > MAX_BACKUPS) {
+        QFileInfo oldest = files.takeLast();
+        if (QFile::remove(oldest.absoluteFilePath())) {
+            qDebug() << "Removed old backup:" << oldest.fileName();
+        }
     }
 }
 

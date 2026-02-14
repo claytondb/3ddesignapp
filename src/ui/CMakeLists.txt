@@ -61,6 +61,8 @@ set(DIALOG_SOURCES
     dialogs/ExtrudeDialog.h
     dialogs/RevolveDialog.cpp
     dialogs/RevolveDialog.h
+    dialogs/ExportFormatDialog.cpp
+    dialogs/ExportFormatDialog.h
     # Excluded - requires imgui dependency:
     # dialogs/ExportDialog.cpp
     # dialogs/ExportDialog.h

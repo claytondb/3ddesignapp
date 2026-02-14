@@ -3,12 +3,15 @@
 
 #include <QMainWindow>
 #include <QDockWidget>
+#include <QStringList>
 
 class MenuBar;
 class Toolbar;
 class ObjectBrowser;
 class PropertiesPanel;
 class StatusBar;
+class QDragEnterEvent;
+class QDropEvent;
 
 namespace dc {
 class Viewport;
@@ -23,6 +26,8 @@ class Viewport;
  * - Right dock: Properties panel
  * - Menu bar and toolbar
  * - Status bar
+ * - Drag and drop file import
+ * - Recent files tracking
  */
 class MainWindow : public QMainWindow
 {
@@ -41,6 +46,16 @@ public:
 
     // Viewport access (real OpenGL viewport)
     dc::Viewport* viewport() const { return m_viewport; }
+    
+    // Recent files management
+    void addRecentFile(const QString& filePath);
+    QStringList recentFiles() const { return m_recentFiles; }
+    void clearRecentFiles();
+    
+    // Supported file formats
+    static QStringList supportedImportFormats();
+    static QStringList supportedExportFormats();
+    static bool isFormatSupported(const QString& extension);
 
 public slots:
     // Panel visibility
@@ -70,12 +85,16 @@ public slots:
 
 signals:
     void modeChanged(const QString& mode);
+    void recentFilesChanged(const QStringList& files);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private slots:
+    void onRecentFileRequested(const QString& path);
     void onOpenProjectRequested();
     void onImportMeshRequested();
     void onViewFrontRequested();
@@ -100,6 +119,11 @@ private slots:
     void onCreateCylinderRequested();
     void onCreateConeRequested();
     void onCreatePlaneRequested();
+    
+    // Transform modes
+    void onTranslateModeRequested();
+    void onRotateModeRequested();
+    void onScaleModeRequested();
 
 private:
     void setupUI();
@@ -129,6 +153,10 @@ private:
     
     // Current mode
     QString m_currentMode;
+    
+    // Recent files (max 10)
+    QStringList m_recentFiles;
+    static const int MAX_RECENT_FILES = 10;
 };
 
 #endif // DC_MAINWINDOW_H
