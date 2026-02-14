@@ -127,24 +127,30 @@ QToolButton:disabled {
 /* Dock Widgets */
 QDockWidget {
     color: #ffffff;
-    titlebar-close-icon: url(:/icons/close.svg);
-    titlebar-normal-icon: url(:/icons/float.svg);
+    font-weight: 600;
 }
 
 QDockWidget::title {
     background-color: #2a2a2a;
-    padding: 6px;
+    padding: 8px 12px;
     border-bottom: 1px solid #4a4a4a;
+    text-align: left;
 }
 
 QDockWidget::close-button, QDockWidget::float-button {
     background-color: transparent;
     border: none;
-    padding: 2px;
+    border-radius: 3px;
+    padding: 4px;
+    margin: 2px;
 }
 
 QDockWidget::close-button:hover, QDockWidget::float-button:hover {
     background-color: #383838;
+}
+
+QDockWidget::close-button:pressed, QDockWidget::float-button:pressed {
+    background-color: #404040;
 }
 
 /* Panels */
@@ -231,13 +237,11 @@ QTreeWidget::item:selected {
 QTreeWidget::branch:has-children:!has-siblings:closed,
 QTreeWidget::branch:closed:has-children:has-siblings {
     border-image: none;
-    image: url(:/icons/branch-closed.svg);
 }
 
 QTreeWidget::branch:open:has-children:!has-siblings,
 QTreeWidget::branch:open:has-children:has-siblings {
     border-image: none;
-    image: url(:/icons/branch-open.svg);
 }
 
 /* Buttons */
@@ -334,11 +338,14 @@ QComboBox:focus {
 
 QComboBox::drop-down {
     border: none;
-    width: 20px;
+    width: 24px;
 }
 
 QComboBox::down-arrow {
-    image: url(:/icons/dropdown-arrow.svg);
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid #b3b3b3;
+    margin-right: 8px;
 }
 
 QComboBox QAbstractItemView {

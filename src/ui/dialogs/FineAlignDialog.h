@@ -86,6 +86,7 @@ private slots:
     
 private:
     void setupUI();
+    void applyStylesheet();
     void runAlignment();
     void updateProgress(float progress);
     void updateStatistics();

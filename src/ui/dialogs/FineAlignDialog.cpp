@@ -36,6 +36,204 @@ FineAlignDialog::FineAlignDialog(Viewport* viewport, QWidget* parent)
     setWindowTitle(tr("Fine Alignment (ICP)"));
     setMinimumSize(500, 600);
     setupUI();
+    applyStylesheet();
+}
+
+void FineAlignDialog::applyStylesheet() {
+    setStyleSheet(R"(
+        QDialog {
+            background-color: #2d2d2d;
+            color: #ffffff;
+        }
+        
+        QGroupBox {
+            background-color: #242424;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            margin-top: 12px;
+            padding: 12px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            subcontrol-position: top left;
+            padding: 0 8px;
+            color: #ffffff;
+        }
+        
+        QComboBox {
+            background-color: #333333;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            padding: 6px 12px;
+            color: #ffffff;
+            font-size: 13px;
+            min-height: 20px;
+        }
+        
+        QComboBox:hover {
+            border-color: #5c5c5c;
+        }
+        
+        QComboBox:focus {
+            border-color: #0078d4;
+        }
+        
+        QComboBox::drop-down {
+            border: none;
+            width: 24px;
+        }
+        
+        QComboBox::down-arrow {
+            image: none;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 6px solid #b3b3b3;
+            margin-right: 8px;
+        }
+        
+        QComboBox QAbstractItemView {
+            background-color: #2d2d2d;
+            border: 1px solid #4a4a4a;
+            selection-background-color: #0078d4;
+            selection-color: #ffffff;
+        }
+        
+        QLabel {
+            color: #b3b3b3;
+            font-size: 13px;
+        }
+        
+        QCheckBox {
+            color: #b3b3b3;
+            spacing: 8px;
+            font-size: 13px;
+        }
+        
+        QCheckBox::indicator {
+            width: 16px;
+            height: 16px;
+        }
+        
+        QCheckBox::indicator:checked {
+            background-color: #0078d4;
+            border: none;
+            border-radius: 3px;
+        }
+        
+        QCheckBox::indicator:unchecked {
+            background-color: #333333;
+            border: 1px solid #4a4a4a;
+            border-radius: 3px;
+        }
+        
+        QDoubleSpinBox, QSpinBox {
+            background-color: #333333;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            padding: 6px 8px;
+            color: #ffffff;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 13px;
+        }
+        
+        QDoubleSpinBox:focus, QSpinBox:focus {
+            border: 1px solid #0078d4;
+        }
+        
+        QDoubleSpinBox::up-button, QDoubleSpinBox::down-button,
+        QSpinBox::up-button, QSpinBox::down-button {
+            background-color: #3d3d3d;
+            border: none;
+            width: 16px;
+        }
+        
+        QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover,
+        QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+            background-color: #4a4a4a;
+        }
+        
+        QProgressBar {
+            background-color: #333333;
+            border: none;
+            border-radius: 4px;
+            text-align: center;
+            color: #ffffff;
+            font-size: 12px;
+        }
+        
+        QProgressBar::chunk {
+            background-color: #0078d4;
+            border-radius: 4px;
+        }
+        
+        QPlainTextEdit {
+            background-color: #1a1a1a;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            color: #b3b3b3;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 11px;
+            padding: 8px;
+        }
+        
+        QPushButton {
+            background-color: transparent;
+            color: #b3b3b3;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            min-width: 80px;
+        }
+        
+        QPushButton:hover {
+            background-color: #383838;
+            color: #ffffff;
+        }
+        
+        QPushButton:pressed {
+            background-color: #404040;
+        }
+        
+        QPushButton:disabled {
+            background-color: #2a2a2a;
+            color: #5c5c5c;
+            border-color: #333333;
+        }
+        
+        QPushButton#startButton {
+            background-color: #0078d4;
+            color: #ffffff;
+            border: none;
+        }
+        
+        QPushButton#startButton:hover {
+            background-color: #1a88e0;
+        }
+        
+        QPushButton#startButton:pressed {
+            background-color: #0066b8;
+        }
+        
+        QPushButton#stopButton {
+            background-color: #f44336;
+            color: #ffffff;
+            border: none;
+        }
+        
+        QPushButton#stopButton:hover {
+            background-color: #ef5350;
+        }
+        
+        QPushButton#stopButton:disabled {
+            background-color: #3d3d3d;
+            color: #5c5c5c;
+        }
+    )");
 }
 
 FineAlignDialog::~FineAlignDialog() = default;
@@ -134,9 +332,11 @@ void FineAlignDialog::setupUI() {
     
     auto* progressButtonLayout = new QHBoxLayout();
     m_startButton = new QPushButton(tr("Start"), this);
+    m_startButton->setObjectName("startButton");
     progressButtonLayout->addWidget(m_startButton);
     
     m_stopButton = new QPushButton(tr("Stop"), this);
+    m_stopButton->setObjectName("stopButton");
     m_stopButton->setEnabled(false);
     progressButtonLayout->addWidget(m_stopButton);
     
