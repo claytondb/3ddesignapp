@@ -420,11 +420,16 @@ void SelectionRenderer::deleteMeshBuffers(SelectionMeshInfo& info)
 // Rendering
 // ============================================================================
 
-void SelectionRenderer::render(const dc::Camera& camera, const core::Selection& selection)
+void SelectionRenderer::render(const dc::Camera& camera, const core::Selection& selection,
+                               const QSize& viewportSize)
 {
     if (!m_initialized || selection.isEmpty()) {
         return;
     }
+    
+    // Update viewport size for screen-space calculations
+    m_viewportWidth = static_cast<float>(viewportSize.width());
+    m_viewportHeight = static_cast<float>(viewportSize.height());
     
     // Group selection by mesh
     std::map<uint32_t, std::vector<uint32_t>> selectionByMesh;
@@ -448,24 +453,24 @@ void SelectionRenderer::render(const dc::Camera& camera, const core::Selection& 
     
     switch (mode) {
         case core::SelectionMode::Object:
-            renderObjectSelection(camera, selection.selectedMeshIds());
+            renderObjectSelection(camera, selection.selectedMeshIds(), false);
             break;
             
         case core::SelectionMode::Face:
             for (const auto& [meshId, indices] : selectionByMesh) {
-                renderFaceSelection(camera, meshId, indices);
+                renderFaceSelection(camera, meshId, indices, false);
             }
             break;
             
         case core::SelectionMode::Vertex:
             for (const auto& [meshId, indices] : selectionByMesh) {
-                renderVertexSelection(camera, meshId, indices);
+                renderVertexSelection(camera, meshId, indices, false);
             }
             break;
             
         case core::SelectionMode::Edge:
             for (const auto& [meshId, indices] : selectionByMesh) {
-                renderEdgeSelection(camera, meshId, indices);
+                renderEdgeSelection(camera, meshId, indices, false);
             }
             break;
     }
@@ -477,29 +482,34 @@ void SelectionRenderer::render(const dc::Camera& camera, const core::Selection& 
 
 void SelectionRenderer::renderHover(const dc::Camera& camera,
                                     const core::HitInfo& hitInfo,
-                                    core::SelectionMode mode)
+                                    core::SelectionMode mode,
+                                    const QSize& viewportSize)
 {
-    if (!m_initialized || !hitInfo.hit) {
+    if (!m_initialized || !hitInfo.hit || !m_config.showHover) {
         return;
     }
+    
+    // Update viewport size for screen-space calculations
+    m_viewportWidth = static_cast<float>(viewportSize.width());
+    m_viewportHeight = static_cast<float>(viewportSize.height());
     
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     
-    // Render with hover color
+    // Render with hover flag set to true
     switch (mode) {
         case core::SelectionMode::Object:
-            renderObjectSelection(camera, {hitInfo.meshId});
+            renderObjectSelection(camera, {hitInfo.meshId}, true);
             break;
             
         case core::SelectionMode::Face:
-            renderFaceSelection(camera, hitInfo.meshId, {hitInfo.faceIndex});
+            renderFaceSelection(camera, hitInfo.meshId, {hitInfo.faceIndex}, true);
             break;
             
         case core::SelectionMode::Vertex:
-            renderVertexSelection(camera, hitInfo.meshId, {hitInfo.closestVertex});
+            renderVertexSelection(camera, hitInfo.meshId, {hitInfo.closestVertex}, true);
             break;
             
         case core::SelectionMode::Edge:
@@ -518,7 +528,7 @@ void SelectionRenderer::renderHover(const dc::Camera& camera,
                 }
                 if (v1 > v2) std::swap(v1, v2);
                 uint32_t edgeIndex = (v2 << 16) | v1;
-                renderEdgeSelection(camera, hitInfo.meshId, {edgeIndex});
+                renderEdgeSelection(camera, hitInfo.meshId, {edgeIndex}, true);
             }
             break;
     }
@@ -595,7 +605,8 @@ void SelectionRenderer::renderObjectSelection(const dc::Camera& camera,
 
 void SelectionRenderer::renderFaceSelection(const dc::Camera& camera,
                                             uint32_t meshId,
-                                            const std::vector<uint32_t>& faceIndices)
+                                            const std::vector<uint32_t>& faceIndices,
+                                            bool isHover)
 {
     if (!m_selectionShader) return;
     
@@ -623,6 +634,8 @@ void SelectionRenderer::renderFaceSelection(const dc::Camera& camera,
     m_selectionShader->setUniformValue("outlineScale", 0.0f);
     m_selectionShader->setUniformValue("opacity", m_config.opacity);
     m_selectionShader->setUniformValue("xrayMode", m_config.xrayMode);
+    m_selectionShader->setUniformValue("isHover", isHover);
+    m_selectionShader->setUniformValue("viewportSize", QVector2D(m_viewportWidth, m_viewportHeight));
     m_selectionShader->setUniformValue("highlightColor",
         QVector4D(m_config.faceColor.r, m_config.faceColor.g,
                   m_config.faceColor.b, m_config.faceColor.a));
@@ -643,7 +656,8 @@ void SelectionRenderer::renderFaceSelection(const dc::Camera& camera,
 
 void SelectionRenderer::renderVertexSelection(const dc::Camera& camera,
                                               uint32_t meshId,
-                                              const std::vector<uint32_t>& vertexIndices)
+                                              const std::vector<uint32_t>& vertexIndices,
+                                              bool isHover)
 {
     if (!m_pointShader) return;
     
@@ -679,10 +693,15 @@ void SelectionRenderer::renderVertexSelection(const dc::Camera& camera,
     
     QMatrix4x4 vp = camera.projectionMatrix() * camera.viewMatrix();
     m_pointShader->setUniformValue("mvp", vp);
-    m_pointShader->setUniformValue("pointSize", m_config.vertexSize);
+    
+    // Larger size for hover
+    float pointSize = isHover ? m_config.vertexSize * 1.3f : m_config.vertexSize;
+    m_pointShader->setUniformValue("pointSize", pointSize);
+    
+    // Different color for hover
+    glm::vec4 color = isHover ? glm::vec4(0.5f, 1.0f, 0.6f, 0.8f) : m_config.vertexColor;
     m_pointShader->setUniformValue("color",
-        QVector4D(m_config.vertexColor.r, m_config.vertexColor.g,
-                  m_config.vertexColor.b, m_config.vertexColor.a));
+        QVector4D(color.r, color.g, color.b, color.a));
     
     glEnable(GL_PROGRAM_POINT_SIZE);
     glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(points.size()));
@@ -694,7 +713,8 @@ void SelectionRenderer::renderVertexSelection(const dc::Camera& camera,
 
 void SelectionRenderer::renderEdgeSelection(const dc::Camera& camera,
                                             uint32_t meshId,
-                                            const std::vector<uint32_t>& edgeIndices)
+                                            const std::vector<uint32_t>& edgeIndices,
+                                            bool isHover)
 {
     if (!m_lineShader) return;
     
@@ -732,11 +752,15 @@ void SelectionRenderer::renderEdgeSelection(const dc::Camera& camera,
     
     QMatrix4x4 vp = camera.projectionMatrix() * camera.viewMatrix();
     m_lineShader->setUniformValue("mvp", vp);
-    m_lineShader->setUniformValue("color",
-        QVector4D(m_config.edgeColor.r, m_config.edgeColor.g,
-                  m_config.edgeColor.b, m_config.edgeColor.a));
     
-    glLineWidth(m_config.edgeWidth);
+    // Different color and width for hover
+    glm::vec4 color = isHover ? glm::vec4(1.0f, 1.0f, 0.5f, 0.7f) : m_config.edgeColor;
+    float lineWidth = isHover ? m_config.edgeWidth * 1.5f : m_config.edgeWidth;
+    
+    m_lineShader->setUniformValue("color",
+        QVector4D(color.r, color.g, color.b, color.a));
+    
+    glLineWidth(lineWidth);
     glDrawArrays(GL_LINES, 0, static_cast<GLsizei>(linePoints.size()));
     glLineWidth(1.0f);
     

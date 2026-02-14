@@ -38,6 +38,8 @@ void ObjectBrowser::setupUI()
             this, &ObjectBrowser::onItemClicked);
     connect(m_treeWidget, &QTreeWidget::itemDoubleClicked, 
             this, &ObjectBrowser::onItemDoubleClicked);
+    connect(m_treeWidget, &QTreeWidget::itemChanged,
+            this, &ObjectBrowser::onItemChanged);
     connect(m_treeWidget, &QTreeWidget::itemSelectionChanged, 
             this, &ObjectBrowser::onSelectionChanged);
     connect(m_treeWidget, &QTreeWidget::customContextMenuRequested, 
@@ -358,11 +360,34 @@ void ObjectBrowser::onItemDoubleClicked(QTreeWidgetItem* item, int column)
         // Toggle section expansion
         item->setExpanded(!item->isExpanded());
     } else {
-        // Object double-clicked (for rename or zoom-to)
+        // Object double-clicked - start rename
         QString id = item->data(0, Qt::UserRole + 1).toString();
         if (!id.isEmpty()) {
-            emit itemDoubleClicked(id);
+            // Store old name for comparison
+            item->setData(0, Qt::UserRole + 10, item->text(0));
+            // Enable editing for rename
+            m_treeWidget->editItem(item, 0);
         }
+    }
+}
+
+void ObjectBrowser::onItemChanged(QTreeWidgetItem* item, int column)
+{
+    if (column != 0) return;
+    
+    QString type = item->data(0, Qt::UserRole).toString();
+    if (type != "object") return;
+    
+    QString id = item->data(0, Qt::UserRole + 1).toString();
+    QString oldName = item->data(0, Qt::UserRole + 10).toString();
+    QString newName = item->text(0);
+    
+    // Clear the stored old name
+    item->setData(0, Qt::UserRole + 10, QVariant());
+    
+    // Only emit if name actually changed
+    if (!id.isEmpty() && !oldName.isEmpty() && oldName != newName) {
+        emit itemRenamed(id, newName);
     }
 }
 

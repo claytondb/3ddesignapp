@@ -175,6 +175,7 @@ private slots:
     // Viewport signals
     void onViewportSelectionClick(const QPoint& pos, bool addToSelection, bool toggleSelection);
     void onViewportBoxSelection(const QRect& rect, bool addToSelection);
+    void onDeleteRequested();
     
 private:
     void connectSceneManager();
@@ -185,6 +186,7 @@ private:
     
     void updatePropertiesForSelection();
     void updateStatusBarForSelection();
+    void updateGizmoForSelection();
     
     // Components (non-owning pointers)
     core::SceneManager* m_sceneManager = nullptr;

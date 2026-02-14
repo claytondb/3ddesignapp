@@ -257,8 +257,27 @@ void SceneManager::restoreNode(std::unique_ptr<SceneNode> node, uint64_t parentI
     // For now, we only support restoring nodes at root level
     // parentId is reserved for future hierarchical scene support
     Q_UNUSED(parentId);
+    Q_UNUSED(index);
     
-    // Insert at specified index or at end if index is out of bounds
+    // Check if this is a MeshNode and restore to m_meshNodes
+    MeshNode* meshNode = dynamic_cast<MeshNode*>(node.get());
+    if (meshNode) {
+        uint64_t id = meshNode->id();
+        QString name = meshNode->displayName();
+        
+        // Transfer ownership to unique_ptr<MeshNode>
+        node.release();  // Release from SceneNode unique_ptr
+        std::unique_ptr<MeshNode> meshNodePtr(meshNode);
+        
+        // Restore to mesh nodes
+        m_meshNodes[id] = std::move(meshNodePtr);
+        
+        emit meshAdded(id, name);
+        emit sceneChanged();
+        return;
+    }
+    
+    // Otherwise add to generic nodes
     if (index < m_nodes.size()) {
         m_nodes.insert(m_nodes.begin() + index, std::move(node));
     } else {

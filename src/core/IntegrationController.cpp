@@ -10,6 +10,7 @@
 #include "IntegrationController.h"
 #include "SceneManager.h"
 #include "Selection.h"
+#include "Commands/DeleteCommand.h"
 #include "../renderer/Picking.h"
 #include "../renderer/Viewport.h"
 #include "../geometry/MeshData.h"
@@ -17,8 +18,11 @@
 #include "../ui/ObjectBrowser.h"
 #include "../ui/PropertiesPanel.h"
 #include "../ui/StatusBar.h"
+#include "../app/Application.h"
 
 #include <QDebug>
+#include <QMessageBox>
+#include <QUndoStack>
 
 namespace dc3d {
 
@@ -117,6 +121,8 @@ void IntegrationController::connectViewport()
             this, &IntegrationController::onViewportSelectionClick);
     connect(m_viewport, &dc::Viewport::boxSelectionComplete,
             this, &IntegrationController::onViewportBoxSelection);
+    connect(m_viewport, &dc::Viewport::deleteRequested,
+            this, &IntegrationController::onDeleteRequested);
 }
 
 // ===================
@@ -267,6 +273,9 @@ void IntegrationController::onSelectionChanged()
         }
         m_objectBrowser->setSelectedItems(idStrings);
     }
+    
+    // Update transform gizmo position
+    updateGizmoForSelection();
     
     // Request viewport repaint for selection highlighting
     if (m_viewport) {
@@ -527,6 +536,44 @@ void IntegrationController::updateStatusBarForSelection()
     }
 }
 
+void IntegrationController::updateGizmoForSelection()
+{
+    if (!m_viewport || !m_selection || !m_sceneManager) return;
+    
+    auto meshIds = m_selection->selectedMeshIds();
+    
+    if (meshIds.empty()) {
+        // Hide gizmo when nothing selected
+        m_viewport->updateGizmo(QVector3D(0, 0, 0), false);
+        return;
+    }
+    
+    // Compute center of selected objects
+    QVector3D center(0, 0, 0);
+    int count = 0;
+    
+    for (uint32_t id : meshIds) {
+        auto mesh = m_sceneManager->getMesh(id);
+        if (mesh) {
+            const auto& bounds = mesh->boundingBox();
+            QVector3D meshCenter(
+                (bounds.min.x + bounds.max.x) * 0.5f,
+                (bounds.min.y + bounds.max.y) * 0.5f,
+                (bounds.min.z + bounds.max.z) * 0.5f
+            );
+            center += meshCenter;
+            count++;
+        }
+    }
+    
+    if (count > 0) {
+        center /= static_cast<float>(count);
+        m_viewport->updateGizmo(center, true);
+    } else {
+        m_viewport->updateGizmo(QVector3D(0, 0, 0), false);
+    }
+}
+
 void IntegrationController::onViewportSelectionClick(const QPoint& pos, bool addToSelection, bool toggleSelection)
 {
     // Guard against partially initialized state
@@ -580,6 +627,61 @@ void IntegrationController::onViewportBoxSelection(const QRect& rect, bool addTo
     m_selection->select(elements, op);
     
     qDebug() << "Box selection found" << elements.size() << "elements";
+}
+
+void IntegrationController::onDeleteRequested()
+{
+    // Guard against partially initialized state
+    if (!m_initialized) return;
+    if (!m_selection || !m_sceneManager) return;
+    
+    auto meshIds = m_selection->selectedMeshIds();
+    if (meshIds.empty()) {
+        return;  // Nothing to delete
+    }
+    
+    // Get the application instance for undo stack
+    auto* app = dc3d::Application::instance();
+    if (!app || !app->undoStack()) {
+        qWarning() << "IntegrationController: Cannot delete - no undo stack";
+        return;
+    }
+    
+    // Confirm deletion for multiple objects
+    if (meshIds.size() > 1 && m_mainWindow) {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            m_mainWindow,
+            "Delete Objects",
+            QString("Delete %1 selected objects?\n\nThis can be undone with Ctrl+Z.")
+                .arg(meshIds.size()),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        
+        if (reply != QMessageBox::Yes) {
+            return;
+        }
+    }
+    
+    // Convert to vector of uint64_t for the delete command
+    std::vector<uint64_t> nodeIds;
+    nodeIds.reserve(meshIds.size());
+    for (uint32_t id : meshIds) {
+        nodeIds.push_back(static_cast<uint64_t>(id));
+    }
+    
+    // Create and execute delete command (for undo support)
+    auto* cmd = new core::DeleteCommand(m_sceneManager, nodeIds);
+    app->undoStack()->push(cmd);
+    
+    // Clear selection
+    m_selection->clear();
+    
+    qDebug() << "Deleted" << meshIds.size() << "objects";
+    
+    // Update status
+    if (m_mainWindow) {
+        m_mainWindow->setStatusMessage(QString("Deleted %1 object(s)").arg(meshIds.size()));
+    }
 }
 
 } // namespace dc3d

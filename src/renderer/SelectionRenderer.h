@@ -129,18 +129,22 @@ public:
      * @brief Render selection highlights
      * @param camera Current camera
      * @param selection Current selection state
+     * @param viewportSize Current viewport size for screen-space rendering
      */
-    void render(const dc::Camera& camera, const core::Selection& selection);
+    void render(const dc::Camera& camera, const core::Selection& selection,
+                const QSize& viewportSize);
     
     /**
      * @brief Render hover highlight (pre-selection feedback)
      * @param camera Current camera
      * @param hitInfo Current hover target
      * @param mode Selection mode
+     * @param viewportSize Current viewport size
      */
     void renderHover(const dc::Camera& camera, 
                      const core::HitInfo& hitInfo,
-                     core::SelectionMode mode);
+                     core::SelectionMode mode,
+                     const QSize& viewportSize);
     
     /**
      * @brief Render box selection rectangle
@@ -176,19 +180,23 @@ private:
     
     // Rendering helpers
     void renderObjectSelection(const dc::Camera& camera,
-                              const std::vector<uint32_t>& meshIds);
+                              const std::vector<uint32_t>& meshIds,
+                              bool isHover = false);
     
     void renderFaceSelection(const dc::Camera& camera,
                             uint32_t meshId,
-                            const std::vector<uint32_t>& faceIndices);
+                            const std::vector<uint32_t>& faceIndices,
+                            bool isHover = false);
     
     void renderVertexSelection(const dc::Camera& camera,
                               uint32_t meshId,
-                              const std::vector<uint32_t>& vertexIndices);
+                              const std::vector<uint32_t>& vertexIndices,
+                              bool isHover = false);
     
     void renderEdgeSelection(const dc::Camera& camera,
                             uint32_t meshId,
-                            const std::vector<uint32_t>& edgeIndices);
+                            const std::vector<uint32_t>& edgeIndices,
+                            bool isHover = false);
     
     // Find mesh info by ID
     SelectionMeshInfo* findMesh(uint32_t meshId);
@@ -205,6 +213,10 @@ private:
     bool m_initialized = false;
     SelectionRenderConfig m_config;
     std::vector<SelectionMeshInfo> m_meshes;
+    
+    // Viewport size for screen-space calculations
+    float m_viewportWidth = 1920.0f;
+    float m_viewportHeight = 1080.0f;
     
     // Shaders
     std::unique_ptr<QOpenGLShaderProgram> m_selectionShader;

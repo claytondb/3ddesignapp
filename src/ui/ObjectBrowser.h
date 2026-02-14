@@ -62,6 +62,9 @@ signals:
     void isolateItemRequested(const QString& id);
     void exportItemRequested(const QString& id);
     void renameItemRequested(const QString& id);
+    
+    // Rename completed
+    void itemRenamed(const QString& id, const QString& newName);
 
     // Visibility toggle
     void visibilityToggled(const QString& id, bool visible);
@@ -69,6 +72,7 @@ signals:
 private slots:
     void onItemClicked(QTreeWidgetItem* item, int column);
     void onItemDoubleClicked(QTreeWidgetItem* item, int column);
+    void onItemChanged(QTreeWidgetItem* item, int column);
     void onSelectionChanged();
     void showContextMenu(const QPoint& pos);
 

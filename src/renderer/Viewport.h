@@ -23,6 +23,10 @@
 #include <unordered_map>
 #include <cstdint>
 
+namespace dc {
+class TransformGizmo;
+}
+
 namespace dc3d {
 namespace geometry {
 class MeshData;
@@ -213,9 +217,39 @@ public:
     float fps() const { return m_fps; }
     
     /**
-     * @brief Enable/disable FPS display
+     * @brief Check if FPS is being shown
      */
-    void setShowFPS(bool show) { m_showFPS = show; }
+    bool isShowingFPS() const { return m_showFPS; }
+    
+    /**
+     * @brief Enable/disable FPS display (toggled with ` key)
+     */
+    void setShowFPS(bool show) { m_showFPS = show; update(); }
+    
+    /**
+     * @brief Toggle FPS display
+     */
+    void toggleFPS() { setShowFPS(!m_showFPS); }
+    
+    // ---- Transform Gizmo ----
+    
+    /**
+     * @brief Get transform gizmo
+     */
+    TransformGizmo* gizmo() const { return m_gizmo.get(); }
+    
+    /**
+     * @brief Update gizmo position from selection
+     * @param center World-space position for gizmo
+     * @param visible Whether gizmo should be visible
+     */
+    void updateGizmo(const QVector3D& center, bool visible);
+    
+    /**
+     * @brief Set gizmo mode
+     * @param mode 0=Translate, 1=Rotate, 2=Scale
+     */
+    void setGizmoMode(int mode);
 
 signals:
     /**
@@ -259,6 +293,12 @@ signals:
      * @param hitInfo Current hover target (or empty if nothing hovered)
      */
     void hoverChanged(const dc3d::core::HitInfo& hitInfo);
+    
+    /**
+     * @brief Emitted when FPS is updated (once per second)
+     * @param fps Current frames per second
+     */
+    void fpsUpdated(int fps);
 
 protected:
     // QOpenGLWidget overrides
@@ -289,6 +329,7 @@ private:
     void updateFPS();
     void uploadMeshToGPU(uint64_t id, const dc3d::geometry::MeshData& mesh);
     BoundingBox computeSceneBounds() const;
+    void renderFPSOverlay();
     
     QVector3D screenToWorld(const QPoint& screenPos, float depth = 0.0f) const;
     QVector3D unprojectMouse(const QPoint& pos) const;
@@ -300,6 +341,7 @@ private:
     std::unique_ptr<GridRenderer> m_gridRenderer;
     std::unique_ptr<ShaderProgram> m_meshShader;
     std::unique_ptr<dc3d::renderer::SelectionRenderer> m_selectionRenderer;
+    std::unique_ptr<TransformGizmo> m_gizmo;
     
     // Selection reference (raw pointer - lifetime managed by Application)
     dc3d::core::Selection* m_selection = nullptr;

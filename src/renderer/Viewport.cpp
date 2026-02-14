@@ -8,6 +8,7 @@
 #include "GridRenderer.h"
 #include "ShaderProgram.h"
 #include "SelectionRenderer.h"
+#include "TransformGizmo.h"
 #include "Picking.h"
 #include "geometry/MeshData.h"
 #include "core/Selection.h"
@@ -154,6 +155,9 @@ Viewport::~Viewport()
     if (m_selectionRenderer) {
         m_selectionRenderer->cleanup();
     }
+    if (m_gizmo) {
+        m_gizmo->cleanup();
+    }
     doneCurrent();
 }
 
@@ -178,6 +182,12 @@ void Viewport::initializeGL()
     if (!m_selectionRenderer->initialize()) {
         qWarning() << "Failed to initialize selection renderer";
     }
+    
+    // Initialize transform gizmo
+    m_gizmo = std::make_unique<TransformGizmo>();
+    m_gizmo->initialize();
+    m_gizmo->setVisible(false);  // Hidden until something is selected
+    m_gizmo->setScreenSpaceSizing(true);
     
     // Set initial camera position
     m_camera->lookAt(
@@ -276,6 +286,11 @@ void Viewport::paintGL()
         m_selectionRenderer->render(*m_camera, *m_selection, size());
     }
     
+    // Render transform gizmo on selected objects
+    if (m_gizmo && m_gizmo->isVisible()) {
+        m_gizmo->render(m_camera->viewMatrix(), m_camera->projectionMatrix(), size());
+    }
+    
     // Render box selection overlay if active
     if (m_isBoxSelecting && m_selectionRenderer) {
         m_selectionRenderer->renderBoxSelection(m_mouseDownPos, m_lastMousePos, size());
@@ -283,6 +298,11 @@ void Viewport::paintGL()
     
     // Update FPS counter
     updateFPS();
+    
+    // Render FPS overlay if enabled
+    if (m_showFPS) {
+        renderFPSOverlay();
+    }
 }
 
 void Viewport::resizeGL(int w, int h)
@@ -436,7 +456,21 @@ void Viewport::updateFPS()
         m_fps = m_frameCount * 1000.0f / (elapsed - m_lastFPSUpdate);
         m_frameCount = 0;
         m_lastFPSUpdate = elapsed;
+        
+        // Emit FPS update signal for status bar
+        emit fpsUpdated(static_cast<int>(m_fps + 0.5f));
     }
+}
+
+void Viewport::renderFPSOverlay()
+{
+    // Use QPainter overlay for FPS display (rendered after GL content)
+    // This is deferred to paintEvent override - Qt handles this via QPainter on QOpenGLWidget
+    // For now, emit signal and let MainWindow/StatusBar display it
+    // A proper implementation would use a separate overlay widget or QPainter in paintEvent
+    
+    // The actual rendering happens in the overridden paintEvent if needed,
+    // but for simplicity, we rely on the status bar FPS display
 }
 
 // ---- Mesh Management ----
@@ -1135,6 +1169,27 @@ QVector3D Viewport::unprojectMouse(const QPoint& pos) const
     }
     
     return origin + ray * t;
+}
+
+// ---- Transform Gizmo ----
+
+void Viewport::updateGizmo(const QVector3D& center, bool visible)
+{
+    if (!m_gizmo) return;
+    
+    m_gizmo->setVisible(visible);
+    if (visible) {
+        m_gizmo->setPosition(center);
+    }
+    update();
+}
+
+void Viewport::setGizmoMode(int mode)
+{
+    if (!m_gizmo) return;
+    
+    m_gizmo->setMode(mode);
+    update();
 }
 
 } // namespace dc
