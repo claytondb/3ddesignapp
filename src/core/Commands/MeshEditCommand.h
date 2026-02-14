@@ -165,11 +165,15 @@ public:
     /// Get decimation result statistics
     const geometry::DecimationResult& result() const { return result_; }
     
+    /// Get execution time in milliseconds
+    int64_t executionTimeMs() const { return executionTimeMs_; }
+    
 private:
     geometry::MeshData& mesh_;
     geometry::DecimationOptions options_;
     geometry::MeshData beforeMesh_;
     geometry::DecimationResult result_;
+    int64_t executionTimeMs_ = 0;
 };
 
 /**
@@ -194,11 +198,15 @@ public:
     /// Get smoothing result statistics
     const geometry::SmoothingResult& result() const { return result_; }
     
+    /// Get execution time in milliseconds
+    int64_t executionTimeMs() const { return executionTimeMs_; }
+    
 private:
     geometry::MeshData& mesh_;
     geometry::SmoothingOptions options_;
     geometry::MeshData beforeMesh_;
     geometry::SmoothingResult result_;
+    int64_t executionTimeMs_ = 0;
 };
 
 /**
@@ -230,12 +238,16 @@ public:
     /// Get repair result
     const geometry::RepairResult& result() const { return result_; }
     
+    /// Get execution time in milliseconds
+    int64_t executionTimeMs() const { return executionTimeMs_; }
+    
 private:
     geometry::MeshData& mesh_;
     Operation operation_;
     float parameter_;
     geometry::MeshData beforeMesh_;
     geometry::RepairResult result_;
+    int64_t executionTimeMs_ = 0;
 };
 
 /**
@@ -257,11 +269,15 @@ public:
     /// Get subdivision result
     const geometry::SubdivisionResult& result() const { return result_; }
     
+    /// Get execution time in milliseconds
+    int64_t executionTimeMs() const { return executionTimeMs_; }
+    
 private:
     geometry::MeshData& mesh_;
     geometry::SubdivisionOptions options_;
     geometry::MeshData beforeMesh_;
     geometry::SubdivisionResult result_;
+    int64_t executionTimeMs_ = 0;
 };
 
 // ============================================================================

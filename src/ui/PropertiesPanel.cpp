@@ -1,4 +1,5 @@
 #include "PropertiesPanel.h"
+#include "HelpSystem.h"
 #include <QFormLayout>
 #include <QScrollArea>
 #include <QPushButton>
@@ -240,8 +241,10 @@ QWidget* PropertiesPanel::createMeshPage()
     
     geoLayout->addWidget(createInfoRow(tr("Triangles:"), m_meshTrianglesLabel));
     geoLayout->addWidget(createInfoRow(tr("Vertices:"), m_meshVerticesLabel));
+    geoLayout->addWidget(createInfoRow(tr("Edges:"), m_meshEdgesLabel));
     geoLayout->addWidget(createInfoRow(tr("Bounds:"), m_meshBoundsLabel));
     geoLayout->addWidget(createInfoRow(tr("Has holes:"), m_meshHolesLabel));
+    geoLayout->addWidget(createInfoRow(tr("Memory:"), m_meshMemoryLabel));
     
     layout->addWidget(geoGroup);
 
@@ -279,6 +282,8 @@ QWidget* PropertiesPanel::createMeshPage()
     m_opacitySlider = new QSlider(Qt::Horizontal);
     m_opacitySlider->setRange(0, 100);
     m_opacitySlider->setValue(100);
+    m_opacitySlider->setToolTip(tr("Adjust mesh transparency (100% = solid, 0% = invisible)"));
+    m_opacitySlider->setWhatsThis(HelpText::meshOpacity());
     connect(m_opacitySlider, &QSlider::valueChanged, this, [this](int value) {
         m_opacityLabel->setText(QString::number(value) + "%");
         emit meshOpacityChanged(value);
@@ -295,6 +300,8 @@ QWidget* PropertiesPanel::createMeshPage()
     // Show edges checkbox
     m_showEdgesCheck = new QCheckBox(tr("Show edges"));
     m_showEdgesCheck->setChecked(false);
+    m_showEdgesCheck->setToolTip(tr("Display mesh edges as wireframe overlay"));
+    m_showEdgesCheck->setWhatsThis(tr("<b>Show Edges</b><br><br>When enabled, displays the mesh edges (wireframe) on top of the shaded surface.<br><br>Useful for visualizing mesh density and structure."));
     connect(m_showEdgesCheck, &QCheckBox::toggled, this, &PropertiesPanel::meshShowEdgesChanged);
     displayLayout->addWidget(m_showEdgesCheck);
     
@@ -308,11 +315,21 @@ QWidget* PropertiesPanel::createMeshPage()
     // Position
     QLabel* posLabel = new QLabel(tr("Position:"));
     posLabel->setStyleSheet("color: #808080;");
+    posLabel->setToolTip(tr("Object position in world coordinates"));
+    posLabel->setWhatsThis(HelpText::transformPosition());
     transformLayout->addWidget(posLabel);
     
     m_posXSpin = new QDoubleSpinBox();
     m_posYSpin = new QDoubleSpinBox();
     m_posZSpin = new QDoubleSpinBox();
+    
+    // Add tooltips to position spinboxes
+    m_posXSpin->setToolTip(tr("X position (left/right)"));
+    m_posYSpin->setToolTip(tr("Y position (forward/back)"));
+    m_posZSpin->setToolTip(tr("Z position (up/down)"));
+    m_posXSpin->setWhatsThis(HelpText::transformPosition());
+    m_posYSpin->setWhatsThis(HelpText::transformPosition());
+    m_posZSpin->setWhatsThis(HelpText::transformPosition());
     
     transformLayout->addWidget(createSpinBoxRow("X:", m_posXSpin, "mm"));
     transformLayout->addWidget(createSpinBoxRow("Y:", m_posYSpin, "mm"));
@@ -329,6 +346,8 @@ QWidget* PropertiesPanel::createMeshPage()
     // Rotation
     QLabel* rotLabel = new QLabel(tr("Rotation:"));
     rotLabel->setStyleSheet("color: #808080;");
+    rotLabel->setToolTip(tr("Object rotation angles"));
+    rotLabel->setWhatsThis(HelpText::transformRotation());
     transformLayout->addWidget(rotLabel);
     
     m_rotXSpin = new QDoubleSpinBox();
@@ -341,6 +360,14 @@ QWidget* PropertiesPanel::createMeshPage()
     m_rotXSpin->setRange(-360, 360);
     m_rotYSpin->setRange(-360, 360);
     m_rotZSpin->setRange(-360, 360);
+    
+    // Add tooltips to rotation spinboxes
+    m_rotXSpin->setToolTip(tr("Rotation around X axis (pitch)"));
+    m_rotYSpin->setToolTip(tr("Rotation around Y axis (yaw)"));
+    m_rotZSpin->setToolTip(tr("Rotation around Z axis (roll)"));
+    m_rotXSpin->setWhatsThis(HelpText::transformRotation());
+    m_rotYSpin->setWhatsThis(HelpText::transformRotation());
+    m_rotZSpin->setWhatsThis(HelpText::transformRotation());
     
     transformLayout->addWidget(createSpinBoxRow("X:", m_rotXSpin, ""));
     transformLayout->addWidget(createSpinBoxRow("Y:", m_rotYSpin, ""));
@@ -509,6 +536,26 @@ void PropertiesPanel::setMeshTriangles(int count)
 void PropertiesPanel::setMeshVertices(int count)
 {
     m_meshVerticesLabel->setText(QLocale().toString(count));
+}
+
+void PropertiesPanel::setMeshEdges(int count)
+{
+    m_meshEdgesLabel->setText(QLocale().toString(count));
+}
+
+void PropertiesPanel::setMeshMemoryUsage(size_t bytes)
+{
+    QString text;
+    if (bytes < 1024) {
+        text = QString("%1 B").arg(bytes);
+    } else if (bytes < 1024 * 1024) {
+        text = QString("%1 KB").arg(bytes / 1024.0, 0, 'f', 1);
+    } else if (bytes < 1024 * 1024 * 1024) {
+        text = QString("%1 MB").arg(bytes / (1024.0 * 1024.0), 0, 'f', 2);
+    } else {
+        text = QString("%1 GB").arg(bytes / (1024.0 * 1024.0 * 1024.0), 0, 'f', 2);
+    }
+    m_meshMemoryLabel->setText(text);
 }
 
 void PropertiesPanel::setMeshBounds(double x, double y, double z)

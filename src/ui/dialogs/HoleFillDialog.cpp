@@ -1,4 +1,5 @@
 #include "HoleFillDialog.h"
+#include "../HelpSystem.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -117,6 +118,10 @@ void HoleFillDialog::setupUI()
 
     // Action buttons
     QHBoxLayout* buttonLayout = new QHBoxLayout();
+    
+    // Help button
+    QPushButton* helpButton = HelpSystem::addContextHelpButton(this, HelpText::fillHoles());
+    buttonLayout->addWidget(helpButton);
     
     m_resetButton = new QPushButton(tr("Reset"));
     m_resetButton->setObjectName("secondaryButton");

@@ -1,4 +1,5 @@
 #include "ClippingBoxDialog.h"
+#include "../HelpSystem.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -136,6 +137,10 @@ void ClippingBoxDialog::setupUI()
 
     // Button box
     QHBoxLayout* buttonLayout = new QHBoxLayout();
+    
+    // Help button
+    QPushButton* helpButton = HelpSystem::addContextHelpButton(this, HelpText::clippingBox());
+    buttonLayout->addWidget(helpButton);
     
     m_resetButton = new QPushButton(tr("Reset"));
     m_resetButton->setObjectName("smallButton");

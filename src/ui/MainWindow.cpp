@@ -4,6 +4,9 @@
 #include "ObjectBrowser.h"
 #include "PropertiesPanel.h"
 #include "StatusBar.h"
+#include "HelpSystem.h"
+#include "dialogs/GettingStartedDialog.h"
+#include "dialogs/UndoHistoryDialog.h"
 #include "renderer/Viewport.h"
 #include "app/Application.h"
 
@@ -22,6 +25,8 @@
 #include <QLocale>
 #include <QMessageBox>
 #include <QUndoStack>
+#include <QTimer>
+#include <QWhatsThis>
 
 // Dark theme stylesheet based on STYLE_GUIDE.md
 static const char* DARK_THEME_STYLESHEET = R"(
@@ -525,6 +530,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_propertiesDock(nullptr)
     , m_viewport(nullptr)
     , m_currentMode("Mesh")
+    , m_undoHistoryDialog(nullptr)
 {
     setupUI();
     setupConnections();
@@ -532,6 +538,14 @@ MainWindow::MainWindow(QWidget *parent)
     
     // Enable drag and drop
     setAcceptDrops(true);
+    
+    // Install What's This mode shortcut (Shift+F1)
+    HelpSystem::instance()->installShortcut(this);
+    
+    // Show first-run tutorial after window is shown
+    QTimer::singleShot(500, this, [this]() {
+        GettingStartedDialog::showOnFirstRun(this);
+    });
 }
 
 MainWindow::~MainWindow()
@@ -572,6 +586,9 @@ void MainWindow::setupCentralWidget()
     connect(m_viewport, &dc::Viewport::cursorMoved, [this](const QVector3D& pos) {
         setCursorPosition(pos.x(), pos.y(), pos.z());
     });
+    
+    // Connect FPS updates to status bar
+    connect(m_viewport, &dc::Viewport::fpsUpdated, this, &MainWindow::setFPS);
 }
 
 void MainWindow::setupMenuBar()
@@ -692,6 +709,7 @@ void MainWindow::setupConnections()
     // Edit menu connections
     connect(m_menuBar, &MenuBar::undoRequested, this, &MainWindow::onUndoRequested);
     connect(m_menuBar, &MenuBar::redoRequested, this, &MainWindow::onRedoRequested);
+    connect(m_menuBar, &MenuBar::undoHistoryRequested, this, &MainWindow::onUndoHistoryRequested);
     
     // Primitive creation connections
     connect(m_menuBar, &MenuBar::createSphereRequested, this, &MainWindow::onCreateSphereRequested);
@@ -1026,6 +1044,34 @@ void MainWindow::onRedoRequested()
     auto* app = dc3d::Application::instance();
     if (app && app->undoStack()) {
         app->undoStack()->redo();
+    }
+}
+
+void MainWindow::onUndoHistoryRequested()
+{
+    // Create dialog lazily
+    if (!m_undoHistoryDialog) {
+        m_undoHistoryDialog = new UndoHistoryDialog(this);
+    }
+    
+    // Connect to undo stack
+    auto* app = dc3d::Application::instance();
+    if (app && app->undoStack()) {
+        m_undoHistoryDialog->setUndoStack(app->undoStack());
+    }
+    
+    m_undoHistoryDialog->show();
+    m_undoHistoryDialog->raise();
+    m_undoHistoryDialog->activateWindow();
+}
+
+void MainWindow::onCommandsDiscarded(int count)
+{
+    // Show a subtle warning in the status bar when commands are discarded
+    // Note: QUndoStack doesn't emit this signal, but we keep the slot for
+    // future use if we switch to the custom CommandStack
+    if (m_statusBar && count > 0) {
+        m_statusBar->showInfo(tr("Undo history limit reached: %1 old command(s) discarded").arg(count));
     }
 }
 

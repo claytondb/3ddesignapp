@@ -848,6 +848,10 @@ void Viewport::keyPressEvent(QKeyEvent* event)
             update();
             break;
             
+        case Qt::Key_QuoteLeft:  // Backtick (`) - toggle FPS display
+            toggleFPS();
+            break;
+            
         // Standard view shortcuts (Blender-style numpad)
         case Qt::Key_1:
             if (event->modifiers() & Qt::KeypadModifier) {

@@ -16,6 +16,8 @@
 
 #include <algorithm>
 #include <numeric>
+#include <chrono>
+#include <QDebug>
 
 namespace dc3d {
 namespace core {
@@ -93,15 +95,25 @@ DecimateCommand::DecimateCommand(
 void DecimateCommand::execute() {
     beforeMesh_ = mesh_;
     
+    auto startTime = std::chrono::high_resolution_clock::now();
+    
     auto result = geometry::MeshDecimator::decimate(mesh_, options_, nullptr);
+    
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    executionTimeMs_ = duration.count();
     
     if (!result.ok()) {
         mesh_ = beforeMesh_;
+        qWarning() << "Polygon reduction failed:" << QString::fromStdString(result.error);
         return;
     }
     
     mesh_ = std::move(result.value->first);
     result_ = result.value->second;
+    
+    qDebug() << "Polygon reduction complete (" << executionTimeMs_ / 1000.0 << "seconds)"
+             << "- reduced from" << result_.originalFaces << "to" << result_.finalFaces << "faces";
 }
 
 void DecimateCommand::undo() {
@@ -145,7 +157,17 @@ SmoothCommand::SmoothCommand(
 void SmoothCommand::execute() {
     beforeMesh_ = mesh_;
     
+    auto startTime = std::chrono::high_resolution_clock::now();
+    
     result_ = geometry::MeshSmoother::smooth(mesh_, options_, nullptr);
+    
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    executionTimeMs_ = duration.count();
+    
+    qDebug() << "Smoothing complete (" << executionTimeMs_ / 1000.0 << "seconds)"
+             << "-" << result_.iterationsPerformed << "iterations," 
+             << result_.verticesMoved << "vertices moved";
 }
 
 void SmoothCommand::undo() {
@@ -224,6 +246,8 @@ RepairCommand::RepairCommand(
 void RepairCommand::execute() {
     beforeMesh_ = mesh_;
     
+    auto startTime = std::chrono::high_resolution_clock::now();
+    
     switch (operation_) {
         case Operation::RemoveOutliers:
             result_ = geometry::MeshRepair::removeOutliers(mesh_, parameter_);
@@ -266,6 +290,13 @@ void RepairCommand::execute() {
                 nullptr);
             break;
     }
+    
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    executionTimeMs_ = duration.count();
+    
+    qDebug() << description() << "complete (" << executionTimeMs_ / 1000.0 << "seconds)"
+             << "-" << QString::fromStdString(result_.message);
 }
 
 void RepairCommand::undo() {
@@ -309,15 +340,25 @@ SubdivideCommand::SubdivideCommand(
 void SubdivideCommand::execute() {
     beforeMesh_ = mesh_;
     
+    auto startTime = std::chrono::high_resolution_clock::now();
+    
     auto result = geometry::MeshSubdivider::subdivide(mesh_, options_, nullptr);
+    
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    executionTimeMs_ = duration.count();
     
     if (!result.ok()) {
         mesh_ = beforeMesh_;
+        qWarning() << "Subdivision failed:" << QString::fromStdString(result.error);
         return;
     }
     
     mesh_ = std::move(result.value->first);
     result_ = result.value->second;
+    
+    qDebug() << "Subdivision complete (" << executionTimeMs_ / 1000.0 << "seconds)"
+             << "- increased from" << result_.originalFaces << "to" << result_.finalFaces << "faces";
 }
 
 void SubdivideCommand::undo() {

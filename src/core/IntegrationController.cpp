@@ -477,13 +477,32 @@ void IntegrationController::updatePropertiesForSelection()
         auto node = m_sceneManager->getMeshNode(id);
         
         if (mesh && node) {
+            // Set individual properties directly for better display
+            m_propertiesPanel->setPage(PropertiesPanel::PageMesh);
+            m_propertiesPanel->setMeshName(node->displayName());
+            m_propertiesPanel->setMeshVertices(static_cast<int>(mesh->vertexCount()));
+            m_propertiesPanel->setMeshTriangles(static_cast<int>(mesh->faceCount()));
+            
+            // Edge count: for triangles, E = 3*F / 2 for closed meshes
+            // Using Euler formula approximation: V - E + F = 2, E = V + F - 2
+            size_t edgeCount = mesh->vertexCount() + mesh->faceCount() - 2;
+            m_propertiesPanel->setMeshEdges(static_cast<int>(edgeCount));
+            
+            // Bounding box dimensions
+            auto bounds = mesh->boundingBox();
+            auto dims = bounds.dimensions();
+            m_propertiesPanel->setMeshBounds(dims.x, dims.y, dims.z);
+            
+            // Memory usage
+            m_propertiesPanel->setMeshMemoryUsage(mesh->memoryUsage());
+            
+            // Also set via QVariantMap for any fallback handling
             QVariantMap props;
             props["Name"] = node->displayName();
             props["Vertices"] = QString::number(mesh->vertexCount());
             props["Triangles"] = QString::number(mesh->faceCount());
             props["Has Normals"] = mesh->hasNormals() ? "Yes" : "No";
             
-            auto bounds = mesh->boundingBox();
             props["Bounds Min"] = QString("(%1, %2, %3)")
                 .arg(bounds.min.x, 0, 'f', 3)
                 .arg(bounds.min.y, 0, 'f', 3)
@@ -492,8 +511,6 @@ void IntegrationController::updatePropertiesForSelection()
                 .arg(bounds.max.x, 0, 'f', 3)
                 .arg(bounds.max.y, 0, 'f', 3)
                 .arg(bounds.max.z, 0, 'f', 3);
-            
-            m_propertiesPanel->setProperties(props);
         }
     } else {
         // Multiple selection

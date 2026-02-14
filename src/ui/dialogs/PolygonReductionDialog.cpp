@@ -1,10 +1,12 @@
 #include "PolygonReductionDialog.h"
+#include "../HelpSystem.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QFormLayout>
 #include <QDialogButtonBox>
 #include <QFrame>
+#include <QWhatsThis>
 
 PolygonReductionDialog::PolygonReductionDialog(QWidget *parent)
     : QDialog(parent)
@@ -126,14 +128,31 @@ void PolygonReductionDialog::setupUI()
 
     m_preserveBoundaries = new QCheckBox(tr("Preserve boundary edges"));
     m_preserveBoundaries->setChecked(true);
-    m_preserveBoundaries->setToolTip(tr("Keep the outer edges of the mesh intact.\nDisable only if you want to simplify open mesh boundaries."));
+    m_preserveBoundaries->setToolTip(tr("Keep the outer edges of the mesh intact"));
+    m_preserveBoundaries->setWhatsThis(tr(
+        "<b>Preserve Boundary Edges</b><br><br>"
+        "When enabled, the reduction algorithm will not modify edges at the boundary of the mesh "
+        "(open edges that are not shared by two faces).<br><br>"
+        "Enable this when you want to maintain the exact outline of a mesh with open boundaries.<br><br>"
+        "Disable only if you want the algorithm to also simplify open mesh boundaries."
+    ));
     optionsLayout->addWidget(m_preserveBoundaries);
 
     // Sharp features with angle - protect edges/corners from being smoothed away
     QHBoxLayout* sharpLayout = new QHBoxLayout();
     m_preserveSharpFeatures = new QCheckBox(tr("Preserve sharp edges (angle >"));
     m_preserveSharpFeatures->setChecked(true);
-    m_preserveSharpFeatures->setToolTip(tr("Edges sharper than this angle will be preserved.\nLower values protect more edges. 30° is good for mechanical parts."));
+    m_preserveSharpFeatures->setToolTip(tr("Protect edges sharper than this angle from being smoothed away"));
+    m_preserveSharpFeatures->setWhatsThis(tr(
+        "<b>Preserve Sharp Features</b><br><br>"
+        "When enabled, edges with dihedral angles greater than the specified value will be protected "
+        "from simplification. This preserves important geometric features like corners and creases.<br><br>"
+        "<b>Angle guidelines:</b><br>"
+        "• 30° - Aggressive protection, good for mechanical parts with sharp corners<br>"
+        "• 45° - Balanced, preserves most visible edges<br>"
+        "• 60° - Relaxed, allows more simplification of curved transitions<br><br>"
+        "Lower values protect more edges but may limit reduction capability."
+    ));
     sharpLayout->addWidget(m_preserveSharpFeatures);
 
     m_sharpAngleSpinbox = new QDoubleSpinBox();
@@ -142,6 +161,7 @@ void PolygonReductionDialog::setupUI()
     m_sharpAngleSpinbox->setSuffix("°");
     m_sharpAngleSpinbox->setFixedWidth(70);
     m_sharpAngleSpinbox->setToolTip(tr("30° for mechanical parts, 60° for organic shapes"));
+    m_sharpAngleSpinbox->setWhatsThis(m_preserveSharpFeatures->whatsThis());
     sharpLayout->addWidget(m_sharpAngleSpinbox);
 
     QLabel* closeParen = new QLabel(")");
@@ -187,6 +207,10 @@ void PolygonReductionDialog::setupUI()
 
     // Button box
     QHBoxLayout* buttonLayout = new QHBoxLayout();
+    
+    // Help button
+    QPushButton* helpButton = HelpSystem::addContextHelpButton(this, HelpText::polygonReduction());
+    buttonLayout->addWidget(helpButton);
     
     m_resetButton = new QPushButton(tr("Reset"));
     m_resetButton->setObjectName("secondaryButton");

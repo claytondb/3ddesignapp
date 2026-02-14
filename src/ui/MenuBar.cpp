@@ -5,8 +5,15 @@
 #include "dialogs/HoleFillDialog.h"
 #include "dialogs/OutlierRemovalDialog.h"
 #include "dialogs/ClippingBoxDialog.h"
+#include "dialogs/KeyboardShortcutsDialog.h"
+#include "dialogs/AboutDialog.h"
+#include "dialogs/GettingStartedDialog.h"
+#include "HelpSystem.h"
 #include <QActionGroup>
 #include <QApplication>
+#include <QWhatsThis>
+#include <QDesktopServices>
+#include <QUrl>
 
 MenuBar::MenuBar(QWidget *parent)
     : QMenuBar(parent)
@@ -45,11 +52,13 @@ void MenuBar::setupFileMenu()
 
     // New Project
     m_actionNew = createAction(tr("&New Project"), "Ctrl+N", tr("Create a new project"));
+    m_actionNew->setWhatsThis(HelpText::newProject());
     connect(m_actionNew, &QAction::triggered, this, &MenuBar::newProjectRequested);
     m_fileMenu->addAction(m_actionNew);
 
     // Open
     m_actionOpen = createAction(tr("&Open..."), "Ctrl+O", tr("Open an existing project"));
+    m_actionOpen->setWhatsThis(HelpText::openProject());
     connect(m_actionOpen, &QAction::triggered, this, &MenuBar::openProjectRequested);
     m_fileMenu->addAction(m_actionOpen);
 
@@ -60,11 +69,13 @@ void MenuBar::setupFileMenu()
 
     // Save
     m_actionSave = createAction(tr("&Save"), "Ctrl+S", tr("Save the current project"));
+    m_actionSave->setWhatsThis(HelpText::saveProject());
     connect(m_actionSave, &QAction::triggered, this, &MenuBar::saveProjectRequested);
     m_fileMenu->addAction(m_actionSave);
 
     // Save As
     m_actionSaveAs = createAction(tr("Save &As..."), "Ctrl+Shift+S", tr("Save project with a new name"));
+    m_actionSaveAs->setWhatsThis(tr("<b>Save As</b><br><br>Save the project with a new filename or location.<br><br>Use this to create a copy of your project or save to a different folder."));
     connect(m_actionSaveAs, &QAction::triggered, this, &MenuBar::saveProjectAsRequested);
     m_fileMenu->addAction(m_actionSaveAs);
 
@@ -74,10 +85,12 @@ void MenuBar::setupFileMenu()
     QMenu* importMenu = m_fileMenu->addMenu(tr("&Import"));
     
     m_actionImportMesh = createAction(tr("Mesh (STL, OBJ, PLY)..."), "Ctrl+I", tr("Import mesh from STL, OBJ, or PLY file"));
+    m_actionImportMesh->setWhatsThis(HelpText::importMesh());
     connect(m_actionImportMesh, &QAction::triggered, this, &MenuBar::importMeshRequested);
     importMenu->addAction(m_actionImportMesh);
     
     m_actionImportCAD = createAction(tr("CAD (STEP, IGES)..."), "Ctrl+Shift+I", tr("Import CAD geometry from STEP or IGES"));
+    m_actionImportCAD->setWhatsThis(tr("<b>Import CAD</b><br><br>Import CAD geometry from STEP or IGES files.<br><br>Use this to bring in reference geometry or existing CAD models for comparison with scan data."));
     connect(m_actionImportCAD, &QAction::triggered, this, &MenuBar::importCADRequested);
     importMenu->addAction(m_actionImportCAD);
 
@@ -85,14 +98,17 @@ void MenuBar::setupFileMenu()
     QMenu* exportMenu = m_fileMenu->addMenu(tr("&Export"));
     
     m_actionExportMesh = createAction(tr("Mesh (STL)..."), "Ctrl+E", tr("Export selected mesh to STL file"));
+    m_actionExportMesh->setWhatsThis(HelpText::exportMesh());
     connect(m_actionExportMesh, &QAction::triggered, this, &MenuBar::exportMeshRequested);
     exportMenu->addAction(m_actionExportMesh);
     
     m_actionExportSTEP = createAction(tr("CAD (STEP)..."), "", tr("Export surfaces to STEP CAD file"));
+    m_actionExportSTEP->setWhatsThis(tr("<b>Export STEP</b><br><br>Export surfaces and bodies to STEP format.<br><br>STEP is the most widely supported CAD exchange format, compatible with SolidWorks, CATIA, NX, and most CAD systems."));
     connect(m_actionExportSTEP, &QAction::triggered, this, &MenuBar::exportSTEPRequested);
     exportMenu->addAction(m_actionExportSTEP);
     
     m_actionExportIGES = createAction(tr("CAD (IGES)..."), "", tr("Export surfaces to IGES CAD file"));
+    m_actionExportIGES->setWhatsThis(tr("<b>Export IGES</b><br><br>Export surfaces to IGES format.<br><br>IGES is an older CAD format with good compatibility for surface data."));
     connect(m_actionExportIGES, &QAction::triggered, this, &MenuBar::exportIGESRequested);
     exportMenu->addAction(m_actionExportIGES);
 
@@ -126,6 +142,12 @@ void MenuBar::setupEditMenu()
     m_actionRedo->setEnabled(false);  // Disabled until undo is performed
     connect(m_actionRedo, &QAction::triggered, this, &MenuBar::redoRequested);
     m_editMenu->addAction(m_actionRedo);
+    
+    // Undo History
+    QAction* undoHistoryAction = createAction(tr("Undo &History..."), "Ctrl+Shift+Z", 
+        tr("View and navigate undo/redo history"));
+    connect(undoHistoryAction, &QAction::triggered, this, &MenuBar::undoHistoryRequested);
+    m_editMenu->addAction(undoHistoryAction);
 
     m_editMenu->addSeparator();
 
@@ -314,11 +336,13 @@ void MenuBar::setupMeshMenu()
 
     // Polygon Reduction
     m_actionPolygonReduction = createAction(tr("&Polygon Reduction..."), "Ctrl+Shift+R", tr("Reduce polygon count"));
+    m_actionPolygonReduction->setWhatsThis(HelpText::polygonReduction());
     connect(m_actionPolygonReduction, &QAction::triggered, this, &MenuBar::showPolygonReductionDialog);
     m_meshMenu->addAction(m_actionPolygonReduction);
 
     // Smoothing - changed from Ctrl+Shift+S (conflicts with Save As) to Ctrl+Shift+M
     m_actionSmoothing = createAction(tr("&Smoothing..."), "Ctrl+Shift+M", tr("Smooth mesh to reduce noise and bumps"));
+    m_actionSmoothing->setWhatsThis(HelpText::smoothing());
     connect(m_actionSmoothing, &QAction::triggered, this, &MenuBar::showSmoothingDialog);
     m_meshMenu->addAction(m_actionSmoothing);
 
@@ -326,16 +350,19 @@ void MenuBar::setupMeshMenu()
 
     // Fill Holes
     m_actionFillHoles = createAction(tr("&Fill Holes..."), "Ctrl+Shift+H", tr("Fill holes in mesh"));
+    m_actionFillHoles->setWhatsThis(HelpText::fillHoles());
     connect(m_actionFillHoles, &QAction::triggered, this, &MenuBar::showHoleFillDialog);
     m_meshMenu->addAction(m_actionFillHoles);
 
     // Remove Outliers
     m_actionRemoveOutliers = createAction(tr("&Remove Outliers..."), "", tr("Remove outlier vertices"));
+    m_actionRemoveOutliers->setWhatsThis(HelpText::removeOutliers());
     connect(m_actionRemoveOutliers, &QAction::triggered, this, &MenuBar::showOutlierRemovalDialog);
     m_meshMenu->addAction(m_actionRemoveOutliers);
 
     // De-feature
     QAction* deFeature = createAction(tr("&De-feature..."), "", tr("Remove small features"));
+    deFeature->setWhatsThis(tr("<b>De-feature</b><br><br>Removes small features from the mesh such as small bumps, indentations, or noise.<br><br>Useful for simplifying scan data before surface fitting."));
     connect(deFeature, &QAction::triggered, this, &MenuBar::deFeatureRequested);
     m_meshMenu->addAction(deFeature);
 
@@ -343,16 +370,19 @@ void MenuBar::setupMeshMenu()
 
     // Clipping Box
     m_actionClippingBox = createAction(tr("&Clipping Box..."), "Ctrl+Shift+B", tr("Enable clipping box"));
+    m_actionClippingBox->setWhatsThis(HelpText::clippingBox());
     connect(m_actionClippingBox, &QAction::triggered, this, &MenuBar::showClippingBoxDialog);
     m_meshMenu->addAction(m_actionClippingBox);
 
     // Split Mesh
     QAction* splitMesh = createAction(tr("Spl&it Mesh"), "", tr("Split mesh into parts"));
+    splitMesh->setWhatsThis(tr("<b>Split Mesh</b><br><br>Separates a mesh into multiple parts based on connectivity.<br><br>Each disconnected region becomes a separate mesh object."));
     connect(splitMesh, &QAction::triggered, this, &MenuBar::splitMeshRequested);
     m_meshMenu->addAction(splitMesh);
 
     // Merge Meshes
     QAction* mergeMeshes = createAction(tr("&Merge Meshes"), "", tr("Merge multiple meshes"));
+    mergeMeshes->setWhatsThis(tr("<b>Merge Meshes</b><br><br>Combines multiple selected meshes into a single mesh object.<br><br>Select two or more meshes in the Object Browser, then use this command."));
     connect(mergeMeshes, &QAction::triggered, this, &MenuBar::mergeMeshesRequested);
     m_meshMenu->addAction(mergeMeshes);
 }
@@ -364,30 +394,49 @@ void MenuBar::setupCreateMenu()
     // Primitives submenu
     QMenu* primitivesMenu = m_createMenu->addMenu(tr("&Primitives"));
     
-    m_actionCreatePlane = createAction(tr("&Plane"), "P", tr("Create a reference plane"));
-    connect(m_actionCreatePlane, &QAction::triggered, this, &MenuBar::createPlaneRequested);
-    primitivesMenu->addAction(m_actionCreatePlane);
+    // Cube - most common primitive first
+    QAction* cube = createAction(tr("Cu&be"), "B", tr("Create a cube"));
+    cube->setWhatsThis(tr("<b>Create Cube</b><br><br>Creates a cube (box) primitive.<br><br>Use size presets or specify exact dimensions."));
+    connect(cube, &QAction::triggered, this, &MenuBar::createCubeRequested);
+    primitivesMenu->addAction(cube);
+    
+    QAction* sphere = createAction(tr("&Sphere"), "", tr("Create a sphere"));
+    sphere->setWhatsThis(tr("<b>Create Sphere</b><br><br>Creates a sphere primitive.<br><br>Use size presets or specify radius and resolution."));
+    connect(sphere, &QAction::triggered, this, &MenuBar::createSphereRequested);
+    primitivesMenu->addAction(sphere);
     
     m_actionCreateCylinder = createAction(tr("&Cylinder"), "C", tr("Create a cylinder"));
+    m_actionCreateCylinder->setWhatsThis(HelpText::createCylinder());
     connect(m_actionCreateCylinder, &QAction::triggered, this, &MenuBar::createCylinderRequested);
     primitivesMenu->addAction(m_actionCreateCylinder);
     
     QAction* cone = createAction(tr("C&one"), "", tr("Create a cone"));
+    cone->setWhatsThis(tr("<b>Create Cone</b><br><br>Creates a cone primitive.<br><br>Specify base radius and height."));
     connect(cone, &QAction::triggered, this, &MenuBar::createConeRequested);
     primitivesMenu->addAction(cone);
     
-    QAction* sphere = createAction(tr("&Sphere"), "", tr("Create a sphere"));
-    connect(sphere, &QAction::triggered, this, &MenuBar::createSphereRequested);
-    primitivesMenu->addAction(sphere);
+    m_actionCreatePlane = createAction(tr("&Plane"), "P", tr("Create a reference plane"));
+    m_actionCreatePlane->setWhatsThis(HelpText::createPlane());
+    connect(m_actionCreatePlane, &QAction::triggered, this, &MenuBar::createPlaneRequested);
+    primitivesMenu->addAction(m_actionCreatePlane);
+    
+    primitivesMenu->addSeparator();
+    
+    QAction* torus = createAction(tr("&Torus"), "", tr("Create a torus (donut shape)"));
+    torus->setWhatsThis(tr("<b>Create Torus</b><br><br>Creates a torus (donut) primitive.<br><br>Specify major radius (ring) and minor radius (tube)."));
+    connect(torus, &QAction::triggered, this, &MenuBar::createTorusRequested);
+    primitivesMenu->addAction(torus);
 
     m_createMenu->addSeparator();
 
     // Section
     m_actionSection2D = createAction(tr("&Section Plane..."), "S", tr("Create a section plane"));
+    m_actionSection2D->setWhatsThis(HelpText::sectionPlane());
     connect(m_actionSection2D, &QAction::triggered, this, &MenuBar::sectionPlaneRequested);
     m_createMenu->addAction(m_actionSection2D);
     
     QAction* multipleSections = createAction(tr("&Multiple Sections..."), "", tr("Create multiple section planes"));
+    multipleSections->setWhatsThis(tr("<b>Multiple Sections</b><br><br>Creates a series of parallel section planes at regular intervals.<br><br>Great for creating multiple cross-section profiles at once."));
     connect(multipleSections, &QAction::triggered, this, &MenuBar::multipleSectionsRequested);
     m_createMenu->addAction(multipleSections);
 
@@ -397,10 +446,12 @@ void MenuBar::setupCreateMenu()
     QMenu* sketchMenu = m_createMenu->addMenu(tr("S&ketch"));
     
     m_actionSketch2D = createAction(tr("&2D Sketch"), "K", tr("Create a 2D sketch"));
+    m_actionSketch2D->setWhatsThis(HelpText::sketch2D());
     connect(m_actionSketch2D, &QAction::triggered, this, &MenuBar::sketch2DRequested);
     sketchMenu->addAction(m_actionSketch2D);
     
     QAction* sketch3D = createAction(tr("&3D Sketch"), "", tr("Create a 3D sketch"));
+    sketch3D->setWhatsThis(tr("<b>3D Sketch</b><br><br>Create a sketch directly in 3D space, not constrained to a plane.<br><br>Useful for 3D paths, sweep trajectories, and space curves."));
     connect(sketch3D, &QAction::triggered, this, &MenuBar::sketch3DRequested);
     sketchMenu->addAction(sketch3D);
 
@@ -410,34 +461,41 @@ void MenuBar::setupCreateMenu()
     QMenu* surfaceMenu = m_createMenu->addMenu(tr("S&urface"));
     
     QAction* fitSurface = createAction(tr("&Fit Surface..."), "", tr("Fit surface to selection"));
+    fitSurface->setWhatsThis(tr("<b>Fit Surface</b><br><br>Fits an analytical surface (plane, cylinder, sphere, cone) to the selected mesh region.<br><br>The algorithm automatically determines the best-fit surface type and parameters."));
     connect(fitSurface, &QAction::triggered, this, &MenuBar::fitSurfaceRequested);
     surfaceMenu->addAction(fitSurface);
     
     QAction* autoSurface = createAction(tr("&Auto Surface..."), "", tr("Automatically create surfaces"));
+    autoSurface->setWhatsThis(tr("<b>Auto Surface</b><br><br>Automatically segments the mesh into regions and fits surfaces to each region.<br><br>A fast way to convert mesh data to CAD surfaces."));
     connect(autoSurface, &QAction::triggered, this, &MenuBar::autoSurfaceRequested);
     surfaceMenu->addAction(autoSurface);
     
     surfaceMenu->addSeparator();
     
     m_actionExtrude = createAction(tr("&Extrude..."), "E", tr("Extrude sketch or face"));
+    m_actionExtrude->setWhatsThis(HelpText::extrude());
     connect(m_actionExtrude, &QAction::triggered, this, &MenuBar::extrudeRequested);
     surfaceMenu->addAction(m_actionExtrude);
     
     m_actionRevolve = createAction(tr("&Revolve..."), "R", tr("Revolve sketch around axis"));
+    m_actionRevolve->setWhatsThis(HelpText::revolve());
     connect(m_actionRevolve, &QAction::triggered, this, &MenuBar::revolveRequested);
     surfaceMenu->addAction(m_actionRevolve);
     
     QAction* loft = createAction(tr("&Loft..."), "", tr("Create lofted surface"));
+    loft->setWhatsThis(tr("<b>Loft</b><br><br>Creates a smooth surface connecting multiple profile sketches.<br><br>Select two or more sketches, and Loft will create a surface that transitions between them."));
     connect(loft, &QAction::triggered, this, &MenuBar::loftRequested);
     surfaceMenu->addAction(loft);
     
     QAction* sweep = createAction(tr("&Sweep..."), "", tr("Create swept surface"));
+    sweep->setWhatsThis(tr("<b>Sweep</b><br><br>Creates a surface by sweeping a profile sketch along a path.<br><br>Select a profile sketch and a path curve to create the sweep."));
     connect(sweep, &QAction::triggered, this, &MenuBar::sweepRequested);
     surfaceMenu->addAction(sweep);
     
     surfaceMenu->addSeparator();
     
     QAction* freeformSurface = createAction(tr("Free-&form Surface..."), "", tr("Create free-form surface"));
+    freeformSurface->setWhatsThis(tr("<b>Free-form Surface</b><br><br>Creates a NURBS surface with control points for direct manipulation.<br><br>Great for organic shapes that can't be created with analytical surfaces."));
     connect(freeformSurface, &QAction::triggered, this, &MenuBar::freeformSurfaceRequested);
     surfaceMenu->addAction(freeformSurface);
 }
@@ -446,45 +504,71 @@ void MenuBar::setupHelpMenu()
 {
     m_helpMenu = addMenu(tr("&Help"));
 
+    // What's This mode
+    QAction* whatsThis = createAction(tr("&What's This?"), "Shift+F1", 
+        tr("Click on any button or control to see help about it"));
+    whatsThis->setWhatsThis(tr("Enter What's This mode. Click on any UI element to see detailed help about what it does."));
+    connect(whatsThis, &QAction::triggered, this, []() {
+        QWhatsThis::enterWhatsThisMode();
+    });
+    m_helpMenu->addAction(whatsThis);
+
+    m_helpMenu->addSeparator();
+
     // Getting Started
-    QAction* gettingStarted = createAction(tr("&Getting Started"), "", tr("Open getting started guide"));
-    connect(gettingStarted, &QAction::triggered, this, &MenuBar::gettingStartedRequested);
+    QAction* gettingStarted = createAction(tr("&Getting Started..."), "", 
+        tr("Quick tutorial to learn the basics"));
+    gettingStarted->setWhatsThis(HelpText::newProject());
+    connect(gettingStarted, &QAction::triggered, this, [this]() {
+        GettingStartedDialog dialog(window());
+        dialog.exec();
+    });
     m_helpMenu->addAction(gettingStarted);
 
-    // Tutorials
-    QAction* tutorials = createAction(tr("&Tutorials"), "", tr("Open tutorials"));
-    connect(tutorials, &QAction::triggered, this, &MenuBar::tutorialsRequested);
-    m_helpMenu->addAction(tutorials);
-
     // Keyboard Shortcuts
-    QAction* shortcuts = createAction(tr("&Keyboard Shortcuts..."), "", tr("View keyboard shortcuts"));
-    connect(shortcuts, &QAction::triggered, this, &MenuBar::keyboardShortcutsRequested);
+    QAction* shortcuts = createAction(tr("&Keyboard Shortcuts..."), "F1", 
+        tr("View all keyboard shortcuts"));
+    shortcuts->setWhatsThis(tr("Opens a searchable list of all keyboard shortcuts in the application."));
+    connect(shortcuts, &QAction::triggered, this, [this]() {
+        KeyboardShortcutsDialog* dialog = new KeyboardShortcutsDialog(window());
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->show();
+    });
     m_helpMenu->addAction(shortcuts);
 
     m_helpMenu->addSeparator();
 
-    // Documentation
-    QAction* documentation = createAction(tr("&Documentation"), "", tr("Open documentation"));
-    connect(documentation, &QAction::triggered, this, &MenuBar::documentationRequested);
+    // Documentation (opens web/local docs)
+    QAction* documentation = createAction(tr("&Documentation"), "", 
+        tr("Open online documentation"));
+    connect(documentation, &QAction::triggered, this, []() {
+        QDesktopServices::openUrl(QUrl("https://github.com/dc-3ddesignapp/docs"));
+    });
     m_helpMenu->addAction(documentation);
 
     // Release Notes
-    QAction* releaseNotes = createAction(tr("&Release Notes"), "", tr("View release notes"));
+    QAction* releaseNotes = createAction(tr("&Release Notes"), "", 
+        tr("View what's new in this version"));
     connect(releaseNotes, &QAction::triggered, this, &MenuBar::releaseNotesRequested);
     m_helpMenu->addAction(releaseNotes);
 
     m_helpMenu->addSeparator();
 
     // Check for Updates
-    QAction* checkUpdates = createAction(tr("Check for &Updates..."), "", tr("Check for application updates"));
+    QAction* checkUpdates = createAction(tr("Check for &Updates..."), "", 
+        tr("Check if a newer version is available"));
     connect(checkUpdates, &QAction::triggered, this, &MenuBar::checkForUpdatesRequested);
     m_helpMenu->addAction(checkUpdates);
 
     m_helpMenu->addSeparator();
 
     // About
-    QAction* about = createAction(tr("&About"), "", tr("About dc-3ddesignapp"));
-    connect(about, &QAction::triggered, this, &MenuBar::aboutRequested);
+    QAction* about = createAction(tr("&About..."), "", 
+        tr("About dc-3ddesignapp - version and credits"));
+    connect(about, &QAction::triggered, this, [this]() {
+        AboutDialog dialog(window());
+        dialog.exec();
+    });
     m_helpMenu->addAction(about);
 }
 

@@ -1,4 +1,5 @@
 #include "SmoothingDialog.h"
+#include "../HelpSystem.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -131,6 +132,10 @@ void SmoothingDialog::setupUI()
 
     // Button box
     QHBoxLayout* buttonLayout = new QHBoxLayout();
+    
+    // Help button
+    QPushButton* helpButton = HelpSystem::addContextHelpButton(this, HelpText::smoothing());
+    buttonLayout->addWidget(helpButton);
     
     m_resetButton = new QPushButton(tr("Reset"));
     m_resetButton->setObjectName("secondaryButton");

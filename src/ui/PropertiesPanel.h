@@ -55,8 +55,10 @@ public:
     void setMeshName(const QString& name);
     void setMeshTriangles(int count);
     void setMeshVertices(int count);
+    void setMeshEdges(int count);
     void setMeshBounds(double x, double y, double z);
     void setMeshHasHoles(bool hasHoles, int holeCount);
+    void setMeshMemoryUsage(size_t bytes);
     void setMeshColor(const QColor& color);
     void setMeshOpacity(int percent);
     void setMeshShowEdges(bool show);
@@ -104,8 +106,10 @@ private:
     QLabel* m_meshNameLabel;
     QLabel* m_meshTrianglesLabel;
     QLabel* m_meshVerticesLabel;
+    QLabel* m_meshEdgesLabel;
     QLabel* m_meshBoundsLabel;
     QLabel* m_meshHolesLabel;
+    QLabel* m_meshMemoryLabel;
     QSlider* m_opacitySlider;
     QLabel* m_opacityLabel;
     QCheckBox* m_showEdgesCheck;

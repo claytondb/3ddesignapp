@@ -13,6 +13,8 @@ set(UI_SOURCES
     StatusBar.h
     Toolbar.cpp
     Toolbar.h
+    HelpSystem.cpp
+    HelpSystem.h
 )
 
 # Sketch UI sources - DISABLED: requires incomplete geometry classes and Viewport methods
@@ -39,6 +41,8 @@ set(SKETCH_UI_SOURCES
 
 # Dialog sources
 set(DIALOG_SOURCES
+    dialogs/PreferencesDialog.cpp
+    dialogs/PreferencesDialog.h
     dialogs/PolygonReductionDialog.cpp
     dialogs/PolygonReductionDialog.h
     dialogs/SmoothingDialog.cpp
@@ -63,6 +67,14 @@ set(DIALOG_SOURCES
     dialogs/RevolveDialog.h
     dialogs/ExportFormatDialog.cpp
     dialogs/ExportFormatDialog.h
+    dialogs/KeyboardShortcutsDialog.cpp
+    dialogs/KeyboardShortcutsDialog.h
+    dialogs/AboutDialog.cpp
+    dialogs/AboutDialog.h
+    dialogs/GettingStartedDialog.cpp
+    dialogs/GettingStartedDialog.h
+    dialogs/UndoHistoryDialog.cpp
+    dialogs/UndoHistoryDialog.h
     # Excluded - requires imgui dependency:
     # dialogs/ExportDialog.cpp
     # dialogs/ExportDialog.h
