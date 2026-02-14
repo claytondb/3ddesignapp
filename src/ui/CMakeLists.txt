@@ -75,6 +75,8 @@ set(DIALOG_SOURCES
     dialogs/GettingStartedDialog.h
     dialogs/UndoHistoryDialog.cpp
     dialogs/UndoHistoryDialog.h
+    dialogs/PrimitiveCreationDialog.cpp
+    dialogs/PrimitiveCreationDialog.h
     # Excluded - requires imgui dependency:
     # dialogs/ExportDialog.cpp
     # dialogs/ExportDialog.h

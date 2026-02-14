@@ -478,6 +478,101 @@ bool Application::createPrimitive(const QString& type)
     }
 }
 
+bool Application::createPrimitiveWithConfig(const QString& type, 
+                                             const glm::vec3& position,
+                                             float width, float height, float depth,
+                                             int segments,
+                                             bool selectAfterCreation)
+{
+    qDebug() << "Creating primitive with config:" << type 
+             << "at" << position.x << position.y << position.z;
+    
+    // SAFETY: Ensure application is properly initialized
+    if (!m_initialized || !m_undoStack || !m_integrationController) {
+        qWarning() << "Application::createPrimitiveWithConfig - not properly initialized";
+        return false;
+    }
+    
+    try {
+        geometry::MeshData meshData;
+        QString primitiveName;
+        
+        // Generate mesh based on primitive type with custom dimensions
+        if (type == "sphere") {
+            meshData = geometry::PrimitiveGenerator::createSphere(position, width, segments, segments);
+            primitiveName = "Sphere";
+        } else if (type == "cube") {
+            // For cube, create a box with dimensions width x height x depth
+            meshData = geometry::PrimitiveGenerator::createCube(position, width);
+            // Scale to get non-uniform dimensions if needed
+            if (height != width || depth != width) {
+                glm::vec3 scale(width, height, depth);
+                meshData.scale(scale / width);  // Normalize then scale
+            }
+            primitiveName = "Cube";
+        } else if (type == "cylinder") {
+            meshData = geometry::PrimitiveGenerator::createCylinder(position, width, height, segments, 1, true);
+            primitiveName = "Cylinder";
+        } else if (type == "cone") {
+            meshData = geometry::PrimitiveGenerator::createCone(position, width, height, segments, true);
+            primitiveName = "Cone";
+        } else if (type == "plane") {
+            meshData = geometry::PrimitiveGenerator::createPlane(position, width, height);
+            primitiveName = "Plane";
+        } else if (type == "torus") {
+            meshData = geometry::PrimitiveGenerator::createTorus(position, width, height, segments, segments / 2);
+            primitiveName = "Torus";
+        } else {
+            qWarning() << "Unknown primitive type:" << type;
+            return false;
+        }
+        
+        if (meshData.isEmpty() || meshData.vertexCount() == 0) {
+            qWarning() << "Generated primitive mesh is empty";
+            return false;
+        }
+        
+        // Generate unique mesh ID and name
+        uint64_t meshId = generateMeshId();
+        QString meshName = QString("%1_%2").arg(primitiveName).arg(meshId);
+        
+        // Create shared pointer from mesh data
+        auto mesh = std::make_shared<geometry::MeshData>(std::move(meshData));
+        
+        // Compute normals if not already present
+        if (!mesh->hasNormals()) {
+            mesh->computeNormals();
+        }
+        
+        // Create and execute import command (reuse for undo support)
+        ImportCommand* cmd = new ImportCommand(meshId, meshName, mesh, this);
+        m_undoStack->push(cmd);
+        
+        qDebug() << "Primitive created successfully:" << meshName
+                 << "Vertices:" << mesh->vertexCount()
+                 << "Faces:" << mesh->faceCount();
+        
+        // Select the new primitive if requested
+        if (selectAfterCreation && m_selection) {
+            m_selection->selectById(meshId);
+        }
+        
+        emit meshImported(meshName, meshId, mesh->vertexCount(), mesh->faceCount(), 0.0);
+        
+        return true;
+        
+    } catch (const std::bad_alloc& e) {
+        qWarning() << "Out of memory creating primitive:" << e.what();
+        return false;
+    } catch (const std::exception& e) {
+        qWarning() << "Error creating primitive:" << e.what();
+        return false;
+    } catch (...) {
+        qWarning() << "Unknown error creating primitive";
+        return false;
+    }
+}
+
 // ============================================================================
 // Selection Management
 // ============================================================================
