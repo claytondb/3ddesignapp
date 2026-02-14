@@ -4,12 +4,14 @@
 #include <QMainWindow>
 #include <QDockWidget>
 #include <QStringList>
+#include "dialogs/PrimitiveCreationDialog.h"
 
 class MenuBar;
 class Toolbar;
 class ObjectBrowser;
 class PropertiesPanel;
 class StatusBar;
+class UndoHistoryDialog;
 class QDragEnterEvent;
 class QDropEvent;
 
@@ -112,13 +114,16 @@ private slots:
     void onDisplayModeShadedWireRequested();
     void onUndoRequested();
     void onRedoRequested();
+    void onUndoHistoryRequested();
+    void onCommandsDiscarded(int count);
     
     // Primitive creation
-    void onCreateSphereRequested();
     void onCreateCubeRequested();
+    void onCreateSphereRequested();
     void onCreateCylinderRequested();
     void onCreateConeRequested();
     void onCreatePlaneRequested();
+    void onCreateTorusRequested();
     
     // Transform modes
     void onTranslateModeRequested();
@@ -136,6 +141,9 @@ private:
     void applyStylesheet();
     void loadSettings();
     void saveSettings();
+    
+    // Helper for primitive creation with dialog
+    void createPrimitiveWithDialog(PrimitiveCreationDialog::PrimitiveType type);
 
     // UI Components
     MenuBar* m_menuBar;
@@ -157,6 +165,9 @@ private:
     // Recent files (max 10)
     QStringList m_recentFiles;
     static const int MAX_RECENT_FILES = 10;
+    
+    // Undo history dialog (lazy-created)
+    UndoHistoryDialog* m_undoHistoryDialog;
 };
 
 #endif // DC_MAINWINDOW_H

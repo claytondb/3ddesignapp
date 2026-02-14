@@ -318,8 +318,11 @@ void CommandStack::enforceMaxSize()
         return;  // Unlimited
     }
     
+    int discardedCount = 0;
+    
     while (m_undoStack.size() > m_maxSize) {
         m_undoStack.erase(m_undoStack.begin());
+        ++discardedCount;
         
         // Adjust clean index
         if (m_cleanIndex > 0) {
@@ -328,6 +331,16 @@ void CommandStack::enforceMaxSize()
             m_cleanIndex = -1;  // Clean state removed
             emit cleanChanged(false);
         }
+    }
+    
+    // Emit warning if commands were discarded
+    if (discardedCount > 0) {
+        emit commandsDiscarded(discardedCount);
+    }
+    
+    // Emit warning if stack is near capacity (90%+)
+    if (m_undoStack.size() >= m_maxSize * 0.9) {
+        emit stackNearLimit(m_undoStack.size(), m_maxSize);
     }
 }
 

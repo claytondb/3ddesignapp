@@ -57,9 +57,14 @@ signals:
     void shadedWireModeRequested();
     void xrayModeRequested();
 
-    // Create tools
-    void createPlaneRequested();
+    // Create tools - primitives
+    void createCubeRequested();
+    void createSphereRequested();
     void createCylinderRequested();
+    void createConeRequested();
+    void createPlaneRequested();
+    
+    // Create tools - other
     void createSectionRequested();
     void createSketchRequested();
 
@@ -122,9 +127,14 @@ private:
     QAction* m_actionShadedWire;
     QAction* m_actionXRay;
 
-    // Create actions
-    QAction* m_actionCreatePlane;
+    // Create actions - primitives
+    QAction* m_actionCreateCube;
+    QAction* m_actionCreateSphere;
     QAction* m_actionCreateCylinder;
+    QAction* m_actionCreateCone;
+    QAction* m_actionCreatePlane;
+    
+    // Create actions - other
     QAction* m_actionCreateSection;
     QAction* m_actionCreateSketch;
 

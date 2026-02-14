@@ -206,6 +206,21 @@ signals:
      * @brief Emitted when redo text changes
      */
     void redoTextChanged(const QString& text);
+    
+    /**
+     * @brief Emitted when oldest commands are discarded due to stack limit
+     * @param discardedCount Number of commands that were discarded
+     * 
+     * Applications can show a warning to users when this happens.
+     */
+    void commandsDiscarded(int discardedCount);
+    
+    /**
+     * @brief Emitted when stack is near capacity (90%+)
+     * @param usedCount Current number of commands
+     * @param maxCount Maximum allowed commands
+     */
+    void stackNearLimit(size_t usedCount, size_t maxCount);
 
 private:
     void enforceMaxSize();

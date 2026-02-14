@@ -12,6 +12,8 @@ class HoleFillDialog;
 class OutlierRemovalDialog;
 class ClippingBoxDialog;
 
+class QUndoStack;
+
 namespace dc3d {
 namespace core {
 class CommandStack;
@@ -60,6 +62,14 @@ public:
     void connectToCommandStack(dc3d::core::CommandStack* commandStack);
     
     /**
+     * @brief Connect undo/redo actions to a Qt undo stack
+     * @param undoStack The Qt undo stack to connect to
+     * 
+     * Overload for Qt's built-in QUndoStack.
+     */
+    void connectToUndoStack(QUndoStack* undoStack);
+    
+    /**
      * @brief Update undo action state
      * @param canUndo Whether undo is available
      * @param text Description text (e.g., "Import Mesh")
@@ -105,6 +115,7 @@ signals:
     // Edit menu signals
     void undoRequested();
     void redoRequested();
+    void undoHistoryRequested();
     void cutRequested();
     void copyRequested();
     void pasteRequested();
@@ -147,11 +158,13 @@ signals:
     void splitMeshRequested();
     void mergeMeshesRequested();
 
-    // Create menu signals
-    void createPlaneRequested();
+    // Create menu signals - primitives
+    void createCubeRequested();
+    void createSphereRequested();
     void createCylinderRequested();
     void createConeRequested();
-    void createSphereRequested();
+    void createPlaneRequested();
+    void createTorusRequested();
     void sectionPlaneRequested();
     void multipleSectionsRequested();
     void sketch2DRequested();

@@ -17,6 +17,7 @@
 #include "renderer/Picking.h"
 #include "renderer/Viewport.h"
 #include "ui/MainWindow.h"
+#include "ui/MenuBar.h"
 #include "ui/ObjectBrowser.h"
 
 #include <filesystem>
@@ -61,8 +62,14 @@ bool Application::initialize()
     
     qDebug() << "Initializing Application...";
     
-    // Initialize undo stack
+    // Initialize undo stack with configurable limit
     m_undoStack = std::make_unique<QUndoStack>(this);
+    
+    // Load undo limit from settings (default: 100 commands)
+    QSettings settings("dc-3ddesignapp", "dc-3ddesignapp");
+    int undoLimit = settings.value("editor/undoLimit", 100).toInt();
+    m_undoStack->setUndoLimit(undoLimit);
+    qDebug() << "Undo limit set to:" << undoLimit;
     
     // Initialize scene manager
     m_sceneManager = std::make_unique<core::SceneManager>();
@@ -117,6 +124,15 @@ void Application::setMainWindow(MainWindow* window)
         );
         
         qDebug() << "Integration controller connected to main window";
+    }
+    
+    // Connect undo stack to menu bar for automatic undo/redo text updates
+    if (m_mainWindow && m_undoStack) {
+        MenuBar* menuBar = m_mainWindow->menuBar();
+        if (menuBar) {
+            menuBar->connectToUndoStack(m_undoStack.get());
+            qDebug() << "Undo stack connected to menu bar";
+        }
     }
 }
 

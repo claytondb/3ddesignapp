@@ -119,11 +119,28 @@ public:
     uint64_t generateMeshId();
     
     /**
-     * @brief Create a primitive and add to scene
+     * @brief Create a primitive and add to scene (default dimensions)
      * @param type Type of primitive: "sphere", "cube", "cylinder", "cone", "plane", "torus"
      * @return true on success
      */
     bool createPrimitive(const QString& type);
+    
+    /**
+     * @brief Create a primitive with custom dimensions and position
+     * @param type Type of primitive
+     * @param position Center position of the primitive
+     * @param width Width/radius depending on type
+     * @param height Height depending on type
+     * @param depth Depth depending on type (cube only)
+     * @param segments Number of segments for curved primitives
+     * @param selectAfterCreation Whether to select the primitive after creation
+     * @return true on success
+     */
+    bool createPrimitiveWithConfig(const QString& type, 
+                                    const glm::vec3& position,
+                                    float width, float height, float depth,
+                                    int segments = 32,
+                                    bool selectAfterCreation = true);
     
     /**
      * @brief Deselect all objects in the scene

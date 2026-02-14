@@ -719,11 +719,20 @@ void MainWindow::setupConnections()
         dialog->show();
     });
     
-    // Primitive creation connections
+    // Primitive creation connections - menu
+    connect(m_menuBar, &MenuBar::createCubeRequested, this, &MainWindow::onCreateCubeRequested);
     connect(m_menuBar, &MenuBar::createSphereRequested, this, &MainWindow::onCreateSphereRequested);
     connect(m_menuBar, &MenuBar::createCylinderRequested, this, &MainWindow::onCreateCylinderRequested);
     connect(m_menuBar, &MenuBar::createConeRequested, this, &MainWindow::onCreateConeRequested);
     connect(m_menuBar, &MenuBar::createPlaneRequested, this, &MainWindow::onCreatePlaneRequested);
+    connect(m_menuBar, &MenuBar::createTorusRequested, this, &MainWindow::onCreateTorusRequested);
+    
+    // Primitive creation connections - toolbar
+    connect(m_toolbar, &Toolbar::createCubeRequested, this, &MainWindow::onCreateCubeRequested);
+    connect(m_toolbar, &Toolbar::createSphereRequested, this, &MainWindow::onCreateSphereRequested);
+    connect(m_toolbar, &Toolbar::createCylinderRequested, this, &MainWindow::onCreateCylinderRequested);
+    connect(m_toolbar, &Toolbar::createConeRequested, this, &MainWindow::onCreateConeRequested);
+    connect(m_toolbar, &Toolbar::createPlaneRequested, this, &MainWindow::onCreatePlaneRequested);
 }
 
 void MainWindow::applyStylesheet()
@@ -1083,59 +1092,84 @@ void MainWindow::onCommandsDiscarded(int count)
     }
 }
 
-void MainWindow::onCreateSphereRequested()
+void MainWindow::createPrimitiveWithDialog(PrimitiveCreationDialog::PrimitiveType type)
 {
     auto* app = dc3d::Application::instance();
-    if (app) {
-        if (!app->createPrimitive("sphere")) {
-            QMessageBox::warning(this, tr("Create Error"), 
-                tr("Failed to create sphere primitive."));
+    if (!app) return;
+    
+    // Get view center for positioning
+    glm::vec3 viewCenter(0.0f);
+    if (m_viewport) {
+        QVector3D center = m_viewport->viewCenter();
+        viewCenter = glm::vec3(center.x(), center.y(), center.z());
+    }
+    
+    // Show configuration dialog
+    PrimitiveCreationDialog::PrimitiveConfig config;
+    if (!PrimitiveCreationDialog::getConfig(type, config, this)) {
+        return;  // User cancelled
+    }
+    
+    // Set position based on user choice
+    if (config.positionAtViewCenter) {
+        config.position = viewCenter;
+    }
+    
+    // Create primitive with configured settings
+    QString typeName;
+    switch (type) {
+        case PrimitiveCreationDialog::PrimitiveType::Cube:     typeName = "cube"; break;
+        case PrimitiveCreationDialog::PrimitiveType::Sphere:   typeName = "sphere"; break;
+        case PrimitiveCreationDialog::PrimitiveType::Cylinder: typeName = "cylinder"; break;
+        case PrimitiveCreationDialog::PrimitiveType::Cone:     typeName = "cone"; break;
+        case PrimitiveCreationDialog::PrimitiveType::Plane:    typeName = "plane"; break;
+        case PrimitiveCreationDialog::PrimitiveType::Torus:    typeName = "torus"; break;
+    }
+    
+    // Use enhanced createPrimitive with config
+    if (!app->createPrimitiveWithConfig(typeName, config.position, 
+                                         config.width, config.height, config.depth,
+                                         config.segments, config.selectAfterCreation)) {
+        QMessageBox::warning(this, tr("Create Error"), 
+            tr("Failed to create %1 primitive.").arg(typeName));
+    } else {
+        m_statusBar->showSuccess(tr("Created %1").arg(typeName));
+        
+        // Show properties panel if requested
+        if (config.selectAfterCreation) {
+            m_propertiesDock->show();
         }
     }
 }
 
 void MainWindow::onCreateCubeRequested()
 {
-    auto* app = dc3d::Application::instance();
-    if (app) {
-        if (!app->createPrimitive("cube")) {
-            QMessageBox::warning(this, tr("Create Error"), 
-                tr("Failed to create cube primitive."));
-        }
-    }
+    createPrimitiveWithDialog(PrimitiveCreationDialog::PrimitiveType::Cube);
+}
+
+void MainWindow::onCreateSphereRequested()
+{
+    createPrimitiveWithDialog(PrimitiveCreationDialog::PrimitiveType::Sphere);
 }
 
 void MainWindow::onCreateCylinderRequested()
 {
-    auto* app = dc3d::Application::instance();
-    if (app) {
-        if (!app->createPrimitive("cylinder")) {
-            QMessageBox::warning(this, tr("Create Error"), 
-                tr("Failed to create cylinder primitive."));
-        }
-    }
+    createPrimitiveWithDialog(PrimitiveCreationDialog::PrimitiveType::Cylinder);
 }
 
 void MainWindow::onCreateConeRequested()
 {
-    auto* app = dc3d::Application::instance();
-    if (app) {
-        if (!app->createPrimitive("cone")) {
-            QMessageBox::warning(this, tr("Create Error"), 
-                tr("Failed to create cone primitive."));
-        }
-    }
+    createPrimitiveWithDialog(PrimitiveCreationDialog::PrimitiveType::Cone);
 }
 
 void MainWindow::onCreatePlaneRequested()
 {
-    auto* app = dc3d::Application::instance();
-    if (app) {
-        if (!app->createPrimitive("plane")) {
-            QMessageBox::warning(this, tr("Create Error"), 
-                tr("Failed to create plane primitive."));
-        }
-    }
+    createPrimitiveWithDialog(PrimitiveCreationDialog::PrimitiveType::Plane);
+}
+
+void MainWindow::onCreateTorusRequested()
+{
+    createPrimitiveWithDialog(PrimitiveCreationDialog::PrimitiveType::Torus);
 }
 
 void MainWindow::onTranslateModeRequested()

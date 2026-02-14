@@ -1,5 +1,6 @@
 #include "MenuBar.h"
 #include "../core/CommandStack.h"
+#include <QUndoStack>
 #include "dialogs/PolygonReductionDialog.h"
 #include "dialogs/SmoothingDialog.h"
 #include "dialogs/HoleFillDialog.h"
@@ -645,6 +646,58 @@ void MenuBar::connectToCommandStack(dc3d::core::CommandStack* commandStack)
     }
     
     QString redoText = commandStack->redoText();
+    if (!redoText.isEmpty()) {
+        m_actionRedo->setText(tr("&Redo %1").arg(redoText));
+    }
+}
+
+void MenuBar::connectToUndoStack(QUndoStack* undoStack)
+{
+    if (!undoStack) {
+        return;
+    }
+    
+    // Connect undo action to undo stack
+    connect(m_actionUndo, &QAction::triggered, undoStack, &QUndoStack::undo);
+    connect(m_actionRedo, &QAction::triggered, undoStack, &QUndoStack::redo);
+    
+    // Update enabled state when stack changes
+    connect(undoStack, &QUndoStack::canUndoChanged, this, [this](bool canUndo) {
+        m_actionUndo->setEnabled(canUndo);
+    });
+    
+    connect(undoStack, &QUndoStack::canRedoChanged, this, [this](bool canRedo) {
+        m_actionRedo->setEnabled(canRedo);
+    });
+    
+    // Update menu text with command description
+    connect(undoStack, &QUndoStack::undoTextChanged, this, [this](const QString& text) {
+        if (text.isEmpty()) {
+            m_actionUndo->setText(tr("&Undo"));
+        } else {
+            m_actionUndo->setText(tr("&Undo %1").arg(text));
+        }
+    });
+    
+    connect(undoStack, &QUndoStack::redoTextChanged, this, [this](const QString& text) {
+        if (text.isEmpty()) {
+            m_actionRedo->setText(tr("&Redo"));
+        } else {
+            m_actionRedo->setText(tr("&Redo %1").arg(text));
+        }
+    });
+    
+    // Set initial state
+    m_actionUndo->setEnabled(undoStack->canUndo());
+    m_actionRedo->setEnabled(undoStack->canRedo());
+    
+    // Set initial text
+    QString undoText = undoStack->undoText();
+    if (!undoText.isEmpty()) {
+        m_actionUndo->setText(tr("&Undo %1").arg(undoText));
+    }
+    
+    QString redoText = undoStack->redoText();
     if (!redoText.isEmpty()) {
         m_actionRedo->setText(tr("&Redo %1").arg(redoText));
     }

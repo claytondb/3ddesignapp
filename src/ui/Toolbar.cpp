@@ -18,6 +18,8 @@ Toolbar::Toolbar(QWidget *parent)
     addSeparator();
     setupSelectionGroup();
     addSeparator();
+    setupTransformGroup();
+    addSeparator();
     setupViewGroup();
     addSeparator();
     setupCreateGroup();
@@ -54,12 +56,18 @@ QAction* Toolbar::createAction(const QString& text, const QString& iconName,
             {"select-box", QStyle::SP_FileDialogContentsView},
             {"select-lasso", QStyle::SP_FileDialogDetailedView},
             {"select-brush", QStyle::SP_DialogResetButton},
+            {"transform-move", QStyle::SP_ArrowUp},
+            {"transform-rotate", QStyle::SP_BrowserReload},
+            {"transform-scale", QStyle::SP_TitleBarMaxButton},
             {"view-shaded", QStyle::SP_DesktopIcon},
             {"view-wireframe", QStyle::SP_TitleBarNormalButton},
             {"view-shaded-wire", QStyle::SP_TitleBarMaxButton},
             {"view-xray", QStyle::SP_TitleBarShadeButton},
-            {"primitive-plane", QStyle::SP_FileDialogNewFolder},
+            {"primitive-cube", QStyle::SP_ComputerIcon},
+            {"primitive-sphere", QStyle::SP_DriveNetIcon},
             {"primitive-cylinder", QStyle::SP_DriveHDIcon},
+            {"primitive-cone", QStyle::SP_TitleBarUnshadeButton},
+            {"primitive-plane", QStyle::SP_FileDialogNewFolder},
             {"section", QStyle::SP_ToolBarHorizontalExtensionButton},
             {"sketch", QStyle::SP_FileDialogListView},
             {"mesh-reduce", QStyle::SP_BrowserReload},
@@ -224,6 +232,37 @@ void Toolbar::setupSelectionGroup()
     addAction(m_actionBrushSelect);
 }
 
+void Toolbar::setupTransformGroup()
+{
+    m_transformGroup = new QActionGroup(this);
+    m_transformGroup->setExclusive(true);
+    
+    // Translate - move objects
+    m_actionTranslate = createAction(tr("Move"), "transform-move",
+        tr("Move selected objects. Drag gizmo axes or enter values."), "G");
+    m_actionTranslate->setCheckable(true);
+    m_actionTranslate->setChecked(true);  // Default mode
+    m_transformGroup->addAction(m_actionTranslate);
+    connect(m_actionTranslate, &QAction::triggered, this, &Toolbar::translateModeRequested);
+    addAction(m_actionTranslate);
+    
+    // Rotate - rotate objects
+    m_actionRotate = createAction(tr("Rotate"), "transform-rotate",
+        tr("Rotate selected objects. Drag rotation rings or enter angles."), "R");
+    m_actionRotate->setCheckable(true);
+    m_transformGroup->addAction(m_actionRotate);
+    connect(m_actionRotate, &QAction::triggered, this, &Toolbar::rotateModeRequested);
+    addAction(m_actionRotate);
+    
+    // Scale - resize objects
+    m_actionScale = createAction(tr("Scale"), "transform-scale",
+        tr("Scale selected objects. Drag handles or enter scale factors."), "S");
+    m_actionScale->setCheckable(true);
+    m_transformGroup->addAction(m_actionScale);
+    connect(m_actionScale, &QAction::triggered, this, &Toolbar::scaleModeRequested);
+    addAction(m_actionScale);
+}
+
 void Toolbar::setupViewGroup()
 {
     m_viewModeGroup = new QActionGroup(this);
@@ -265,17 +304,37 @@ void Toolbar::setupViewGroup()
 
 void Toolbar::setupCreateGroup()
 {
-    // Plane primitive - reference plane for sketching
-    m_actionCreatePlane = createAction(tr("Plane"), "primitive-plane", 
-        tr("Create a reference plane for sketching or alignment. Click to place or select a face."), "P");
-    connect(m_actionCreatePlane, &QAction::triggered, this, &Toolbar::createPlaneRequested);
-    addAction(m_actionCreatePlane);
+    // Cube primitive - most common
+    m_actionCreateCube = createAction(tr("Cube"), "primitive-cube", 
+        tr("Create a cube (box). Opens dialog for size presets or custom dimensions."), "B");
+    connect(m_actionCreateCube, &QAction::triggered, this, &Toolbar::createCubeRequested);
+    addAction(m_actionCreateCube);
+    
+    // Sphere primitive
+    m_actionCreateSphere = createAction(tr("Sphere"), "primitive-sphere", 
+        tr("Create a sphere. Opens dialog for radius and resolution settings."), "");
+    connect(m_actionCreateSphere, &QAction::triggered, this, &Toolbar::createSphereRequested);
+    addAction(m_actionCreateSphere);
 
     // Cylinder primitive
     m_actionCreateCylinder = createAction(tr("Cyl"), "primitive-cylinder", 
-        tr("Create a cylinder. Click to place center, drag to set radius, click again for height."), "C");
+        tr("Create a cylinder. Opens dialog for radius and height settings."), "C");
     connect(m_actionCreateCylinder, &QAction::triggered, this, &Toolbar::createCylinderRequested);
     addAction(m_actionCreateCylinder);
+    
+    // Cone primitive
+    m_actionCreateCone = createAction(tr("Cone"), "primitive-cone", 
+        tr("Create a cone. Opens dialog for base radius and height settings."), "");
+    connect(m_actionCreateCone, &QAction::triggered, this, &Toolbar::createConeRequested);
+    addAction(m_actionCreateCone);
+
+    // Plane primitive - reference plane for sketching
+    m_actionCreatePlane = createAction(tr("Plane"), "primitive-plane", 
+        tr("Create a reference plane for sketching or alignment."), "P");
+    connect(m_actionCreatePlane, &QAction::triggered, this, &Toolbar::createPlaneRequested);
+    addAction(m_actionCreatePlane);
+    
+    addSeparator();
 
     // Section plane - cross-section view
     m_actionCreateSection = createAction(tr("Sect"), "section", 
