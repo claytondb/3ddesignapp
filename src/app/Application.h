@@ -124,15 +124,60 @@ public:
      * @return true on success
      */
     bool createPrimitive(const QString& type);
+    
+    /**
+     * @brief Deselect all objects in the scene
+     */
+    void deselectAll();
+    
+    // =========================================================================
+    // Auto-backup functionality
+    // =========================================================================
+    
+    /**
+     * @brief Enable or disable auto-backup before destructive operations
+     */
+    void setAutoBackupEnabled(bool enabled);
+    bool isAutoBackupEnabled() const { return m_autoBackupEnabled; }
+    
+    /**
+     * @brief Set the backup directory
+     */
+    void setBackupDirectory(const QString& dir);
+    QString backupDirectory() const { return m_backupDirectory; }
+    
+    /**
+     * @brief Create a backup of the current scene
+     * @param reason Description of why backup was created
+     * @return Path to backup file, or empty if failed
+     */
+    QString createBackup(const QString& reason = QString());
+    
+    /**
+     * @brief Get list of recent backups
+     */
+    QStringList recentBackups() const;
+    
+    /**
+     * @brief Restore from a backup file
+     */
+    bool restoreFromBackup(const QString& backupPath);
 
 signals:
     /**
      * @brief Emitted when a mesh is imported successfully
+     * @param name Display name of the mesh
+     * @param id Unique mesh ID
+     * @param vertexCount Number of vertices
+     * @param faceCount Number of triangles
+     * @param loadTimeMs Time taken to load in milliseconds
      */
-    void meshImported(const QString& name, uint64_t id);
+    void meshImported(const QString& name, uint64_t id, 
+                     size_t vertexCount, size_t faceCount, double loadTimeMs);
     
     /**
      * @brief Emitted when import fails
+     * @param error Human-readable error message explaining what went wrong
      */
     void importFailed(const QString& error);
 
@@ -147,6 +192,15 @@ private:
     MainWindow* m_mainWindow = nullptr;
     bool m_initialized = false;
     uint64_t m_nextMeshId = 1;
+    
+    // Auto-backup settings
+    bool m_autoBackupEnabled = true;
+    QString m_backupDirectory;
+    static const int MAX_BACKUPS = 10;
+    
+    void loadBackupSettings();
+    void saveBackupSettings();
+    void cleanupOldBackups();
 };
 
 } // namespace dc3d

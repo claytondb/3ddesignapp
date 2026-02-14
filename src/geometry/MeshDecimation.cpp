@@ -567,14 +567,34 @@ Result<std::pair<MeshData, DecimationResult>> MeshDecimator::decimate(
     ProgressCallback progress)
 {
     if (mesh.isEmpty()) {
-        return Result<std::pair<MeshData, DecimationResult>>::failure("Input mesh is empty");
+        return Result<std::pair<MeshData, DecimationResult>>::failure(
+            "Cannot perform polygon reduction: mesh is empty.\n"
+            "Please import or create a mesh first.");
+    }
+    
+    // Validate options
+    if (options.targetMode == DecimationTarget::Ratio && 
+        (options.targetRatio <= 0.0f || options.targetRatio > 1.0f)) {
+        return Result<std::pair<MeshData, DecimationResult>>::failure(
+            "Invalid reduction ratio: " + std::to_string(options.targetRatio) + "\n"
+            "Ratio must be between 0 (exclusive) and 1 (inclusive).");
+    }
+    
+    if (options.targetMode == DecimationTarget::FaceCount && 
+        options.targetFaceCount >= mesh.faceCount()) {
+        return Result<std::pair<MeshData, DecimationResult>>::failure(
+            "Target face count (" + std::to_string(options.targetFaceCount) + 
+            ") must be less than current count (" + std::to_string(mesh.faceCount()) + ").\n"
+            "To increase polygon count, use subdivision instead.");
     }
     
     // Build half-edge mesh
     auto heMeshResult = HalfEdgeMesh::buildFromMesh(mesh, nullptr);
     if (!heMeshResult.ok()) {
         return Result<std::pair<MeshData, DecimationResult>>::failure(
-            "Failed to build half-edge mesh: " + heMeshResult.error);
+            "Cannot process mesh for decimation.\n"
+            "Error: " + heMeshResult.error + "\n"
+            "The mesh may have non-manifold geometry. Try running Mesh Repair first.");
     }
     
     // Run decimation

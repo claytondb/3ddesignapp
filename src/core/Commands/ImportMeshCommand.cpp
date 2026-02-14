@@ -8,6 +8,7 @@
 #include "../../io/MeshImporter.h"
 
 #include <QFileInfo>
+#include <QLocale>
 
 namespace dc3d {
 namespace core {
@@ -102,12 +103,48 @@ bool ImportMeshCommand::loadMeshFromFile()
     if (result.ok()) {
         m_meshData = std::move(result.mesh);
         m_success = true;
+        
+        // Store import statistics for user feedback
+        m_vertexCount = result.vertexCount;
+        m_faceCount = result.faceCount;
+        m_loadTimeMs = result.loadTimeMs;
+        
         return true;
     } else {
         m_success = false;
         m_errorMessage = QString::fromStdString(result.error);
         return false;
     }
+}
+
+QString ImportMeshCommand::successMessage() const
+{
+    if (!m_success) {
+        return QString();
+    }
+    
+    QFileInfo info(m_filePath);
+    qint64 fileSize = info.size();
+    double fileSizeMB = static_cast<double>(fileSize) / (1024.0 * 1024.0);
+    
+    QString stats = QString("Imported \"%1\" - %2 triangles, %3 vertices")
+        .arg(info.fileName())
+        .arg(QLocale().toString(static_cast<qulonglong>(m_faceCount)))
+        .arg(QLocale().toString(static_cast<qulonglong>(m_vertexCount)));
+    
+    if (fileSizeMB >= 0.1) {
+        stats += QString(" (%1 MB)").arg(QString::number(fileSizeMB, 'f', 1));
+    }
+    
+    if (m_loadTimeMs > 100) {
+        if (m_loadTimeMs < 1000) {
+            stats += QString(" in %1 ms").arg(static_cast<int>(m_loadTimeMs));
+        } else {
+            stats += QString(" in %1 s").arg(m_loadTimeMs / 1000.0, 0, 'f', 1);
+        }
+    }
+    
+    return stats;
 }
 
 } // namespace core

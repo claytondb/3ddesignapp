@@ -11,10 +11,15 @@
 #include <QSettings>
 #include <QCloseEvent>
 #include <QKeyEvent>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QUrl>
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QLocale>
 #include <QMessageBox>
 #include <QUndoStack>
 
@@ -524,6 +529,9 @@ MainWindow::MainWindow(QWidget *parent)
     setupUI();
     setupConnections();
     loadSettings();
+    
+    // Enable drag and drop
+    setAcceptDrops(true);
 }
 
 MainWindow::~MainWindow()
@@ -621,9 +629,35 @@ void MainWindow::setupStatusBar()
 
 void MainWindow::setupConnections()
 {
+    // Application import feedback connections
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        connect(app, &dc3d::Application::meshImported, this, 
+            [this](const QString& name, uint64_t /*id*/, size_t vertexCount, size_t faceCount, double /*loadTimeMs*/) {
+            // Format statistics for user feedback
+            QLocale locale;
+            QString stats = tr("Imported: %1 (%2 triangles, %3 vertices)")
+                .arg(name)
+                .arg(locale.toString(static_cast<qulonglong>(faceCount)))
+                .arg(locale.toString(static_cast<qulonglong>(vertexCount)));
+            
+            m_statusBar->showSuccess(stats);
+        });
+        
+        connect(app, &dc3d::Application::importFailed, this, [this](const QString& error) {
+            // Show brief error in status bar
+            QString briefError = error.section('\n', 0, 0);  // First line only
+            m_statusBar->showError(briefError);
+            
+            // Show full detailed error in dialog for user attention
+            QMessageBox::warning(this, tr("Import Failed"), error);
+        });
+    }
+    
     // File menu connections
     connect(m_menuBar, &MenuBar::openProjectRequested, this, &MainWindow::onOpenProjectRequested);
     connect(m_menuBar, &MenuBar::importMeshRequested, this, &MainWindow::onImportMeshRequested);
+    connect(m_menuBar, &MenuBar::recentFileRequested, this, &MainWindow::onRecentFileRequested);
     
     // Toolbar connections - connect toolbar signals to the same slots as menu
     connect(m_toolbar, &Toolbar::openRequested, this, &MainWindow::onOpenProjectRequested);
@@ -679,6 +713,23 @@ void MainWindow::loadSettings()
     if (settings.contains("mainwindow/state")) {
         restoreState(settings.value("mainwindow/state").toByteArray());
     }
+    
+    // Load recent files
+    m_recentFiles = settings.value("recentFiles/list").toStringList();
+    
+    // Remove any files that no longer exist
+    QStringList validFiles;
+    for (const QString& file : m_recentFiles) {
+        if (QFileInfo::exists(file)) {
+            validFiles.append(file);
+        }
+    }
+    m_recentFiles = validFiles;
+    
+    // Update menu
+    if (m_menuBar) {
+        m_menuBar->updateRecentFiles(m_recentFiles);
+    }
 }
 
 void MainWindow::saveSettings()
@@ -690,6 +741,9 @@ void MainWindow::saveSettings()
     
     // Save dock/toolbar state
     settings.setValue("mainwindow/state", saveState());
+    
+    // Save recent files
+    settings.setValue("recentFiles/list", m_recentFiles);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -771,8 +825,19 @@ void MainWindow::onSceneChanged()
 
 void MainWindow::onOpenProjectRequested()
 {
-    // Open project file dialog
-    QString filter = "3D Design Project (*.dc3d);;Mesh Files (*.stl *.obj *.ply);;All Files (*)";
+    // Build comprehensive filter with format hints
+    QString filter = tr(
+        "All Supported Files (*.dc3d *.stl *.obj *.ply *.step *.stp *.iges *.igs);;"
+        "3D Design Project (*.dc3d);;"
+        "Mesh Files (*.stl *.obj *.ply);;"
+        "STL Files (*.stl);;"
+        "OBJ Wavefront (*.obj);;"
+        "PLY Point Cloud (*.ply);;"
+        "STEP CAD Files (*.step *.stp);;"
+        "IGES CAD Files (*.iges *.igs);;"
+        "All Files (*)"
+    );
+    
     QString filePath = QFileDialog::getOpenFileName(this, tr("Open Project"), QString(), filter);
     
     if (filePath.isEmpty()) {
@@ -783,7 +848,7 @@ void MainWindow::onOpenProjectRequested()
     QFileInfo fileInfo(filePath);
     QString extension = fileInfo.suffix().toLower();
     
-    if (extension == "stl" || extension == "obj" || extension == "ply") {
+    if (isFormatSupported(extension)) {
         // Import as mesh
         auto* app = dc3d::Application::instance();
         if (app) {
@@ -791,6 +856,7 @@ void MainWindow::onOpenProjectRequested()
                 QMessageBox::warning(this, tr("Open Error"), 
                     tr("Failed to open file. Check the console for details."));
             } else {
+                addRecentFile(filePath);
                 setStatusMessage(QString("Opened: %1").arg(fileInfo.fileName()));
             }
         }
@@ -799,26 +865,55 @@ void MainWindow::onOpenProjectRequested()
         QMessageBox::information(this, tr("Open Project"), 
             tr("Native project file support coming soon. For now, use File > Import to load mesh files."));
     } else {
-        QMessageBox::warning(this, tr("Open Error"), 
-            tr("Unsupported file format: %1").arg(extension));
+        // Show helpful error with supported formats
+        QString supportedList = supportedImportFormats().join(", ").toUpper();
+        QMessageBox::warning(this, tr("Unsupported Format"), 
+            tr("Cannot open file with extension '.%1'\n\n"
+               "Supported formats:\n%2\n\n"
+               "Tip: You can drag and drop supported files directly onto the window.")
+                .arg(extension)
+                .arg(supportedList));
     }
 }
 
 void MainWindow::onImportMeshRequested()
 {
-    QString filter = "Mesh Files (*.stl *.obj *.ply);;STL Files (*.stl);;OBJ Files (*.obj);;PLY Files (*.ply);;All Files (*)";
+    // Comprehensive filter with format descriptions
+    QString filter = tr(
+        "All Mesh Files (*.stl *.obj *.ply);;"
+        "STL Stereolithography (*.stl);;"
+        "OBJ Wavefront (*.obj);;"
+        "PLY Polygon File Format (*.ply);;"
+        "All Files (*)"
+    );
+    
     QString filePath = QFileDialog::getOpenFileName(this, tr("Import Mesh"), QString(), filter);
     
     if (filePath.isEmpty()) {
         return;
     }
     
+    QFileInfo fileInfo(filePath);
+    QString extension = fileInfo.suffix().toLower();
+    
+    // Check if format is supported
+    if (extension != "stl" && extension != "obj" && extension != "ply") {
+        QMessageBox::warning(this, tr("Unsupported Format"),
+            tr("Cannot import file with extension '.%1'\n\n"
+               "Supported mesh formats: STL, OBJ, PLY\n\n"
+               "For CAD files (STEP, IGES), use File → Import → CAD")
+                .arg(extension));
+        return;
+    }
+    
+    // Show loading indicator
+    m_statusBar->setMessage(tr("Importing %1...").arg(fileInfo.fileName()));
+    
     auto* app = dc3d::Application::instance();
     if (app) {
-        if (!app->importMesh(filePath)) {
-            QMessageBox::warning(this, tr("Import Error"), 
-                tr("Failed to import mesh file. Check the console for details."));
-        }
+        // Import - success/failure will be handled by connected signals (setupConnections)
+        // The signals provide detailed error messages from the importers
+        app->importMesh(filePath);
     }
 }
 
@@ -1018,5 +1113,182 @@ void MainWindow::cancelCurrentOperation()
     // Reset to default mode if in special mode
     if (m_currentMode != "Mesh") {
         setMeshMode();
+    }
+}
+
+// ============================================================================
+// Recent Files Management
+// ============================================================================
+
+void MainWindow::addRecentFile(const QString& filePath)
+{
+    // Remove if already in list (will re-add at top)
+    m_recentFiles.removeAll(filePath);
+    
+    // Add to front
+    m_recentFiles.prepend(filePath);
+    
+    // Limit to max recent files
+    while (m_recentFiles.size() > MAX_RECENT_FILES) {
+        m_recentFiles.removeLast();
+    }
+    
+    // Update menu
+    if (m_menuBar) {
+        m_menuBar->updateRecentFiles(m_recentFiles);
+    }
+    
+    // Save immediately
+    QSettings settings("dc-3ddesignapp", "dc-3ddesignapp");
+    settings.setValue("recentFiles/list", m_recentFiles);
+    
+    emit recentFilesChanged(m_recentFiles);
+}
+
+void MainWindow::clearRecentFiles()
+{
+    m_recentFiles.clear();
+    
+    if (m_menuBar) {
+        m_menuBar->updateRecentFiles(m_recentFiles);
+    }
+    
+    QSettings settings("dc-3ddesignapp", "dc-3ddesignapp");
+    settings.setValue("recentFiles/list", m_recentFiles);
+    
+    emit recentFilesChanged(m_recentFiles);
+}
+
+void MainWindow::onRecentFileRequested(const QString& path)
+{
+    if (!QFileInfo::exists(path)) {
+        QMessageBox::warning(this, tr("File Not Found"),
+            tr("The file no longer exists:\n%1").arg(path));
+        
+        // Remove from recent files
+        m_recentFiles.removeAll(path);
+        if (m_menuBar) {
+            m_menuBar->updateRecentFiles(m_recentFiles);
+        }
+        return;
+    }
+    
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        if (app->importMesh(path)) {
+            addRecentFile(path);
+            QFileInfo fileInfo(path);
+            setStatusMessage(QString("Opened: %1").arg(fileInfo.fileName()));
+        } else {
+            QMessageBox::warning(this, tr("Open Error"), 
+                tr("Failed to open file. Check the console for details."));
+        }
+    }
+}
+
+// ============================================================================
+// Drag and Drop Support
+// ============================================================================
+
+QStringList MainWindow::supportedImportFormats()
+{
+    return QStringList() << "stl" << "obj" << "ply" << "step" << "stp" << "iges" << "igs";
+}
+
+QStringList MainWindow::supportedExportFormats()
+{
+    return QStringList() << "stl" << "obj" << "ply" << "step" << "stp" << "iges" << "igs";
+}
+
+bool MainWindow::isFormatSupported(const QString& extension)
+{
+    QString ext = extension.toLower();
+    return supportedImportFormats().contains(ext);
+}
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (event->mimeData()->hasUrls()) {
+        // Check if any URL is a supported file format
+        for (const QUrl& url : event->mimeData()->urls()) {
+            if (url.isLocalFile()) {
+                QString filePath = url.toLocalFile();
+                QFileInfo fileInfo(filePath);
+                QString ext = fileInfo.suffix().toLower();
+                
+                if (isFormatSupported(ext)) {
+                    event->acceptProposedAction();
+                    if (m_statusBar) {
+                        m_statusBar->showInfo(tr("Drop to import: %1").arg(fileInfo.fileName()));
+                    }
+                    return;
+                }
+            }
+        }
+    }
+    
+    // Not a supported file
+    event->ignore();
+}
+
+void MainWindow::dropEvent(QDropEvent *event)
+{
+    if (!event->mimeData()->hasUrls()) {
+        event->ignore();
+        return;
+    }
+    
+    QStringList importedFiles;
+    QStringList failedFiles;
+    QStringList unsupportedFiles;
+    
+    for (const QUrl& url : event->mimeData()->urls()) {
+        if (!url.isLocalFile()) {
+            continue;
+        }
+        
+        QString filePath = url.toLocalFile();
+        QFileInfo fileInfo(filePath);
+        QString ext = fileInfo.suffix().toLower();
+        
+        if (!isFormatSupported(ext)) {
+            unsupportedFiles.append(fileInfo.fileName());
+            continue;
+        }
+        
+        // Try to import
+        auto* app = dc3d::Application::instance();
+        if (app && app->importMesh(filePath)) {
+            importedFiles.append(fileInfo.fileName());
+            addRecentFile(filePath);
+        } else {
+            failedFiles.append(fileInfo.fileName());
+        }
+    }
+    
+    // Show result
+    if (!importedFiles.isEmpty()) {
+        if (importedFiles.size() == 1) {
+            setStatusMessage(tr("Imported: %1").arg(importedFiles.first()));
+        } else {
+            setStatusMessage(tr("Imported %1 files").arg(importedFiles.size()));
+        }
+        event->acceptProposedAction();
+    }
+    
+    // Show errors for failed imports
+    if (!failedFiles.isEmpty()) {
+        QMessageBox::warning(this, tr("Import Failed"),
+            tr("Failed to import:\n%1").arg(failedFiles.join("\n")));
+    }
+    
+    // Show warning for unsupported formats
+    if (!unsupportedFiles.isEmpty()) {
+        QString supportedList = supportedImportFormats().join(", ").toUpper();
+        QMessageBox::information(this, tr("Unsupported Format"),
+            tr("The following files have unsupported formats:\n%1\n\n"
+               "Supported formats: %2")
+                .arg(unsupportedFiles.join("\n"))
+                .arg(supportedList));
     }
 }

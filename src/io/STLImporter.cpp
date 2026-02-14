@@ -76,24 +76,46 @@ geometry::Result<geometry::MeshData> STLImporter::import(
     const STLImportOptions& options,
     geometry::ProgressCallback progress) {
     
+    std::string fileName = path.filename().string();
+    
     // Check file exists
     if (!std::filesystem::exists(path)) {
         return geometry::Result<geometry::MeshData>::failure(
-            "File not found: " + path.string());
+            "File not found: \"" + fileName + "\"\n"
+            "Path: " + path.string() + "\n"
+            "Please check that the file exists and the path is correct.");
     }
     
     // Get file size
-    auto fileSize = std::filesystem::file_size(path);
+    std::error_code ec;
+    auto fileSize = std::filesystem::file_size(path, ec);
+    if (ec) {
+        return geometry::Result<geometry::MeshData>::failure(
+            "Cannot read file: \"" + fileName + "\"\n"
+            "Error: " + ec.message() + "\n"
+            "Check that you have permission to read this file.");
+    }
+    
     if (fileSize == 0) {
         return geometry::Result<geometry::MeshData>::failure(
-            "File is empty: " + path.string());
+            "File is empty: \"" + fileName + "\"\n"
+            "The file contains no data. It may be corrupted or incomplete.");
+    }
+    
+    // Check minimum size for valid STL
+    if (fileSize < STL_HEADER_SIZE + 4) {
+        return geometry::Result<geometry::MeshData>::failure(
+            "File too small: \"" + fileName + "\" (" + std::to_string(fileSize) + " bytes)\n"
+            "A valid STL file must be at least " + std::to_string(STL_HEADER_SIZE + 4) + " bytes.\n"
+            "The file may be truncated or corrupted.");
     }
     
     // Detect format
     auto isBinaryOpt = detectBinaryFormat(path);
     if (!isBinaryOpt) {
         return geometry::Result<geometry::MeshData>::failure(
-            "Failed to detect STL format: " + path.string());
+            "Cannot determine STL format: \"" + fileName + "\"\n"
+            "The file header is unreadable. It may be corrupted or not a valid STL file.");
     }
     
     bool isBinary = *isBinaryOpt;
@@ -107,7 +129,8 @@ geometry::Result<geometry::MeshData> STLImporter::import(
     std::ifstream file(path, mode);
     if (!file) {
         return geometry::Result<geometry::MeshData>::failure(
-            "Failed to open file: " + path.string());
+            "Cannot open file: \"" + fileName + "\"\n"
+            "The file may be in use by another application or you may not have read permission.");
     }
     
     return importFromStream(file, isBinary, options, progress);
@@ -133,7 +156,14 @@ geometry::Result<geometry::MeshData> STLImporter::importFromMemory(
     geometry::ProgressCallback progress) {
     
     if (!data || size == 0) {
-        return geometry::Result<geometry::MeshData>::failure("Empty data");
+        return geometry::Result<geometry::MeshData>::failure(
+            "Cannot import from memory: data buffer is empty or null.");
+    }
+    
+    if (size < STL_HEADER_SIZE + 4) {
+        return geometry::Result<geometry::MeshData>::failure(
+            "Cannot import from memory: data too small (" + std::to_string(size) + " bytes).\n"
+            "A valid STL requires at least " + std::to_string(STL_HEADER_SIZE + 4) + " bytes.");
     }
     
     // Create memory stream
@@ -311,14 +341,29 @@ geometry::Result<geometry::MeshData> STLImporter::importASCII(
             continue;
         }
         else if (token == "vertex") {
-            if (!inFacet || vertexIndex >= 3) {
+            if (!inFacet) {
                 return geometry::Result<geometry::MeshData>::failure(
-                    "Unexpected vertex at line " + std::to_string(lineNumber));
+                    "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                    "Found 'vertex' outside of a facet block.\n"
+                    "Expected 'facet normal' before vertex definitions.");
+            }
+            if (vertexIndex >= 3) {
+                return geometry::Result<geometry::MeshData>::failure(
+                    "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                    "Too many vertices in facet (found more than 3).\n"
+                    "STL format only supports triangular faces.");
             }
             
             iss >> vertices[vertexIndex].x 
                 >> vertices[vertexIndex].y 
                 >> vertices[vertexIndex].z;
+            
+            if (iss.fail()) {
+                return geometry::Result<geometry::MeshData>::failure(
+                    "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                    "Invalid vertex coordinates. Expected 3 numeric values.\n"
+                    "Line content: " + line);
+            }
             ++vertexIndex;
         }
         else if (token == "endloop") {
@@ -326,9 +371,16 @@ geometry::Result<geometry::MeshData> STLImporter::importASCII(
             continue;
         }
         else if (token == "endfacet") {
-            if (!inFacet || vertexIndex != 3) {
+            if (!inFacet) {
                 return geometry::Result<geometry::MeshData>::failure(
-                    "Incomplete facet at line " + std::to_string(lineNumber));
+                    "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                    "Found 'endfacet' without matching 'facet' keyword.");
+            }
+            if (vertexIndex != 3) {
+                return geometry::Result<geometry::MeshData>::failure(
+                    "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                    "Incomplete facet - found " + std::to_string(vertexIndex) + " vertices, expected 3.\n"
+                    "Each triangle in STL must have exactly 3 vertices.");
             }
             
             // Add the triangle
@@ -345,7 +397,7 @@ geometry::Result<geometry::MeshData> STLImporter::importASCII(
                 float prog = static_cast<float>(faceCount) / estimatedTriangles;
                 if (!progress(std::min(prog, 0.95f))) {
                     return geometry::Result<geometry::MeshData>::failure(
-                        "Import cancelled");
+                        "Import cancelled by user.");
                 }
             }
         }
@@ -353,7 +405,9 @@ geometry::Result<geometry::MeshData> STLImporter::importASCII(
     
     if (mesh.isEmpty()) {
         return geometry::Result<geometry::MeshData>::failure(
-            "No triangles found in ASCII STL file");
+            "No valid triangles found in ASCII STL file.\n"
+            "The file may be empty, or it may not be a valid STL file.\n"
+            "Check that the file contains 'facet' and 'vertex' definitions.");
     }
     
     // Post-processing
@@ -371,7 +425,9 @@ geometry::Result<geometry::MeshData> STLImporter::importASCII(
     // CRITICAL FIX: Validate ASCII mesh before returning to catch any corruption
     if (!mesh.isValid()) {
         return geometry::Result<geometry::MeshData>::failure(
-            "Imported ASCII STL mesh is invalid - corrupted data detected");
+            "Imported mesh validation failed.\n"
+            "The mesh data appears to be corrupted or contains invalid geometry.\n"
+            "Try re-exporting the STL file from the original application.");
     }
     
     if (progress) {
@@ -393,19 +449,22 @@ geometry::Result<geometry::MeshData> STLImporter::importBinary(
     stream.read(header, STL_HEADER_SIZE);
     if (!stream) {
         return geometry::Result<geometry::MeshData>::failure(
-            "Failed to read STL header");
+            "Cannot read STL header (first 80 bytes).\n"
+            "The file may be corrupted or truncated.");
     }
     
     // Read triangle count
     uint32_t triangleCount = readUint32(stream);
     if (!stream) {
         return geometry::Result<geometry::MeshData>::failure(
-            "Failed to read triangle count");
+            "Cannot read triangle count from STL header.\n"
+            "The file may be corrupted or truncated.");
     }
     
     if (triangleCount == 0) {
         return geometry::Result<geometry::MeshData>::failure(
-            "STL file contains no triangles");
+            "STL file contains no triangles.\n"
+            "The file declares 0 triangles - it may be empty or corrupted.");
     }
     
     // Sanity check for triangle count (prevent bad allocations)
@@ -413,8 +472,9 @@ geometry::Result<geometry::MeshData> STLImporter::importBinary(
     // Check for overflow before multiplication (CRITICAL FIX: Integer overflow prevention)
     if (triangleCount > MAX_TRIANGLES || triangleCount > SIZE_MAX / 3) {
         return geometry::Result<geometry::MeshData>::failure(
-            "Triangle count exceeds maximum supported or causes overflow (" + 
-            std::to_string(triangleCount) + " > " + std::to_string(MAX_TRIANGLES) + ")");
+            "Triangle count too large: " + std::to_string(triangleCount) + " triangles.\n"
+            "Maximum supported: " + std::to_string(MAX_TRIANGLES) + " triangles.\n"
+            "Try decimating the mesh in the original application before importing.");
     }
     
     // Validate file has enough data for declared triangle count (CRITICAL FIX: File size validation)
@@ -422,8 +482,13 @@ geometry::Result<geometry::MeshData> STLImporter::importBinary(
     stream.seekg(0, std::ios::end);
     auto actualFileSize = stream.tellg();
     if (actualFileSize < 0 || static_cast<size_t>(actualFileSize) < expectedSize) {
+        size_t actualSize = actualFileSize > 0 ? static_cast<size_t>(actualFileSize) : 0;
+        size_t missingBytes = expectedSize - actualSize;
         return geometry::Result<geometry::MeshData>::failure(
-            "File truncated - insufficient data for declared triangle count");
+            "STL file is truncated.\n"
+            "File declares " + std::to_string(triangleCount) + " triangles, "
+            "but file is missing " + std::to_string(missingBytes) + " bytes of data.\n"
+            "The file may have been incompletely downloaded or copied.");
     }
     stream.seekg(STL_HEADER_SIZE + 4);  // Reset to start of triangle data
     
@@ -449,7 +514,8 @@ geometry::Result<geometry::MeshData> STLImporter::importBinary(
         
         if (!stream) {
             return geometry::Result<geometry::MeshData>::failure(
-                "Failed to read triangle " + std::to_string(t));
+                "Failed to read triangle " + std::to_string(t + 1) + " of " + std::to_string(triangleCount) + ".\n"
+                "The file may be truncated or corrupted.");
         }
         
         // Add vertices and face
@@ -486,7 +552,9 @@ geometry::Result<geometry::MeshData> STLImporter::importBinary(
     // CRITICAL FIX: Validate binary mesh before returning to catch any corruption
     if (!mesh.isValid()) {
         return geometry::Result<geometry::MeshData>::failure(
-            "Imported binary STL mesh is invalid - corrupted data detected");
+            "Imported mesh validation failed.\n"
+            "The mesh contains " + std::to_string(mesh.faceCount()) + " triangles but the data appears invalid.\n"
+            "This may indicate file corruption. Try re-exporting from the original application.");
     }
     
     if (progress) {

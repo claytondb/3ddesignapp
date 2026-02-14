@@ -236,14 +236,16 @@ RepairResult MeshRepair::removeOutliers(
     
     if (mesh.isEmpty()) {
         result.success = false;
-        result.message = "Empty mesh";
+        result.message = "Cannot remove outliers: mesh is empty.\n"
+                        "Please import or create a mesh first.";
         return result;
     }
     
     auto components = findConnectedComponents(mesh);
     
     if (components.size() <= 1) {
-        result.message = "Single component, no outliers";
+        result.success = true;
+        result.message = "No outliers found: mesh is a single connected component.";
         return result;
     }
     
@@ -546,13 +548,18 @@ RepairResult MeshRepair::fillHole(
     
     if (hole.boundaryVertices.size() < 3) {
         result.success = false;
-        result.message = "Hole has less than 3 vertices";
+        result.message = "Cannot fill hole: boundary has only " + 
+                        std::to_string(hole.boundaryVertices.size()) + " vertices.\n"
+                        "A hole must have at least 3 boundary vertices.";
         return result;
     }
     
     if (hole.boundaryVertices.size() > options.maxEdges) {
         result.success = false;
-        result.message = "Hole exceeds maximum edge count";
+        result.message = "Hole too large to fill automatically: " + 
+                        std::to_string(hole.boundaryVertices.size()) + " boundary edges.\n"
+                        "Maximum allowed: " + std::to_string(options.maxEdges) + " edges.\n"
+                        "Consider increasing the maximum or manually patching this hole.";
         return result;
     }
     
@@ -584,7 +591,8 @@ RepairResult MeshRepair::fillHoles(
     auto holes = detectHoles(mesh);
     
     if (holes.empty()) {
-        result.message = "No holes detected";
+        result.success = true;
+        result.message = "Mesh is already closed: no holes detected.";
         return result;
     }
     

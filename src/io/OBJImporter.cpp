@@ -54,24 +54,38 @@ geometry::Result<geometry::MeshData> OBJImporter::import(
     const OBJImportOptions& options,
     geometry::ProgressCallback progress) {
     
+    std::string fileName = path.filename().string();
+    
     // Check file exists
     if (!std::filesystem::exists(path)) {
         return geometry::Result<geometry::MeshData>::failure(
-            "File not found: " + path.string());
+            "File not found: \"" + fileName + "\"\n"
+            "Path: " + path.string() + "\n"
+            "Please check that the file exists and the path is correct.");
     }
     
     // Get file size
-    auto fileSize = std::filesystem::file_size(path);
+    std::error_code ec;
+    auto fileSize = std::filesystem::file_size(path, ec);
+    if (ec) {
+        return geometry::Result<geometry::MeshData>::failure(
+            "Cannot read file: \"" + fileName + "\"\n"
+            "Error: " + ec.message() + "\n"
+            "Check that you have permission to read this file.");
+    }
+    
     if (fileSize == 0) {
         return geometry::Result<geometry::MeshData>::failure(
-            "File is empty: " + path.string());
+            "File is empty: \"" + fileName + "\"\n"
+            "The file contains no data. It may be corrupted or incomplete.");
     }
     
     // Open file
     std::ifstream file(path);
     if (!file) {
         return geometry::Result<geometry::MeshData>::failure(
-            "Failed to open file: " + path.string());
+            "Cannot open file: \"" + fileName + "\"\n"
+            "The file may be in use by another application or you may not have read permission.");
     }
     
     return importFromStream(file, options, progress);
@@ -117,7 +131,7 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
             float prog = static_cast<float>(stream.tellg()) / fileSize;
             if (!progress(prog * 0.5f)) {  // First half is parsing
                 return geometry::Result<geometry::MeshData>::failure(
-                    "Import cancelled");
+                    "Import cancelled by user.");
             }
         }
         
@@ -137,7 +151,9 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
             
             if (iss.fail()) {
                 return geometry::Result<geometry::MeshData>::failure(
-                    "Invalid vertex at line " + std::to_string(lineNumber));
+                    "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                    "Invalid vertex coordinates. Expected: v x y z\n"
+                    "Line content: " + line);
             }
             
             positions.push_back(pos);
@@ -149,7 +165,9 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
             
             if (iss.fail()) {
                 return geometry::Result<geometry::MeshData>::failure(
-                    "Invalid normal at line " + std::to_string(lineNumber));
+                    "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                    "Invalid vertex normal. Expected: vn nx ny nz\n"
+                    "Line content: " + line);
             }
             
             normals.push_back(norm);
@@ -162,7 +180,9 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
                 
                 if (iss.fail()) {
                     return geometry::Result<geometry::MeshData>::failure(
-                        "Invalid texture coordinate at line " + std::to_string(lineNumber));
+                        "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                        "Invalid texture coordinate. Expected: vt u v\n"
+                        "Line content: " + line);
                 }
                 
                 if (options.flipV) {
@@ -182,8 +202,9 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
                 
                 if (!parseFaceVertex(vertexSpec, vIdx, vtIdx, vnIdx)) {
                     return geometry::Result<geometry::MeshData>::failure(
-                        "Invalid face vertex '" + vertexSpec + 
-                        "' at line " + std::to_string(lineNumber));
+                        "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                        "Invalid face vertex format: '" + vertexSpec + "'\n"
+                        "Expected format: v, v/vt, v/vt/vn, or v//vn");
                 }
                 
                 // Handle negative (relative) indices
@@ -200,19 +221,23 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
                 // HIGH FIX: Validate indices - must be positive after relative conversion
                 if (vIdx <= 0 || vIdx > static_cast<int>(positions.size())) {
                     return geometry::Result<geometry::MeshData>::failure(
-                        "Invalid vertex index " + std::to_string(vIdx) + 
-                        " at line " + std::to_string(lineNumber));
+                        "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                        "Vertex index " + std::to_string(vIdx) + " is out of range.\n"
+                        "Valid range: 1 to " + std::to_string(positions.size()) + "\n"
+                        "The face references a vertex that hasn't been defined yet.");
                 }
                 // Also validate texture and normal indices if specified
                 if (vtIdx != 0 && (vtIdx < 0 || vtIdx > static_cast<int>(texCoords.size()))) {
                     return geometry::Result<geometry::MeshData>::failure(
-                        "Invalid texture coordinate index " + std::to_string(vtIdx) + 
-                        " at line " + std::to_string(lineNumber));
+                        "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                        "Texture coordinate index " + std::to_string(vtIdx) + " is out of range.\n"
+                        "Valid range: 1 to " + std::to_string(texCoords.size()));
                 }
                 if (vnIdx != 0 && (vnIdx < 0 || vnIdx > static_cast<int>(normals.size()))) {
                     return geometry::Result<geometry::MeshData>::failure(
-                        "Invalid normal index " + std::to_string(vnIdx) + 
-                        " at line " + std::to_string(lineNumber));
+                        "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                        "Normal index " + std::to_string(vnIdx) + " is out of range.\n"
+                        "Valid range: 1 to " + std::to_string(normals.size()));
                 }
                 
                 faceVertices.push_back({vIdx, vtIdx, vnIdx});
@@ -220,7 +245,9 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
             
             if (faceVertices.size() < 3) {
                 return geometry::Result<geometry::MeshData>::failure(
-                    "Face with less than 3 vertices at line " + std::to_string(lineNumber));
+                    "Parse error at line " + std::to_string(lineNumber) + ":\n"
+                    "Face has only " + std::to_string(faceVertices.size()) + " vertices.\n"
+                    "A face must have at least 3 vertices to form a polygon.");
             }
             
             faces.push_back(std::move(faceVertices));
@@ -230,12 +257,16 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
     
     if (positions.empty()) {
         return geometry::Result<geometry::MeshData>::failure(
-            "No vertices found in OBJ file");
+            "No vertices found in OBJ file.\n"
+            "The file contains no 'v' (vertex position) entries.\n"
+            "Check that this is a valid Wavefront OBJ file.");
     }
     
     if (faces.empty()) {
         return geometry::Result<geometry::MeshData>::failure(
-            "No faces found in OBJ file");
+            "No faces found in OBJ file.\n"
+            "Found " + std::to_string(positions.size()) + " vertices but no 'f' (face) entries.\n"
+            "The file may be a point cloud rather than a mesh.");
     }
     
     // Build mesh - deduplicate vertices with same pos/tex/norm combination
@@ -273,7 +304,7 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromStream(
             float prog = 0.5f + 0.5f * static_cast<float>(faceIndex) / faces.size();
             if (!progress(prog)) {
                 return geometry::Result<geometry::MeshData>::failure(
-                    "Import cancelled");
+                    "Import cancelled by user.");
             }
         }
         
@@ -357,7 +388,8 @@ geometry::Result<geometry::MeshData> OBJImporter::importFromMemory(
     geometry::ProgressCallback progress) {
     
     if (!data || size == 0) {
-        return geometry::Result<geometry::MeshData>::failure("Empty data");
+        return geometry::Result<geometry::MeshData>::failure(
+            "Cannot import from memory: data buffer is empty or null.");
     }
     
     std::string dataStr(static_cast<const char*>(data), size);

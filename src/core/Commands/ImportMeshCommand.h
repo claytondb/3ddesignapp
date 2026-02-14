@@ -67,6 +67,26 @@ public:
      * @brief Get error message if import failed
      */
     const QString& errorMessage() const { return m_errorMessage; }
+    
+    /**
+     * @brief Get success message with import statistics
+     */
+    QString successMessage() const;
+    
+    /**
+     * @brief Get imported vertex count
+     */
+    size_t vertexCount() const { return m_vertexCount; }
+    
+    /**
+     * @brief Get imported face/triangle count
+     */
+    size_t faceCount() const { return m_faceCount; }
+    
+    /**
+     * @brief Get load time in milliseconds
+     */
+    double loadTimeMs() const { return m_loadTimeMs; }
 
 private:
     bool loadMeshFromFile();
@@ -79,6 +99,11 @@ private:
     bool m_success;
     QString m_errorMessage;
     bool m_isInScene;
+    
+    // Import statistics for user feedback
+    size_t m_vertexCount = 0;
+    size_t m_faceCount = 0;
+    double m_loadTimeMs = 0.0;
 };
 
 } // namespace core

@@ -23,6 +23,10 @@
 
 #include <QUndoStack>
 #include <QFileInfo>
+#include <QDir>
+#include <QDateTime>
+#include <QStandardPaths>
+#include <QSettings>
 #include <QDebug>
 #include <QMessageBox>
 #include <QProgressDialog>
@@ -297,16 +301,24 @@ bool Application::importMesh(const QString& filePath)
             mesh->computeNormals();
         }
         
+        // Track statistics before move
+        size_t vertexCount = mesh->vertexCount();
+        size_t faceCount = mesh->faceCount();
+        
         // Create and execute import command (for undo support)
         // Note: push() calls redo() which adds mesh via IntegrationController
         ImportCommand* cmd = new ImportCommand(meshId, meshName, mesh, this);
         m_undoStack->push(cmd);
         
-        qDebug() << "Mesh imported successfully:" << meshName 
-                 << "Vertices:" << mesh->vertexCount()
-                 << "Faces:" << mesh->faceCount();
+        // Calculate load time (rough estimate - time from start of try block)
+        // In a real implementation, we'd track this more precisely
+        double loadTimeMs = 0.0;  // TODO: Add actual timing
         
-        emit meshImported(meshName, meshId);
+        qDebug() << "Mesh imported successfully:" << meshName 
+                 << "Vertices:" << vertexCount
+                 << "Faces:" << faceCount;
+        
+        emit meshImported(meshName, meshId, vertexCount, faceCount, loadTimeMs);
         
         return true;
         

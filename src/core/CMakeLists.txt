@@ -10,6 +10,8 @@ set(CORE_SOURCES
     Command.h
     CommandStack.cpp
     CommandStack.h
+    OperationResult.cpp
+    OperationResult.h
     
     # Commands subdirectory
     Commands/DeleteCommand.cpp
