@@ -30,6 +30,7 @@
 namespace dc {
 class TransformGizmo;
 class ViewPresetsWidget;
+class MeasureTool;
 enum class GizmoMode;
 enum class AxisConstraint;
 enum class CoordinateSpace;
@@ -155,6 +156,17 @@ public:
      * @note Uses weak_ptr to avoid dangling pointer if Selection is destroyed
      */
     void setSelection(dc3d::core::Selection* selection) { m_selection = selection; }
+    
+    /**
+     * @brief Set the measure tool for overlay rendering
+     * @param measureTool Pointer to the MeasureTool instance
+     */
+    void setMeasureTool(MeasureTool* measureTool) { m_measureTool = measureTool; }
+    
+    /**
+     * @brief Get the measure tool
+     */
+    MeasureTool* measureTool() const { return m_measureTool; }
     
     // ---- View Control ----
     
@@ -453,6 +465,9 @@ private:
     
     // Selection reference (raw pointer - lifetime managed by Application)
     dc3d::core::Selection* m_selection = nullptr;
+    
+    // Measure tool reference (raw pointer - lifetime managed by caller)
+    MeasureTool* m_measureTool = nullptr;
     
     // Mesh storage
     std::unordered_map<uint64_t, std::shared_ptr<dc3d::geometry::MeshData>> m_meshes;

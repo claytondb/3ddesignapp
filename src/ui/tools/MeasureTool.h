@@ -14,7 +14,9 @@
 #include <QObject>
 #include <QVector3D>
 #include <QPoint>
+#include <QSize>
 #include <QColor>
+#include <QPainter>
 #include <memory>
 #include <vector>
 
@@ -183,10 +185,18 @@ public:
     // ---- Rendering ----
     
     /**
-     * @brief Render measurement overlays
+     * @brief Render measurement overlays (OpenGL - deprecated, use paintOverlay)
      * Call this from viewport's paintGL after scene rendering
      */
     void render();
+    
+    /**
+     * @brief Paint measurement overlays using QPainter
+     * Call this from viewport's paintEvent after GL content is rendered
+     * @param painter QPainter initialized on the viewport
+     * @param viewportSize Size of the viewport widget
+     */
+    void paintOverlay(QPainter& painter, const QSize& viewportSize);
     
     /**
      * @brief Get formatted measurement string for status bar
@@ -251,6 +261,7 @@ private:
     void completeAngleMeasurement();
     void completeRadiusMeasurement(const QVector3D& clickPos);
     
+    // Legacy OpenGL rendering (deprecated)
     void renderDistanceMeasurement(const Measurement& m);
     void renderAngleMeasurement(const Measurement& m);
     void renderRadiusMeasurement(const Measurement& m);
@@ -258,6 +269,21 @@ private:
     void renderPoint(const QVector3D& point, const QColor& color, float size = 8.0f);
     void renderLine(const QVector3D& p1, const QVector3D& p2, const QColor& color, float width = 2.0f);
     void renderText(const QVector3D& worldPos, const QString& text, const QColor& color);
+    
+    // QPainter overlay rendering
+    void paintDistanceMeasurement(QPainter& painter, const QSize& viewportSize, const Measurement& m);
+    void paintAngleMeasurement(QPainter& painter, const QSize& viewportSize, const Measurement& m);
+    void paintRadiusMeasurement(QPainter& painter, const QSize& viewportSize, const Measurement& m);
+    void paintCurrentProgress(QPainter& painter, const QSize& viewportSize);
+    void paintPoint(QPainter& painter, const QPoint& screenPos, const QColor& color, float size = 8.0f);
+    void paintLine(QPainter& painter, const QPoint& p1, const QPoint& p2, const QColor& color, float width = 2.0f);
+    void paintText(QPainter& painter, const QPoint& screenPos, const QString& text, const QColor& color);
+    void paintArc(QPainter& painter, const QPoint& vertex, const QPoint& p1, const QPoint& p2, 
+                  float arcRadius, const QColor& color, float width = 2.0f);
+    
+    // Coordinate conversion
+    QPoint worldToScreen(const QVector3D& worldPos, const QSize& viewportSize) const;
+    bool isPointVisible(const QVector3D& worldPos, const QSize& viewportSize) const;
     
     double calculateDistance(const QVector3D& p1, const QVector3D& p2) const;
     double calculateAngle(const QVector3D& p1, const QVector3D& vertex, const QVector3D& p3) const;

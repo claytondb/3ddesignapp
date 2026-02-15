@@ -13,6 +13,7 @@
 #include "geometry/MeshData.h"
 #include "core/Selection.h"
 #include "app/Application.h"
+#include "ui/tools/MeasureTool.h"
 
 // Use gizmo types in this file
 using dc::GizmoMode;
@@ -1531,6 +1532,11 @@ void Viewport::paintEvent(QPaintEvent* event)
     // Then paint 2D overlays using QPainter
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
+    
+    // Render measurement tool overlay
+    if (m_measureTool) {
+        m_measureTool->paintOverlay(painter, size());
+    }
     
     // Render info overlay if enabled
     if (m_showInfoOverlay) {
