@@ -679,16 +679,11 @@ void IntegrationController::onDeleteRequested()
         }
     }
     
-    // Convert to vector of uint64_t for the delete command
-    std::vector<uint64_t> nodeIds;
-    nodeIds.reserve(meshIds.size());
+    // Delete each mesh directly
+    // TODO: Add proper undo support with QUndoCommand-based DeleteCommand
     for (uint32_t id : meshIds) {
-        nodeIds.push_back(static_cast<uint64_t>(id));
+        m_sceneManager->removeMesh(id);
     }
-    
-    // Create and execute delete command (for undo support)
-    auto* cmd = new core::DeleteCommand(m_sceneManager, nodeIds);
-    app->undoStack()->push(cmd);
     
     // Clear selection
     m_selection->clear();

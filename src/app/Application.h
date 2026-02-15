@@ -11,6 +11,7 @@
 #include <QObject>
 #include <memory>
 #include <cstdint>
+#include <glm/glm.hpp>
 
 class MainWindow;
 class QUndoStack;

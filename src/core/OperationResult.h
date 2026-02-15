@@ -76,6 +76,7 @@ public:
     OperationResult& withDetail(const QString& key, double value, int precision = 2);
     OperationResult& withStatistic(const QString& name, size_t value);
     OperationResult& withStatistic(const QString& name, double value, int precision = 2);
+    OperationResult& withStatistic(const QString& name, const QString& formattedValue);
     OperationResult& withWarning(const QString& warning);
     OperationResult& withTiming(double milliseconds);
     OperationResult& withFilePath(const QString& path);

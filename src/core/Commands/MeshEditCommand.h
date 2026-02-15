@@ -38,20 +38,19 @@ class MeshCommand : public Command {
 public:
     virtual ~MeshCommand() = default;
     
-    /// Redo the command (default: call execute)
-    virtual void redo() { execute(); }
-    
     /// Get command category (for grouping in history)
     virtual QString category() const { return QStringLiteral("Edit"); }
     
     /// Get estimated memory usage of stored data
-    virtual size_t memoryUsage() const { return sizeof(*this); }
+    size_t memoryUsage() const override { return sizeof(*this); }
     
     /// Get timestamp when command was created
     std::chrono::steady_clock::time_point timestamp() const { return timestamp_; }
     
 protected:
-    MeshCommand() : timestamp_(std::chrono::steady_clock::now()) {}
+    MeshCommand(const QString& text = QString()) 
+        : Command(text)
+        , timestamp_(std::chrono::steady_clock::now()) {}
     
 private:
     std::chrono::steady_clock::time_point timestamp_;

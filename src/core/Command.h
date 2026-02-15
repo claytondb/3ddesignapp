@@ -10,6 +10,7 @@
 #define DC3D_CORE_COMMAND_H
 
 #include <QString>
+#include <QUndoCommand>
 #include <memory>
 
 namespace dc3d {
@@ -22,18 +23,22 @@ namespace core {
  * Commands encapsulate operations that can be executed and undone.
  * Each command stores enough state to reverse its operation.
  * 
+ * Inherits from QUndoCommand for compatibility with Qt's undo framework.
+ * 
  * Usage:
- *   auto cmd = std::make_unique<TransformCommand>(object, oldTransform, newTransform);
- *   cmd->execute();  // Apply the transformation
- *   cmd->undo();     // Revert to old transformation
+ *   auto cmd = new TransformCommand(object, oldTransform, newTransform);
+ *   undoStack->push(cmd);  // Executes and takes ownership
  */
-class Command
+class Command : public QUndoCommand
 {
 public:
+    Command(const QString& text = QString(), QUndoCommand* parent = nullptr)
+        : QUndoCommand(text, parent) {}
+    
     virtual ~Command() = default;
     
     /**
-     * @brief Execute the command
+     * @brief Execute the command (called by redo())
      * 
      * Applies the operation to the scene. Should be idempotent
      * (calling multiple times has same effect as calling once).
@@ -41,19 +46,19 @@ public:
     virtual void execute() = 0;
     
     /**
-     * @brief Undo the command
+     * @brief Undo the command (overrides QUndoCommand::undo)
      * 
      * Reverts the scene to state before execute() was called.
      * Must restore exact previous state.
      */
-    virtual void undo() = 0;
+    void undo() override = 0;
     
     /**
-     * @brief Redo the command
+     * @brief Redo the command (overrides QUndoCommand::redo)
      * 
-     * Re-applies the command after an undo. Default calls execute().
+     * Re-applies the command after an undo. Calls execute().
      */
-    virtual void redo() { execute(); }
+    void redo() override { execute(); }
     
     /**
      * @brief Get estimated memory usage of this command
@@ -90,6 +95,15 @@ public:
     virtual bool mergeWith(const Command* other) { 
         Q_UNUSED(other);
         return false; 
+    }
+    
+    // Hide the QUndoCommand mergeWith to avoid confusion
+    bool mergeWith(const QUndoCommand* other) override {
+        auto cmd = dynamic_cast<const Command*>(other);
+        if (cmd && canMergeWith(cmd)) {
+            return mergeWith(cmd);
+        }
+        return false;
     }
 };
 

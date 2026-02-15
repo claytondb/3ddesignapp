@@ -158,6 +158,12 @@ OperationResult& OperationResult::withStatistic(const QString& name, double valu
     return *this;
 }
 
+OperationResult& OperationResult::withStatistic(const QString& name, const QString& formattedValue)
+{
+    m_statistics.append(QString("%1: %2").arg(name, formattedValue));
+    return *this;
+}
+
 OperationResult& OperationResult::withWarning(const QString& warning)
 {
     m_warnings.append(warning);

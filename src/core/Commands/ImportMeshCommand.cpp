@@ -14,7 +14,8 @@ namespace dc3d {
 namespace core {
 
 ImportMeshCommand::ImportMeshCommand(SceneManager* sceneManager, const QString& filePath)
-    : m_sceneManager(sceneManager)
+    : Command(QStringLiteral("Import Mesh"))
+    , m_sceneManager(sceneManager)
     , m_filePath(filePath)
     , m_meshData(nullptr)
     , m_nodeId(0)
@@ -25,7 +26,8 @@ ImportMeshCommand::ImportMeshCommand(SceneManager* sceneManager, const QString& 
 
 ImportMeshCommand::ImportMeshCommand(SceneManager* sceneManager, const QString& filePath,
                                      std::unique_ptr<geometry::MeshData> meshData)
-    : m_sceneManager(sceneManager)
+    : Command(QStringLiteral("Import Mesh"))
+    , m_sceneManager(sceneManager)
     , m_filePath(filePath)
     , m_meshData(std::move(meshData))
     , m_nodeId(0)

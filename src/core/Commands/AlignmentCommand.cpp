@@ -22,7 +22,8 @@ AlignmentCommand::AlignmentCommand(SceneManager* sceneManager,
                                    const std::vector<uint64_t>& meshIds,
                                    AlignAxis axis,
                                    AlignAnchor anchor)
-    : m_sceneManager(sceneManager)
+    : Command(QStringLiteral("Align Objects"))
+    , m_sceneManager(sceneManager)
     , m_meshIds(meshIds)
     , m_axis(axis)
     , m_anchor(anchor)
@@ -204,7 +205,8 @@ DistributeCommand::DistributeCommand(SceneManager* sceneManager,
                                      const std::vector<uint64_t>& meshIds,
                                      AlignAxis axis,
                                      bool useSpacing)
-    : m_sceneManager(sceneManager)
+    : Command(QStringLiteral("Distribute Objects"))
+    , m_sceneManager(sceneManager)
     , m_meshIds(meshIds)
     , m_axis(axis)
     , m_useSpacing(useSpacing)

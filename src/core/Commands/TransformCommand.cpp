@@ -45,7 +45,8 @@ Transform Transform::fromMatrix(const glm::mat4& matrix)
 
 TransformCommand::TransformCommand(SceneManager* sceneManager, uint64_t nodeId,
                                    const Transform& oldTransform, const Transform& newTransform)
-    : m_sceneManager(sceneManager)
+    : Command(QStringLiteral("Transform"))
+    , m_sceneManager(sceneManager)
     , m_nodeId(nodeId)
     , m_oldTransform(oldTransform)
     , m_newTransform(newTransform)
@@ -55,7 +56,8 @@ TransformCommand::TransformCommand(SceneManager* sceneManager, uint64_t nodeId,
 
 TransformCommand::TransformCommand(SceneManager* sceneManager, uint64_t nodeId,
                                    const glm::mat4& oldMatrix, const glm::mat4& newMatrix)
-    : m_sceneManager(sceneManager)
+    : Command(QStringLiteral("Transform"))
+    , m_sceneManager(sceneManager)
     , m_nodeId(nodeId)
     , m_oldTransform(Transform::fromMatrix(oldMatrix))
     , m_newTransform(Transform::fromMatrix(newMatrix))

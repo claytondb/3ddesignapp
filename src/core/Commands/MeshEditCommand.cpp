@@ -30,7 +30,8 @@ MeshEditCommand::MeshEditCommand(
     geometry::MeshData& mesh,
     const QString& name,
     EditFunction operation)
-    : mesh_(mesh)
+    : MeshCommand(name)
+    , mesh_(mesh)
     , name_(name)
     , operation_(operation)
 {
@@ -87,7 +88,8 @@ size_t MeshEditCommand::memoryUsage() const {
 DecimateCommand::DecimateCommand(
     geometry::MeshData& mesh,
     const geometry::DecimationOptions& options)
-    : mesh_(mesh)
+    : MeshCommand(QStringLiteral("Decimate"))
+    , mesh_(mesh)
     , options_(options)
 {
 }
@@ -149,7 +151,8 @@ size_t DecimateCommand::memoryUsage() const {
 SmoothCommand::SmoothCommand(
     geometry::MeshData& mesh,
     const geometry::SmoothingOptions& options)
-    : mesh_(mesh)
+    : MeshCommand(QStringLiteral("Smooth"))
+    , mesh_(mesh)
     , options_(options)
 {
 }
@@ -237,7 +240,8 @@ RepairCommand::RepairCommand(
     geometry::MeshData& mesh,
     Operation operation,
     float parameter)
-    : mesh_(mesh)
+    : MeshCommand(QStringLiteral("Repair"))
+    , mesh_(mesh)
     , operation_(operation)
     , parameter_(parameter)
 {
@@ -332,7 +336,8 @@ size_t RepairCommand::memoryUsage() const {
 SubdivideCommand::SubdivideCommand(
     geometry::MeshData& mesh,
     const geometry::SubdivisionOptions& options)
-    : mesh_(mesh)
+    : MeshCommand(QStringLiteral("Subdivide"))
+    , mesh_(mesh)
     , options_(options)
 {
 }
@@ -397,7 +402,8 @@ size_t SubdivideCommand::memoryUsage() const {
 // ============================================================================
 
 CompoundCommand::CompoundCommand(const QString& name)
-    : name_(name)
+    : MeshCommand(name)
+    , name_(name)
 {
 }
 

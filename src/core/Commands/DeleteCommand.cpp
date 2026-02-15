@@ -10,14 +10,17 @@ namespace dc3d {
 namespace core {
 
 DeleteCommand::DeleteCommand(SceneManager* sceneManager, uint64_t nodeId)
-    : m_sceneManager(sceneManager)
+    : Command(QStringLiteral("Delete Object"))
+    , m_sceneManager(sceneManager)
     , m_nodeIds{nodeId}
     , m_executed(false)
 {
 }
 
 DeleteCommand::DeleteCommand(SceneManager* sceneManager, const std::vector<uint64_t>& nodeIds)
-    : m_sceneManager(sceneManager)
+    : Command(nodeIds.size() == 1 ? QStringLiteral("Delete Object") 
+                                  : QStringLiteral("Delete %1 Objects").arg(nodeIds.size()))
+    , m_sceneManager(sceneManager)
     , m_nodeIds(nodeIds)
     , m_executed(false)
 {
