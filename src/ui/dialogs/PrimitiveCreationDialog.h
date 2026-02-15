@@ -101,6 +101,7 @@ private slots:
 private:
     void setupUI();
     void setupConnections();
+    void applyStylesheet();
     void updateDimensionsForType();
     void applyPreset(SizePreset preset);
     QString typeToString(PrimitiveType type) const;

@@ -22,6 +22,7 @@ PrimitiveCreationDialog::PrimitiveCreationDialog(PrimitiveType type, QWidget* pa
     
     setupUI();
     setupConnections();
+    applyStylesheet();
     updateDimensionsForType();
     
     // Apply default preset
@@ -140,11 +141,12 @@ void PrimitiveCreationDialog::setupUI()
     buttonLayout->addStretch();
     
     m_cancelButton = new QPushButton(tr("Cancel"), this);
+    m_cancelButton->setObjectName("secondaryButton");
     connect(m_cancelButton, &QPushButton::clicked, this, &QDialog::reject);
     buttonLayout->addWidget(m_cancelButton);
     
     m_createButton = new QPushButton(tr("Create"), this);
-    m_createButton->setProperty("primary", true);
+    m_createButton->setObjectName("primaryButton");
     m_createButton->setDefault(true);
     connect(m_createButton, &QPushButton::clicked, this, &QDialog::accept);
     buttonLayout->addWidget(m_createButton);
@@ -167,6 +169,170 @@ void PrimitiveCreationDialog::setupConnections()
             this, &PrimitiveCreationDialog::onDimensionsChanged);
     connect(m_segmentsSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &PrimitiveCreationDialog::updatePreview);
+}
+
+void PrimitiveCreationDialog::applyStylesheet()
+{
+    setStyleSheet(R"(
+        QDialog {
+            background-color: #2d2d2d;
+            color: #ffffff;
+        }
+        
+        QGroupBox {
+            background-color: #242424;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            margin-top: 12px;
+            padding: 12px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            subcontrol-position: top left;
+            padding: 0 8px;
+            color: #ffffff;
+        }
+        
+        QLabel {
+            color: #b3b3b3;
+            font-size: 13px;
+        }
+        
+        QComboBox {
+            background-color: #333333;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            padding: 6px 12px;
+            color: #ffffff;
+            font-size: 13px;
+            min-height: 20px;
+        }
+        
+        QComboBox:hover {
+            border-color: #5c5c5c;
+        }
+        
+        QComboBox:focus {
+            border-color: #0078d4;
+        }
+        
+        QComboBox::drop-down {
+            border: none;
+            width: 24px;
+        }
+        
+        QComboBox::down-arrow {
+            image: none;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 6px solid #b3b3b3;
+            margin-right: 8px;
+        }
+        
+        QComboBox QAbstractItemView {
+            background-color: #2d2d2d;
+            border: 1px solid #4a4a4a;
+            selection-background-color: #0078d4;
+            selection-color: #ffffff;
+        }
+        
+        QSpinBox, QDoubleSpinBox {
+            background-color: #333333;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            padding: 4px 8px;
+            color: #ffffff;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 13px;
+        }
+        
+        QSpinBox:focus, QDoubleSpinBox:focus {
+            border: 1px solid #0078d4;
+        }
+        
+        QSpinBox:disabled, QDoubleSpinBox:disabled {
+            background-color: #2a2a2a;
+            color: #5c5c5c;
+            border-color: #333333;
+        }
+        
+        QSpinBox::up-button, QDoubleSpinBox::up-button,
+        QSpinBox::down-button, QDoubleSpinBox::down-button {
+            background-color: #3d3d3d;
+            border: none;
+            width: 16px;
+        }
+        
+        QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+        QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
+            background-color: #4a4a4a;
+        }
+        
+        QCheckBox {
+            color: #b3b3b3;
+            spacing: 8px;
+            font-size: 13px;
+        }
+        
+        QCheckBox::indicator {
+            width: 16px;
+            height: 16px;
+        }
+        
+        QCheckBox::indicator:checked {
+            background-color: #0078d4;
+            border: none;
+            border-radius: 3px;
+        }
+        
+        QCheckBox::indicator:unchecked {
+            background-color: #333333;
+            border: 1px solid #4a4a4a;
+            border-radius: 3px;
+        }
+        
+        QPushButton#primaryButton {
+            background-color: #0078d4;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            min-width: 80px;
+        }
+        
+        QPushButton#primaryButton:hover {
+            background-color: #1a88e0;
+        }
+        
+        QPushButton#primaryButton:pressed {
+            background-color: #0066b8;
+        }
+        
+        QPushButton#secondaryButton {
+            background-color: transparent;
+            color: #b3b3b3;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            min-width: 80px;
+        }
+        
+        QPushButton#secondaryButton:hover {
+            background-color: #383838;
+            color: #ffffff;
+        }
+        
+        QPushButton#secondaryButton:pressed {
+            background-color: #404040;
+        }
+    )");
 }
 
 void PrimitiveCreationDialog::updateDimensionsForType()

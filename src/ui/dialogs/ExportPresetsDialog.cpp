@@ -128,7 +128,99 @@ void ExportPresetsDialog::setupUI()
 
 void ExportPresetsDialog::applyStylesheet()
 {
-    // Inherit from parent - dark theme styling
+    setStyleSheet(R"(
+        QDialog {
+            background-color: #2d2d2d;
+            color: #ffffff;
+        }
+        
+        QGroupBox {
+            background-color: #242424;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            margin-top: 12px;
+            padding: 12px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            subcontrol-position: top left;
+            padding: 0 8px;
+            color: #ffffff;
+        }
+        
+        QLabel {
+            color: #b3b3b3;
+            font-size: 13px;
+        }
+        
+        QListWidget {
+            background-color: #242424;
+            color: #b3b3b3;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        QListWidget::item {
+            padding: 8px;
+        }
+        
+        QListWidget::item:hover {
+            background-color: #383838;
+        }
+        
+        QListWidget::item:selected {
+            background-color: #0078d4;
+            color: #ffffff;
+        }
+        
+        QPushButton {
+            background-color: #383838;
+            color: #b3b3b3;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 12px;
+            min-width: 70px;
+        }
+        
+        QPushButton:hover {
+            background-color: #404040;
+            color: #ffffff;
+        }
+        
+        QPushButton:pressed {
+            background-color: #333333;
+        }
+        
+        QPushButton:disabled {
+            background-color: #2a2a2a;
+            color: #5c5c5c;
+            border-color: #333333;
+        }
+        
+        QDialogButtonBox QPushButton {
+            background-color: #0078d4;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            min-width: 80px;
+        }
+        
+        QDialogButtonBox QPushButton:hover {
+            background-color: #1a88e0;
+        }
+        
+        QDialogButtonBox QPushButton:pressed {
+            background-color: #0066b8;
+        }
+    )");
 }
 
 void ExportPresetsDialog::refreshPresetList()
