@@ -461,11 +461,13 @@ void MenuBar::setupCreateMenu()
     m_actionSection2D = createAction(tr("&Section Plane..."), "S", tr("Create a section plane"));
     m_actionSection2D->setWhatsThis(HelpText::sectionPlane());
     connect(m_actionSection2D, &QAction::triggered, this, &MenuBar::sectionPlaneRequested);
+    m_actionSection2D->setEnabled(false);  // TODO: Implement section plane tool
     m_createMenu->addAction(m_actionSection2D);
     
     QAction* multipleSections = createAction(tr("&Multiple Sections..."), "", tr("Create multiple section planes"));
     multipleSections->setWhatsThis(tr("<b>Multiple Sections</b><br><br>Creates a series of parallel section planes at regular intervals.<br><br>Great for creating multiple cross-section profiles at once."));
     connect(multipleSections, &QAction::triggered, this, &MenuBar::multipleSectionsRequested);
+    multipleSections->setEnabled(false);  // TODO: Implement multiple sections
     m_createMenu->addAction(multipleSections);
 
     m_createMenu->addSeparator();
@@ -476,11 +478,13 @@ void MenuBar::setupCreateMenu()
     m_actionSketch2D = createAction(tr("&2D Sketch"), "K", tr("Create a 2D sketch"));
     m_actionSketch2D->setWhatsThis(HelpText::sketch2D());
     connect(m_actionSketch2D, &QAction::triggered, this, &MenuBar::sketch2DRequested);
+    m_actionSketch2D->setEnabled(false);  // TODO: Implement 2D sketch mode
     sketchMenu->addAction(m_actionSketch2D);
     
     QAction* sketch3D = createAction(tr("&3D Sketch"), "", tr("Create a 3D sketch"));
     sketch3D->setWhatsThis(tr("<b>3D Sketch</b><br><br>Create a sketch directly in 3D space, not constrained to a plane.<br><br>Useful for 3D paths, sweep trajectories, and space curves."));
     connect(sketch3D, &QAction::triggered, this, &MenuBar::sketch3DRequested);
+    sketch3D->setEnabled(false);  // TODO: Implement 3D sketch mode
     sketchMenu->addAction(sketch3D);
 
     m_createMenu->addSeparator();
@@ -491,11 +495,13 @@ void MenuBar::setupCreateMenu()
     QAction* fitSurface = createAction(tr("&Fit Surface..."), "", tr("Fit surface to selection"));
     fitSurface->setWhatsThis(tr("<b>Fit Surface</b><br><br>Fits an analytical surface (plane, cylinder, sphere, cone) to the selected mesh region.<br><br>The algorithm automatically determines the best-fit surface type and parameters."));
     connect(fitSurface, &QAction::triggered, this, &MenuBar::fitSurfaceRequested);
+    fitSurface->setEnabled(false);  // TODO: Implement surface fitting
     surfaceMenu->addAction(fitSurface);
     
     QAction* autoSurface = createAction(tr("&Auto Surface..."), "", tr("Automatically create surfaces"));
     autoSurface->setWhatsThis(tr("<b>Auto Surface</b><br><br>Automatically segments the mesh into regions and fits surfaces to each region.<br><br>A fast way to convert mesh data to CAD surfaces."));
     connect(autoSurface, &QAction::triggered, this, &MenuBar::autoSurfaceRequested);
+    autoSurface->setEnabled(false);  // TODO: Implement auto-surface segmentation
     surfaceMenu->addAction(autoSurface);
     
     surfaceMenu->addSeparator();
@@ -503,21 +509,25 @@ void MenuBar::setupCreateMenu()
     m_actionExtrude = createAction(tr("&Extrude..."), "E", tr("Extrude sketch or face"));
     m_actionExtrude->setWhatsThis(HelpText::extrude());
     connect(m_actionExtrude, &QAction::triggered, this, &MenuBar::extrudeRequested);
+    m_actionExtrude->setEnabled(false);  // TODO: Implement extrude (requires sketch)
     surfaceMenu->addAction(m_actionExtrude);
     
     m_actionRevolve = createAction(tr("&Revolve..."), "R", tr("Revolve sketch around axis"));
     m_actionRevolve->setWhatsThis(HelpText::revolve());
     connect(m_actionRevolve, &QAction::triggered, this, &MenuBar::revolveRequested);
+    m_actionRevolve->setEnabled(false);  // TODO: Implement revolve (requires sketch)
     surfaceMenu->addAction(m_actionRevolve);
     
     QAction* loft = createAction(tr("&Loft..."), "", tr("Create lofted surface"));
     loft->setWhatsThis(tr("<b>Loft</b><br><br>Creates a smooth surface connecting multiple profile sketches.<br><br>Select two or more sketches, and Loft will create a surface that transitions between them."));
     connect(loft, &QAction::triggered, this, &MenuBar::loftRequested);
+    loft->setEnabled(false);  // TODO: Implement loft (requires multiple sketches)
     surfaceMenu->addAction(loft);
     
     QAction* sweep = createAction(tr("&Sweep..."), "", tr("Create swept surface"));
     sweep->setWhatsThis(tr("<b>Sweep</b><br><br>Creates a surface by sweeping a profile sketch along a path.<br><br>Select a profile sketch and a path curve to create the sweep."));
     connect(sweep, &QAction::triggered, this, &MenuBar::sweepRequested);
+    sweep->setEnabled(false);  // TODO: Implement sweep (requires sketch + path)
     surfaceMenu->addAction(sweep);
     
     surfaceMenu->addSeparator();
@@ -525,6 +535,7 @@ void MenuBar::setupCreateMenu()
     QAction* freeformSurface = createAction(tr("Free-&form Surface..."), "", tr("Create free-form surface"));
     freeformSurface->setWhatsThis(tr("<b>Free-form Surface</b><br><br>Creates a NURBS surface with control points for direct manipulation.<br><br>Great for organic shapes that can't be created with analytical surfaces."));
     connect(freeformSurface, &QAction::triggered, this, &MenuBar::freeformSurfaceRequested);
+    freeformSurface->setEnabled(false);  // TODO: Implement freeform surface creation
     surfaceMenu->addAction(freeformSurface);
 }
 
@@ -781,6 +792,7 @@ void MenuBar::createMeshDialogs()
         parentWidget = this;  // Fallback to MenuBar as parent if window() is null
     }
     
+    m_meshRepairWizard = new MeshRepairWizard(parentWidget);
     m_polygonReductionDialog = new PolygonReductionDialog(parentWidget);
     m_smoothingDialog = new SmoothingDialog(parentWidget);
     m_holeFillDialog = new HoleFillDialog(parentWidget);

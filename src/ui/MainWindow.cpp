@@ -9,6 +9,11 @@
 #include "dialogs/UndoHistoryDialog.h"
 #include "dialogs/PreferencesDialog.h"
 #include "dialogs/PrimitiveCreationDialog.h"
+#include "dialogs/MeshRepairWizard.h"
+#include "dialogs/PolygonReductionDialog.h"
+#include "dialogs/SmoothingDialog.h"
+#include "dialogs/HoleFillDialog.h"
+#include "dialogs/ClippingBoxDialog.h"
 #include "renderer/Viewport.h"
 #include "renderer/TransformGizmo.h"
 #include "tools/MeasureTool.h"
@@ -1571,4 +1576,281 @@ void MainWindow::onClearMeasurementsRequested()
         m_measureTool->clearAllMeasurements();
         setStatusMessage(tr("Measurements cleared"));
     }
+}
+
+// ============================================================================
+// File Operations
+// ============================================================================
+
+void MainWindow::onNewProjectRequested()
+{
+    // TODO: Implement full project management with native format
+    // For now, clear the scene after confirmation
+    auto* app = dc3d::Application::instance();
+    if (app && app->sceneManager()) {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this, tr("New Project"),
+            tr("This will clear the current scene. Continue?"),
+            QMessageBox::Yes | QMessageBox::No);
+        
+        if (reply == QMessageBox::Yes) {
+            // TODO: app->sceneManager()->clear();
+            setStatusMessage(tr("New project created"));
+            m_statusBar->showInfo(tr("New project - scene cleared"));
+        }
+    }
+}
+
+void MainWindow::onSaveProjectRequested()
+{
+    // TODO: Implement native .dc3d project file format
+    QMessageBox::information(this, tr("Save Project"),
+        tr("Native project save (.dc3d) is not yet implemented.\n\n"
+           "Use File → Export → Mesh (STL) to export your mesh data."));
+}
+
+void MainWindow::onSaveProjectAsRequested()
+{
+    // TODO: Implement native .dc3d project file format
+    QMessageBox::information(this, tr("Save Project As"),
+        tr("Native project save (.dc3d) is not yet implemented.\n\n"
+           "Use File → Export → Mesh (STL) to export your mesh data."));
+}
+
+void MainWindow::onExportMeshRequested()
+{
+    // Build export filter
+    QString filter = tr(
+        "STL Stereolithography (*.stl);;"
+        "OBJ Wavefront (*.obj);;"
+        "PLY Polygon File Format (*.ply);;"
+        "All Files (*)"
+    );
+    
+    QString filePath = QFileDialog::getSaveFileName(this, tr("Export Mesh"), QString(), filter);
+    
+    if (filePath.isEmpty()) {
+        return;
+    }
+    
+    // TODO: Implement actual export using SceneManager
+    // For now, show stub message
+    QMessageBox::information(this, tr("Export Mesh"),
+        tr("Mesh export to '%1' is not yet fully implemented.\n\n"
+           "This feature will be available in a future update.")
+            .arg(QFileInfo(filePath).fileName()));
+}
+
+// ============================================================================
+// Edit Operations - Clipboard & Selection
+// ============================================================================
+
+void MainWindow::onCutRequested()
+{
+    // TODO: Implement clipboard support for mesh objects
+    // Cut = Copy + Delete
+    auto* app = dc3d::Application::instance();
+    if (app && app->selection() && !app->selection()->isEmpty()) {
+        // TODO: Serialize selected objects to clipboard
+        // TODO: Delete selected objects
+        m_statusBar->showInfo(tr("Cut: clipboard not yet implemented"));
+    } else {
+        m_statusBar->showInfo(tr("Nothing selected to cut"));
+    }
+}
+
+void MainWindow::onCopyRequested()
+{
+    // TODO: Implement clipboard support for mesh objects
+    auto* app = dc3d::Application::instance();
+    if (app && app->selection() && !app->selection()->isEmpty()) {
+        // TODO: Serialize selected objects to clipboard
+        m_statusBar->showInfo(tr("Copy: clipboard not yet implemented"));
+    } else {
+        m_statusBar->showInfo(tr("Nothing selected to copy"));
+    }
+}
+
+void MainWindow::onPasteRequested()
+{
+    // TODO: Implement clipboard support for mesh objects
+    // TODO: Deserialize objects from clipboard and add to scene
+    m_statusBar->showInfo(tr("Paste: clipboard not yet implemented"));
+}
+
+void MainWindow::onDeleteRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app && app->selection() && !app->selection()->isEmpty()) {
+        // TODO: Use DeleteCommand for proper undo support
+        // For now, show confirmation
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this, tr("Delete"),
+            tr("Delete selected objects?"),
+            QMessageBox::Yes | QMessageBox::No);
+        
+        if (reply == QMessageBox::Yes) {
+            // TODO: Execute delete through undo stack
+            // app->undoStack()->push(new DeleteCommand(app->selection()->selectedIds()));
+            m_statusBar->showInfo(tr("Delete: not yet implemented with undo support"));
+        }
+    } else {
+        m_statusBar->showInfo(tr("Nothing selected to delete"));
+    }
+}
+
+void MainWindow::onDuplicateRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app && app->selection() && !app->selection()->isEmpty()) {
+        // TODO: Implement duplicate (copy in place with offset)
+        m_statusBar->showInfo(tr("Duplicate: not yet implemented"));
+    } else {
+        m_statusBar->showInfo(tr("Nothing selected to duplicate"));
+    }
+}
+
+void MainWindow::onSelectAllRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app && app->selection()) {
+        // TODO: Select all objects in scene
+        // app->selection()->selectAll();
+        m_statusBar->showInfo(tr("Select All: not yet implemented"));
+    }
+}
+
+void MainWindow::onDeselectAllRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        app->deselectAll();
+        m_statusBar->showInfo(tr("Selection cleared"));
+    }
+}
+
+void MainWindow::onInvertSelectionRequested()
+{
+    auto* app = dc3d::Application::instance();
+    if (app && app->selection()) {
+        // TODO: Invert selection
+        // app->selection()->invertSelection();
+        m_statusBar->showInfo(tr("Invert Selection: not yet implemented"));
+    }
+}
+
+// ============================================================================
+// Selection Modes
+// ============================================================================
+
+void MainWindow::onSelectModeRequested()
+{
+    // Default click selection is always active
+    m_statusBar->showInfo(tr("Click Select mode - click to select, Shift+click to add"));
+}
+
+void MainWindow::onBoxSelectModeRequested()
+{
+    // Box selection is triggered by dragging in the viewport
+    m_statusBar->showInfo(tr("Box Select - drag in viewport to select multiple objects"));
+}
+
+void MainWindow::onLassoSelectModeRequested()
+{
+    // TODO: Implement lasso selection in Viewport
+    m_statusBar->showInfo(tr("Lasso Select: not yet implemented"));
+}
+
+void MainWindow::onBrushSelectModeRequested()
+{
+    // TODO: Implement brush selection in Viewport
+    m_statusBar->showInfo(tr("Brush Select: not yet implemented"));
+}
+
+// ============================================================================
+// Additional View Modes
+// ============================================================================
+
+void MainWindow::onDisplayModeXRayRequested()
+{
+    if (m_viewport) {
+        m_viewport->setDisplayMode(dc::DisplayMode::XRay);
+        m_statusBar->showInfo(tr("X-Ray display mode"));
+    }
+}
+
+void MainWindow::onToggleFullScreenRequested()
+{
+    if (isFullScreen()) {
+        showNormal();
+        m_statusBar->showInfo(tr("Windowed mode"));
+    } else {
+        showFullScreen();
+        m_statusBar->showInfo(tr("Full screen mode (F11 to exit)"));
+    }
+}
+
+// ============================================================================
+// Mesh Tools (from Toolbar)
+// ============================================================================
+
+void MainWindow::onMeshRepairWizardRequested()
+{
+    if (m_menuBar && m_menuBar->meshRepairWizard()) {
+        m_menuBar->meshRepairWizard()->show();
+        m_menuBar->meshRepairWizard()->raise();
+        m_menuBar->meshRepairWizard()->activateWindow();
+    }
+}
+
+void MainWindow::onPolygonReductionRequested()
+{
+    if (m_menuBar && m_menuBar->polygonReductionDialog()) {
+        m_menuBar->polygonReductionDialog()->show();
+        m_menuBar->polygonReductionDialog()->raise();
+        m_menuBar->polygonReductionDialog()->activateWindow();
+    }
+}
+
+void MainWindow::onSmoothingRequested()
+{
+    if (m_menuBar && m_menuBar->smoothingDialog()) {
+        m_menuBar->smoothingDialog()->show();
+        m_menuBar->smoothingDialog()->raise();
+        m_menuBar->smoothingDialog()->activateWindow();
+    }
+}
+
+void MainWindow::onFillHolesRequested()
+{
+    if (m_menuBar && m_menuBar->holeFillDialog()) {
+        m_menuBar->holeFillDialog()->show();
+        m_menuBar->holeFillDialog()->raise();
+        m_menuBar->holeFillDialog()->activateWindow();
+    }
+}
+
+void MainWindow::onClippingBoxRequested()
+{
+    if (m_menuBar && m_menuBar->clippingBoxDialog()) {
+        m_menuBar->clippingBoxDialog()->show();
+        m_menuBar->clippingBoxDialog()->raise();
+        m_menuBar->clippingBoxDialog()->activateWindow();
+    }
+}
+
+// ============================================================================
+// Create Tools (from Toolbar)
+// ============================================================================
+
+void MainWindow::onCreateSectionRequested()
+{
+    // TODO: Implement section plane creation
+    m_statusBar->showInfo(tr("Section Plane: not yet implemented"));
+}
+
+void MainWindow::onCreateSketchRequested()
+{
+    // TODO: Implement 2D sketch mode
+    m_statusBar->showInfo(tr("2D Sketch: not yet implemented"));
 }

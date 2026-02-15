@@ -347,12 +347,14 @@ void Toolbar::setupCreateGroup()
     m_actionCreateSection = createAction(tr("Sect"), "section", 
         tr("Create a section plane to see inside the model. Drag the plane to move the cut location."), "S");
     connect(m_actionCreateSection, &QAction::triggered, this, &Toolbar::createSectionRequested);
+    m_actionCreateSection->setEnabled(false);  // TODO: Implement section plane tool
     addAction(m_actionCreateSection);
 
     // 2D Sketch - start sketching
     m_actionCreateSketch = createAction(tr("Sketch"), "sketch", 
         tr("Start a 2D sketch on a plane or face. Use sketch tools to draw shapes, then extrude."), "K");
     connect(m_actionCreateSketch, &QAction::triggered, this, &Toolbar::createSketchRequested);
+    m_actionCreateSketch->setEnabled(false);  // TODO: Implement 2D sketch mode
     addAction(m_actionCreateSketch);
 }
 

@@ -136,6 +136,43 @@ private slots:
     void onMeasureAngleRequested();
     void onMeasureRadiusRequested();
     void onClearMeasurementsRequested();
+    
+    // File operations
+    void onNewProjectRequested();
+    void onSaveProjectRequested();
+    void onSaveProjectAsRequested();
+    void onExportMeshRequested();
+    
+    // Edit operations
+    void onCutRequested();
+    void onCopyRequested();
+    void onPasteRequested();
+    void onDeleteRequested();
+    void onDuplicateRequested();
+    void onSelectAllRequested();
+    void onDeselectAllRequested();
+    void onInvertSelectionRequested();
+    
+    // Selection modes
+    void onSelectModeRequested();
+    void onBoxSelectModeRequested();
+    void onLassoSelectModeRequested();
+    void onBrushSelectModeRequested();
+    
+    // Additional view modes
+    void onDisplayModeXRayRequested();
+    void onToggleFullScreenRequested();
+    
+    // Mesh tools (toolbar)
+    void onMeshRepairWizardRequested();
+    void onPolygonReductionRequested();
+    void onSmoothingRequested();
+    void onFillHolesRequested();
+    void onClippingBoxRequested();
+    
+    // Create tools (toolbar)
+    void onCreateSectionRequested();
+    void onCreateSketchRequested();
 
 private:
     void setupUI();
