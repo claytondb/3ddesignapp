@@ -67,33 +67,6 @@ private:
 };
 
 /**
- * @class ObjectGroup
- * @brief Groups multiple scene objects together
- */
-class ObjectGroup
-{
-public:
-    ObjectGroup(uint64_t id, const QString& name);
-    ~ObjectGroup() = default;
-    
-    uint64_t id() const { return m_id; }
-    QString name() const { return m_name; }
-    void setName(const QString& name) { m_name = name; }
-    
-    const std::vector<uint64_t>& members() const { return m_members; }
-    void addMember(uint64_t nodeId);
-    void removeMember(uint64_t nodeId);
-    bool hasMember(uint64_t nodeId) const;
-    bool isEmpty() const { return m_members.empty(); }
-    size_t memberCount() const { return m_members.size(); }
-
-private:
-    uint64_t m_id;
-    QString m_name;
-    std::vector<uint64_t> m_members;
-};
-
-/**
  * @class SceneManager
  * @brief Manages the scene graph and provides access to scene nodes
  * 
@@ -273,25 +246,11 @@ signals:
      * @param visible New visibility state
      */
     void meshVisibilityChanged(uint64_t id, bool visible);
-    
-    /**
-     * @brief Emitted when a group is created
-     * @param id Group identifier
-     */
-    void groupCreated(uint64_t id);
-    
-    /**
-     * @brief Emitted when a group is deleted
-     * @param id Group identifier
-     */
-    void groupDeleted(uint64_t id);
 
 private:
     std::vector<std::unique_ptr<SceneNode>> m_nodes;
     std::unordered_map<uint64_t, std::unique_ptr<MeshNode>> m_meshNodes;
-    std::unordered_map<uint64_t, std::unique_ptr<ObjectGroup>> m_groups;
     uint64_t m_nextMeshId = 1;
-    uint64_t m_nextGroupId = 1;
 };
 
 } // namespace core
