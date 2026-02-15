@@ -1514,4 +1514,44 @@ void Viewport::setGizmoMode(int mode)
     update();
 }
 
+// ---- View Information ----
+
+QVector3D Viewport::viewCenter() const
+{
+    return m_camera ? m_camera->target() : QVector3D(0, 0, 0);
+}
+
+// ---- Event Overrides ----
+
+void Viewport::paintEvent(QPaintEvent* event)
+{
+    // First, let QOpenGLWidget do its GL rendering
+    QOpenGLWidget::paintEvent(event);
+    
+    // Then paint 2D overlays using QPainter
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    
+    // Render info overlay if enabled
+    if (m_showInfoOverlay) {
+        renderInfoOverlay(painter);
+    }
+    
+    painter.end();
+}
+
+void Viewport::resizeEvent(QResizeEvent* event)
+{
+    // Let QOpenGLWidget handle the GL resize
+    QOpenGLWidget::resizeEvent(event);
+    
+    // Reposition view presets widget if it exists
+    if (m_viewPresetsWidget) {
+        // Position in top-right corner with some margin
+        int margin = 10;
+        QSize widgetSize = m_viewPresetsWidget->sizeHint();
+        m_viewPresetsWidget->move(width() - widgetSize.width() - margin, margin);
+    }
+}
+
 } // namespace dc

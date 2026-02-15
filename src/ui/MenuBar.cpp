@@ -832,3 +832,39 @@ void MenuBar::showClippingBoxDialog()
         m_clippingBoxDialog->activateWindow();
     }
 }
+
+void MenuBar::setupToolsMenu()
+{
+    m_toolsMenu = addMenu(tr("&Tools"));
+    
+    // Measurement tools
+    QAction* measureDistance = m_toolsMenu->addAction(tr("Measure &Distance"));
+    measureDistance->setShortcut(QKeySequence("Shift+D"));
+    connect(measureDistance, &QAction::triggered, this, &MenuBar::measureDistanceRequested);
+    
+    QAction* measureAngle = m_toolsMenu->addAction(tr("Measure &Angle"));
+    measureAngle->setShortcut(QKeySequence("Shift+A"));
+    connect(measureAngle, &QAction::triggered, this, &MenuBar::measureAngleRequested);
+    
+    QAction* measureRadius = m_toolsMenu->addAction(tr("Measure &Radius"));
+    measureRadius->setShortcut(QKeySequence("Shift+R"));
+    connect(measureRadius, &QAction::triggered, this, &MenuBar::measureRadiusRequested);
+    
+    QAction* clearMeasurements = m_toolsMenu->addAction(tr("&Clear Measurements"));
+    connect(clearMeasurements, &QAction::triggered, this, &MenuBar::clearMeasurementsRequested);
+    
+    m_toolsMenu->addSeparator();
+    
+    // Analysis tools (placeholder)
+    QAction* analyzeAction = m_toolsMenu->addAction(tr("&Analyze Mesh..."));
+    analyzeAction->setEnabled(false);  // TODO: Implement
+}
+
+void MenuBar::showMeshRepairWizard()
+{
+    if (m_meshRepairWizard) {
+        m_meshRepairWizard->show();
+        m_meshRepairWizard->raise();
+        m_meshRepairWizard->activateWindow();
+    }
+}

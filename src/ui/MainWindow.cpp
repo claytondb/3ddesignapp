@@ -1492,3 +1492,40 @@ void MainWindow::dropEvent(QDropEvent *event)
                 .arg(supportedList));
     }
 }
+
+// ---- Measurement Tool Handlers ----
+
+void MainWindow::onMeasureDistanceRequested()
+{
+    if (m_measureTool) {
+        m_measureTool->setMode(MeasureTool::Mode::Distance);
+        m_measureTool->activate();
+        setStatusMessage(tr("Click two points to measure distance"));
+    }
+}
+
+void MainWindow::onMeasureAngleRequested()
+{
+    if (m_measureTool) {
+        m_measureTool->setMode(MeasureTool::Mode::Angle);
+        m_measureTool->activate();
+        setStatusMessage(tr("Click three points to measure angle"));
+    }
+}
+
+void MainWindow::onMeasureRadiusRequested()
+{
+    if (m_measureTool) {
+        m_measureTool->setMode(MeasureTool::Mode::Radius);
+        m_measureTool->activate();
+        setStatusMessage(tr("Click on a curved surface to measure radius"));
+    }
+}
+
+void MainWindow::onClearMeasurementsRequested()
+{
+    if (m_measureTool) {
+        m_measureTool->clearMeasurements();
+        setStatusMessage(tr("Measurements cleared"));
+    }
+}

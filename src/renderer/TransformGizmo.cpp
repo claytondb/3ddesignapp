@@ -524,4 +524,182 @@ float TransformGizmo::computeScreenScale(const QMatrix4x4& view, const QMatrix4x
     return desiredNDCSize * depth * projScale;
 }
 
+// ---- Axis Constraint Implementation ----
+
+void TransformGizmo::setAxisConstraint(AxisConstraint constraint) {
+    if (m_axisConstraint != constraint) {
+        m_axisConstraint = constraint;
+        emit axisConstraintChanged(constraint);
+    }
+}
+
+bool TransformGizmo::isAxisConstrained(int axis) const {
+    switch (m_axisConstraint) {
+        case AxisConstraint::X: return axis != 0;
+        case AxisConstraint::Y: return axis != 1;
+        case AxisConstraint::Z: return axis != 2;
+        case AxisConstraint::PlaneXY: return axis == 2;
+        case AxisConstraint::PlaneXZ: return axis == 1;
+        case AxisConstraint::PlaneYZ: return axis == 0;
+        default: return false;
+    }
+}
+
+QVector3D TransformGizmo::constraintDirection() const {
+    switch (m_axisConstraint) {
+        case AxisConstraint::X: return QVector3D(1, 0, 0);
+        case AxisConstraint::Y: return QVector3D(0, 1, 0);
+        case AxisConstraint::Z: return QVector3D(0, 0, 1);
+        default: return QVector3D(1, 1, 1);
+    }
+}
+
+QVector3D TransformGizmo::constraintPlaneNormal() const {
+    switch (m_axisConstraint) {
+        case AxisConstraint::PlaneXY: return QVector3D(0, 0, 1);
+        case AxisConstraint::PlaneXZ: return QVector3D(0, 1, 0);
+        case AxisConstraint::PlaneYZ: return QVector3D(1, 0, 0);
+        default: return QVector3D(0, 1, 0);
+    }
+}
+
+// ---- Coordinate Space Implementation ----
+
+void TransformGizmo::setCoordinateSpace(CoordinateSpace space) {
+    if (m_coordinateSpace != space) {
+        m_coordinateSpace = space;
+        emit coordinateSpaceChanged(space);
+    }
+}
+
+void TransformGizmo::toggleCoordinateSpace() {
+    setCoordinateSpace(m_coordinateSpace == CoordinateSpace::World 
+                       ? CoordinateSpace::Local 
+                       : CoordinateSpace::World);
+}
+
+// ---- Pivot Point Implementation ----
+
+void TransformGizmo::setPivotPoint(PivotPoint pivot) {
+    if (m_pivotPoint != pivot) {
+        m_pivotPoint = pivot;
+        emit pivotPointChanged(pivot);
+    }
+}
+
+void TransformGizmo::setCustomPivotPosition(const QVector3D& pos) {
+    m_customPivot = pos;
+}
+
+void TransformGizmo::cyclePivotPoint() {
+    int current = static_cast<int>(m_pivotPoint);
+    int next = (current + 1) % 5;  // 5 pivot point options
+    setPivotPoint(static_cast<PivotPoint>(next));
+}
+
+// ---- Numeric Input Implementation ----
+
+void TransformGizmo::startNumericInput() {
+    m_numericInputActive = true;
+    m_numericInput.clear();
+}
+
+void TransformGizmo::endNumericInput(bool apply) {
+    if (apply && !m_numericInput.isEmpty()) {
+        emit numericInputConfirmed(numericInputVector());
+    }
+    m_numericInputActive = false;
+    m_numericInput.clear();
+}
+
+void TransformGizmo::appendNumericInput(QChar c) {
+    if (m_numericInputActive) {
+        // Allow digits, minus, period, and comma for vector input
+        if (c.isDigit() || c == '-' || c == '.' || c == ',') {
+            m_numericInput.append(c);
+        }
+    }
+}
+
+void TransformGizmo::backspaceNumericInput() {
+    if (m_numericInputActive && !m_numericInput.isEmpty()) {
+        m_numericInput.chop(1);
+    }
+}
+
+double TransformGizmo::numericInputValue() const {
+    if (m_numericInput.isEmpty()) {
+        return 0.0;
+    }
+    bool ok;
+    double value = m_numericInput.toDouble(&ok);
+    return ok ? value : 0.0;
+}
+
+QVector3D TransformGizmo::numericInputVector() const {
+    if (m_numericInput.isEmpty()) {
+        return QVector3D(0, 0, 0);
+    }
+    
+    // Parse comma-separated values like "5,10,3"
+    QStringList parts = m_numericInput.split(',');
+    float x = 0, y = 0, z = 0;
+    
+    if (parts.size() >= 1) {
+        bool ok;
+        x = parts[0].toFloat(&ok);
+        if (!ok) x = 0;
+    }
+    if (parts.size() >= 2) {
+        bool ok;
+        y = parts[1].toFloat(&ok);
+        if (!ok) y = 0;
+    }
+    if (parts.size() >= 3) {
+        bool ok;
+        z = parts[2].toFloat(&ok);
+        if (!ok) z = 0;
+    }
+    
+    // If only one value, apply to constrained axis
+    if (parts.size() == 1) {
+        float val = x;
+        switch (m_axisConstraint) {
+            case AxisConstraint::X: return QVector3D(val, 0, 0);
+            case AxisConstraint::Y: return QVector3D(0, val, 0);
+            case AxisConstraint::Z: return QVector3D(0, 0, val);
+            default: return QVector3D(val, val, val);
+        }
+    }
+    
+    return QVector3D(x, y, z);
+}
+
+// ---- Visual Settings ----
+
+void TransformGizmo::setConstraintColor(const QColor& color) {
+    m_constraintColor = color;
+}
+
+// ---- Constraint Indicator Geometry (stub implementations) ----
+
+void TransformGizmo::createConstraintIndicatorGeometry() {
+    // Create visual indicator for axis constraints
+    // This would show a line or plane to indicate the constraint
+    // For now, this is a placeholder
+}
+
+void TransformGizmo::renderConstraintIndicator(const QMatrix4x4& mvp, float scale) {
+    Q_UNUSED(mvp);
+    Q_UNUSED(scale);
+    // Render constraint indicator if active
+    // Placeholder for future implementation
+}
+
+void TransformGizmo::renderNumericInputOverlay() {
+    // Render numeric input text overlay
+    // This would typically be handled by the viewport's paintEvent
+    // Placeholder for future implementation
+}
+
 } // namespace dc
