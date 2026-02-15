@@ -484,8 +484,10 @@ void MeasureTool::renderPoint(const QVector3D& point, const QColor& color, float
     if (!f) return;
     
     // Enable point rendering
+    // Note: glPointSize is not available in core profile, use gl_PointSize in shader
     f->glEnable(GL_PROGRAM_POINT_SIZE);
-    f->glPointSize(size);
+    // Point size is controlled via gl_PointSize in vertex shader
+    Q_UNUSED(size);
     
     // Simple point rendering using immediate mode (legacy but simple)
     // Full implementation would use shaders and VBOs

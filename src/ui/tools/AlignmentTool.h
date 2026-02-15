@@ -15,6 +15,7 @@
 #include <QVector3D>
 #include <QMatrix4x4>
 #include <memory>
+#include "../../renderer/TransformGizmo.h"  // For AxisConstraint enum
 
 namespace dc3d {
 namespace geometry {
@@ -29,7 +30,7 @@ class Viewport;
 class TransformGizmo;
 
 /**
- * @brief Transform mode for the gizmo
+ * @brief Transform mode for the gizmo (mirrors GizmoMode in TransformGizmo.h)
  */
 enum class TransformMode {
     Translate,
@@ -37,18 +38,8 @@ enum class TransformMode {
     Scale
 };
 
-/**
- * @brief Axis constraint for transformations
- */
-enum class AxisConstraint {
-    None,   ///< Free transformation
-    X,      ///< Constrain to X axis
-    Y,      ///< Constrain to Y axis
-    Z,      ///< Constrain to Z axis
-    XY,     ///< Constrain to XY plane
-    XZ,     ///< Constrain to XZ plane
-    YZ      ///< Constrain to YZ plane
-};
+// AxisConstraint is defined in TransformGizmo.h
+// Values: None, X, Y, Z, PlaneXY, PlaneXZ, PlaneYZ
 
 /**
  * @brief Transform space for transformations

@@ -10,6 +10,7 @@
 #include "dialogs/KeyboardShortcutsDialog.h"
 #include "dialogs/AboutDialog.h"
 #include "dialogs/GettingStartedDialog.h"
+#include "dialogs/ExportPresetsDialog.h"
 #include "HelpSystem.h"
 #include <QActionGroup>
 #include <QApplication>

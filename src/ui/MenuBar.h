@@ -267,6 +267,7 @@ private:
     QAction* m_actionSelectAll;
     QAction* m_actionDeselectAll;
     QAction* m_actionInvertSelection;
+    QAction* m_actionExportPresets;
     QAction* m_actionPreferences;
 
     // View actions
