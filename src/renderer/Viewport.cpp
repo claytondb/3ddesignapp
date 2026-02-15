@@ -1554,4 +1554,20 @@ void Viewport::resizeEvent(QResizeEvent* event)
     }
 }
 
+void Viewport::renderInfoOverlay(QPainter& painter)
+{
+    // Draw view name in bottom-left corner
+    QString viewName = "Perspective";
+    if (m_camera) {
+        // Could get view name from camera state
+    }
+    
+    painter.setPen(QColor(200, 200, 200, 180));
+    painter.setFont(QFont("Arial", 10));
+    painter.drawText(10, height() - 10, viewName);
+    
+    // Draw selection count if any objects selected
+    // This is a placeholder - actual selection info would come from IntegrationController
+}
+
 } // namespace dc
