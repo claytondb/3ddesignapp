@@ -1498,7 +1498,7 @@ void MainWindow::dropEvent(QDropEvent *event)
 void MainWindow::onMeasureDistanceRequested()
 {
     if (m_measureTool) {
-        m_measureTool->setMode(MeasureTool::Mode::Distance);
+        m_measureTool->setMode(dc::MeasureMode::Distance);
         m_measureTool->activate();
         setStatusMessage(tr("Click two points to measure distance"));
     }
@@ -1507,7 +1507,7 @@ void MainWindow::onMeasureDistanceRequested()
 void MainWindow::onMeasureAngleRequested()
 {
     if (m_measureTool) {
-        m_measureTool->setMode(MeasureTool::Mode::Angle);
+        m_measureTool->setMode(dc::MeasureMode::Angle);
         m_measureTool->activate();
         setStatusMessage(tr("Click three points to measure angle"));
     }
@@ -1516,7 +1516,7 @@ void MainWindow::onMeasureAngleRequested()
 void MainWindow::onMeasureRadiusRequested()
 {
     if (m_measureTool) {
-        m_measureTool->setMode(MeasureTool::Mode::Radius);
+        m_measureTool->setMode(dc::MeasureMode::Radius);
         m_measureTool->activate();
         setStatusMessage(tr("Click on a curved surface to measure radius"));
     }
@@ -1525,7 +1525,7 @@ void MainWindow::onMeasureRadiusRequested()
 void MainWindow::onClearMeasurementsRequested()
 {
     if (m_measureTool) {
-        m_measureTool->clearMeasurements();
+        m_measureTool->clearAllMeasurements();
         setStatusMessage(tr("Measurements cleared"));
     }
 }
