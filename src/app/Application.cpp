@@ -337,7 +337,7 @@ bool Application::importMesh(const QString& filePath)
                  << "Vertices:" << vertexCount
                  << "Faces:" << faceCount;
         
-        emit meshImported(meshName, meshId);
+        emit meshImported(meshName, meshId, vertexCount, faceCount, loadTimeMs);
         
         return true;
         
@@ -462,7 +462,7 @@ bool Application::createPrimitive(const QString& type)
                  << "Vertices:" << mesh->vertexCount()
                  << "Faces:" << mesh->faceCount();
         
-        emit meshImported(meshName, meshId);
+        emit meshImported(meshName, meshId, mesh->vertexCount(), mesh->faceCount(), 0.0);
         
         return true;
         
