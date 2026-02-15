@@ -14,6 +14,7 @@
 #include "io/STLImporter.h"
 #include "io/OBJImporter.h"
 #include "io/PLYImporter.h"
+#include "io/NativeFormat.h"
 #include "renderer/Picking.h"
 #include "renderer/Viewport.h"
 #include "ui/MainWindow.h"
@@ -32,6 +33,12 @@
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QApplication>
+#include <QFileDialog>
+#include <QFileInfo>
+
+#include <sstream>
+#include <cstring>
+#include <map>
 
 namespace dc3d {
 
@@ -85,6 +92,20 @@ bool Application::initialize()
     
     // Load backup settings
     loadBackupSettings();
+    
+    // Load document settings (last directory, etc.)
+    loadDocumentSettings();
+    
+    // Connect scene changes to modified tracking
+    connect(m_sceneManager.get(), &core::SceneManager::sceneChanged, this, [this]() {
+        setModified(true);
+    });
+    connect(m_sceneManager.get(), &core::SceneManager::meshAdded, this, [this](uint64_t, const QString&) {
+        setModified(true);
+    });
+    connect(m_sceneManager.get(), &core::SceneManager::meshRemoved, this, [this](uint64_t) {
+        setModified(true);
+    });
     
     m_initialized = true;
     qDebug() << "Application initialized successfully";
@@ -760,6 +781,480 @@ void Application::reloadPreferences()
     // - etc.
     
     qDebug() << "Preferences reloaded";
+}
+
+// ============================================================================
+// Document Management Implementation
+// ============================================================================
+
+void Application::loadDocumentSettings()
+{
+    QSettings settings("dc-3ddesignapp", "dc-3ddesignapp");
+    m_lastUsedDirectory = settings.value("document/lastDirectory",
+        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString();
+}
+
+void Application::saveDocumentSettings()
+{
+    QSettings settings("dc-3ddesignapp", "dc-3ddesignapp");
+    settings.setValue("document/lastDirectory", m_lastUsedDirectory);
+}
+
+void Application::setLastUsedDirectory(const QString& dir)
+{
+    m_lastUsedDirectory = dir;
+    saveDocumentSettings();
+}
+
+void Application::setModified(bool modified)
+{
+    if (m_isModified != modified) {
+        m_isModified = modified;
+        emit modifiedChanged(modified);
+    }
+}
+
+bool Application::newProject(bool askToSave)
+{
+    // Check if we need to save the current project
+    if (askToSave && m_isModified) {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            m_mainWindow,
+            tr("Save Changes?"),
+            tr("The current project has unsaved changes.\n\nDo you want to save before creating a new project?"),
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+            QMessageBox::Save);
+        
+        if (reply == QMessageBox::Cancel) {
+            return false;
+        }
+        
+        if (reply == QMessageBox::Save) {
+            if (!saveProject()) {
+                return false;  // Save was cancelled or failed
+            }
+        }
+    }
+    
+    // Clear the scene via IntegrationController (clears viewport, picking, etc.)
+    if (m_integrationController) {
+        m_integrationController->clearScene();
+    } else if (m_sceneManager) {
+        m_sceneManager->clear();
+    }
+    
+    // Clear undo stack
+    if (m_undoStack) {
+        m_undoStack->clear();
+    }
+    
+    // Reset mesh ID counter
+    m_nextMeshId = 1;
+    
+    // Reset document state
+    m_currentFilePath.clear();
+    setModified(false);
+    
+    emit filePathChanged(m_currentFilePath);
+    
+    qDebug() << "New project created";
+    return true;
+}
+
+bool Application::saveProject()
+{
+    if (m_currentFilePath.isEmpty()) {
+        // No file path, use Save As
+        return saveProjectAs();
+    }
+    
+    return doSaveProject(m_currentFilePath);
+}
+
+bool Application::saveProjectAs(const QString& filePath)
+{
+    QString path = filePath;
+    
+    if (path.isEmpty()) {
+        // Show save dialog
+        path = QFileDialog::getSaveFileName(
+            m_mainWindow,
+            tr("Save Project As"),
+            m_lastUsedDirectory + "/Untitled.dc3d",
+            tr("DC-3D Project (*.dc3d);;All Files (*)"));
+        
+        if (path.isEmpty()) {
+            return false;  // User cancelled
+        }
+        
+        // Ensure .dc3d extension
+        if (!path.endsWith(".dc3d", Qt::CaseInsensitive)) {
+            path += ".dc3d";
+        }
+    }
+    
+    // Update last used directory
+    QFileInfo fileInfo(path);
+    setLastUsedDirectory(fileInfo.absolutePath());
+    
+    return doSaveProject(path);
+}
+
+bool Application::doSaveProject(const QString& filePath)
+{
+    if (!m_sceneManager) {
+        qWarning() << "Cannot save: SceneManager not initialized";
+        return false;
+    }
+    
+    qDebug() << "Saving project to:" << filePath;
+    
+    try {
+        // Create simple archive format to save meshes
+        dc::SimpleArchive archive;
+        std::vector<dc::SimpleArchive::Entry> entries;
+        
+        // Create manifest JSON with project info
+        std::ostringstream manifest;
+        manifest << "{\n";
+        manifest << "  \"version\": 1,\n";
+        manifest << "  \"format\": \"dc3d\",\n";
+        manifest << "  \"meshCount\": " << m_sceneManager->meshCount() << ",\n";
+        manifest << "  \"meshes\": [\n";
+        
+        // Get all mesh IDs
+        std::vector<uint64_t> meshIds = m_sceneManager->meshIds();
+        
+        for (size_t i = 0; i < meshIds.size(); i++) {
+            uint64_t id = meshIds[i];
+            auto* meshNode = m_sceneManager->getMeshNode(id);
+            if (!meshNode) continue;
+            
+            manifest << "    {\n";
+            manifest << "      \"id\": " << id << ",\n";
+            manifest << "      \"name\": \"" << meshNode->displayName().toStdString() << "\",\n";
+            manifest << "      \"visible\": " << (meshNode->isVisible() ? "true" : "false") << "\n";
+            manifest << "    }" << (i < meshIds.size() - 1 ? "," : "") << "\n";
+            
+            // Serialize mesh data
+            auto mesh = meshNode->mesh();
+            if (mesh) {
+                std::vector<uint8_t> meshData;
+                
+                // Write vertex count
+                uint32_t vertexCount = static_cast<uint32_t>(mesh->vertexCount());
+                meshData.push_back(vertexCount & 0xFF);
+                meshData.push_back((vertexCount >> 8) & 0xFF);
+                meshData.push_back((vertexCount >> 16) & 0xFF);
+                meshData.push_back((vertexCount >> 24) & 0xFF);
+                
+                // Write vertices
+                const auto& vertices = mesh->vertices();
+                for (const auto& v : vertices) {
+                    // Write as floats (4 bytes each)
+                    auto writeFloat = [&meshData](float f) {
+                        uint32_t bits;
+                        std::memcpy(&bits, &f, sizeof(float));
+                        meshData.push_back(bits & 0xFF);
+                        meshData.push_back((bits >> 8) & 0xFF);
+                        meshData.push_back((bits >> 16) & 0xFF);
+                        meshData.push_back((bits >> 24) & 0xFF);
+                    };
+                    writeFloat(v.x);
+                    writeFloat(v.y);
+                    writeFloat(v.z);
+                }
+                
+                // Write index count
+                uint32_t indexCount = static_cast<uint32_t>(mesh->indexCount());
+                meshData.push_back(indexCount & 0xFF);
+                meshData.push_back((indexCount >> 8) & 0xFF);
+                meshData.push_back((indexCount >> 16) & 0xFF);
+                meshData.push_back((indexCount >> 24) & 0xFF);
+                
+                // Write indices
+                const auto& indices = mesh->indices();
+                for (uint32_t idx : indices) {
+                    meshData.push_back(idx & 0xFF);
+                    meshData.push_back((idx >> 8) & 0xFF);
+                    meshData.push_back((idx >> 16) & 0xFF);
+                    meshData.push_back((idx >> 24) & 0xFF);
+                }
+                
+                // Write normals flag and data
+                bool hasNormals = mesh->hasNormals();
+                meshData.push_back(hasNormals ? 1 : 0);
+                if (hasNormals) {
+                    const auto& normals = mesh->normals();
+                    for (const auto& n : normals) {
+                        auto writeFloat = [&meshData](float f) {
+                            uint32_t bits;
+                            std::memcpy(&bits, &f, sizeof(float));
+                            meshData.push_back(bits & 0xFF);
+                            meshData.push_back((bits >> 8) & 0xFF);
+                            meshData.push_back((bits >> 16) & 0xFF);
+                            meshData.push_back((bits >> 24) & 0xFF);
+                        };
+                        writeFloat(n.x);
+                        writeFloat(n.y);
+                        writeFloat(n.z);
+                    }
+                }
+                
+                dc::SimpleArchive::Entry meshEntry;
+                meshEntry.name = "mesh_" + std::to_string(id) + ".bin";
+                meshEntry.data = std::move(meshData);
+                entries.push_back(std::move(meshEntry));
+            }
+        }
+        
+        manifest << "  ]\n";
+        manifest << "}\n";
+        
+        // Add manifest entry
+        dc::SimpleArchive::Entry manifestEntry;
+        manifestEntry.name = "manifest.json";
+        std::string manifestStr = manifest.str();
+        manifestEntry.data = std::vector<uint8_t>(manifestStr.begin(), manifestStr.end());
+        entries.insert(entries.begin(), std::move(manifestEntry));
+        
+        // Write archive
+        if (!archive.write(filePath.toStdString(), entries)) {
+            QMessageBox::critical(m_mainWindow, tr("Save Failed"),
+                tr("Failed to write project file."));
+            return false;
+        }
+        
+        // Update document state
+        m_currentFilePath = filePath;
+        setModified(false);
+        emit filePathChanged(m_currentFilePath);
+        emit projectSaved(filePath);
+        
+        qDebug() << "Project saved successfully:" << filePath;
+        return true;
+        
+    } catch (const std::exception& e) {
+        QMessageBox::critical(m_mainWindow, tr("Save Failed"),
+            tr("Failed to save project: %1").arg(e.what()));
+        return false;
+    }
+}
+
+bool Application::openProject(const QString& filePath, bool askToSave)
+{
+    // Check if we need to save the current project
+    if (askToSave && m_isModified) {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            m_mainWindow,
+            tr("Save Changes?"),
+            tr("The current project has unsaved changes.\n\nDo you want to save before opening another project?"),
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+            QMessageBox::Save);
+        
+        if (reply == QMessageBox::Cancel) {
+            return false;
+        }
+        
+        if (reply == QMessageBox::Save) {
+            if (!saveProject()) {
+                return false;  // Save was cancelled or failed
+            }
+        }
+    }
+    
+    return doLoadProject(filePath);
+}
+
+bool Application::doLoadProject(const QString& filePath)
+{
+    if (!m_sceneManager) {
+        qWarning() << "Cannot load: SceneManager not initialized";
+        return false;
+    }
+    
+    if (!QFileInfo::exists(filePath)) {
+        QMessageBox::critical(m_mainWindow, tr("Open Failed"),
+            tr("File not found: %1").arg(filePath));
+        return false;
+    }
+    
+    qDebug() << "Loading project from:" << filePath;
+    
+    try {
+        // Read archive
+        dc::SimpleArchive archive;
+        std::vector<dc::SimpleArchive::Entry> entries;
+        
+        if (!archive.read(filePath.toStdString(), entries)) {
+            QMessageBox::critical(m_mainWindow, tr("Open Failed"),
+                tr("Failed to read project file. The file may be corrupted."));
+            return false;
+        }
+        
+        // Find manifest
+        std::string manifestJson;
+        std::map<std::string, std::vector<uint8_t>> meshDataMap;
+        
+        for (const auto& entry : entries) {
+            if (entry.name == "manifest.json") {
+                manifestJson = std::string(entry.data.begin(), entry.data.end());
+            } else if (entry.name.find("mesh_") == 0 && entry.name.find(".bin") != std::string::npos) {
+                meshDataMap[entry.name] = entry.data;
+            }
+        }
+        
+        if (manifestJson.empty()) {
+            QMessageBox::critical(m_mainWindow, tr("Open Failed"),
+                tr("Invalid project file: missing manifest."));
+            return false;
+        }
+        
+        // Clear current scene via IntegrationController (clears viewport, picking, etc.)
+        if (m_integrationController) {
+            m_integrationController->clearScene();
+        } else {
+            m_sceneManager->clear();
+        }
+        if (m_undoStack) {
+            m_undoStack->clear();
+        }
+        
+        // Simple JSON parsing for mesh entries
+        // Find meshes array
+        size_t meshesStart = manifestJson.find("\"meshes\"");
+        if (meshesStart == std::string::npos) {
+            // No meshes in file, that's OK
+            m_currentFilePath = filePath;
+            setModified(false);
+            emit filePathChanged(m_currentFilePath);
+            emit projectLoaded(filePath);
+            return true;
+        }
+        
+        // Parse mesh entries (simple parsing)
+        size_t pos = meshesStart;
+        while (true) {
+            size_t idPos = manifestJson.find("\"id\":", pos);
+            if (idPos == std::string::npos || idPos > manifestJson.find("]", meshesStart)) break;
+            
+            // Extract ID
+            size_t idStart = idPos + 5;
+            while (idStart < manifestJson.size() && !std::isdigit(manifestJson[idStart])) idStart++;
+            size_t idEnd = idStart;
+            while (idEnd < manifestJson.size() && std::isdigit(manifestJson[idEnd])) idEnd++;
+            uint64_t meshId = std::stoull(manifestJson.substr(idStart, idEnd - idStart));
+            
+            // Extract name
+            size_t namePos = manifestJson.find("\"name\":", idPos);
+            std::string meshName = "Mesh";
+            if (namePos != std::string::npos && namePos < manifestJson.find("}", idPos)) {
+                size_t nameStart = manifestJson.find("\"", namePos + 7);
+                if (nameStart != std::string::npos) {
+                    nameStart++;
+                    size_t nameEnd = manifestJson.find("\"", nameStart);
+                    if (nameEnd != std::string::npos) {
+                        meshName = manifestJson.substr(nameStart, nameEnd - nameStart);
+                    }
+                }
+            }
+            
+            // Load mesh data
+            std::string meshFileName = "mesh_" + std::to_string(meshId) + ".bin";
+            auto it = meshDataMap.find(meshFileName);
+            if (it != meshDataMap.end()) {
+                const auto& data = it->second;
+                size_t offset = 0;
+                
+                auto readUint32 = [&data, &offset]() -> uint32_t {
+                    if (offset + 4 > data.size()) return 0;
+                    uint32_t val = data[offset] | (data[offset+1] << 8) | 
+                                   (data[offset+2] << 16) | (data[offset+3] << 24);
+                    offset += 4;
+                    return val;
+                };
+                
+                auto readFloat = [&readUint32]() -> float {
+                    uint32_t bits = readUint32();
+                    float val;
+                    std::memcpy(&val, &bits, sizeof(float));
+                    return val;
+                };
+                
+                // Create mesh
+                auto mesh = std::make_shared<geometry::MeshData>();
+                
+                // Read vertices
+                uint32_t vertexCount = readUint32();
+                mesh->reserveVertices(vertexCount);
+                for (uint32_t i = 0; i < vertexCount; i++) {
+                    float x = readFloat();
+                    float y = readFloat();
+                    float z = readFloat();
+                    mesh->addVertex(glm::vec3(x, y, z));
+                }
+                
+                // Read indices
+                uint32_t indexCount = readUint32();
+                mesh->reserveFaces(indexCount / 3);
+                for (uint32_t i = 0; i + 2 < indexCount; i += 3) {
+                    uint32_t i0 = readUint32();
+                    uint32_t i1 = readUint32();
+                    uint32_t i2 = readUint32();
+                    mesh->addFace(i0, i1, i2);
+                }
+                
+                // Read normals if present
+                if (offset < data.size()) {
+                    bool hasNormals = data[offset++] != 0;
+                    if (hasNormals && mesh->vertexCount() > 0) {
+                        auto& normals = mesh->normals();
+                        normals.reserve(mesh->vertexCount());
+                        for (size_t i = 0; i < mesh->vertexCount() && offset + 12 <= data.size(); i++) {
+                            float x = readFloat();
+                            float y = readFloat();
+                            float z = readFloat();
+                            normals.push_back(glm::vec3(x, y, z));
+                        }
+                    }
+                }
+                
+                // Compute normals if not present
+                if (!mesh->hasNormals()) {
+                    mesh->computeNormals();
+                }
+                
+                // Add to scene via IntegrationController (handles scene, viewport, picking, etc.)
+                if (meshId >= m_nextMeshId) {
+                    m_nextMeshId = meshId + 1;
+                }
+                if (m_integrationController) {
+                    m_integrationController->addMesh(meshId, QString::fromStdString(meshName), mesh);
+                } else {
+                    // Fallback: just add to scene manager directly
+                    m_sceneManager->addMesh(meshId, QString::fromStdString(meshName), mesh);
+                }
+            }
+            
+            pos = idEnd;
+        }
+        
+        // Update document state
+        QFileInfo fileInfo(filePath);
+        setLastUsedDirectory(fileInfo.absolutePath());
+        m_currentFilePath = filePath;
+        setModified(false);
+        emit filePathChanged(m_currentFilePath);
+        emit projectLoaded(filePath);
+        
+        qDebug() << "Project loaded successfully:" << filePath;
+        return true;
+        
+    } catch (const std::exception& e) {
+        QMessageBox::critical(m_mainWindow, tr("Open Failed"),
+            tr("Failed to load project: %1").arg(e.what()));
+        return false;
+    }
 }
 
 } // namespace dc3d

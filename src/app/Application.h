@@ -180,6 +180,66 @@ public:
      * @brief Restore from a backup file
      */
     bool restoreFromBackup(const QString& backupPath);
+    
+    // =========================================================================
+    // Document Management (Save/Load)
+    // =========================================================================
+    
+    /**
+     * @brief Get the current project file path
+     * @return Path to the current .dc3d file, or empty if untitled
+     */
+    QString currentFilePath() const { return m_currentFilePath; }
+    
+    /**
+     * @brief Check if the document has unsaved changes
+     */
+    bool isModified() const { return m_isModified; }
+    
+    /**
+     * @brief Set the modified state
+     */
+    void setModified(bool modified);
+    
+    /**
+     * @brief Create a new empty project
+     * @param askToSave If true, prompt to save current project if modified
+     * @return true if new project was created (user didn't cancel)
+     */
+    bool newProject(bool askToSave = true);
+    
+    /**
+     * @brief Save the current project
+     * @return true on success, false if cancelled or failed
+     * 
+     * If the project has no file path, this calls saveProjectAs().
+     */
+    bool saveProject();
+    
+    /**
+     * @brief Save the project to a new file
+     * @param filePath Optional path. If empty, shows file dialog.
+     * @return true on success
+     */
+    bool saveProjectAs(const QString& filePath = QString());
+    
+    /**
+     * @brief Open a project file
+     * @param filePath Path to the .dc3d file
+     * @param askToSave If true, prompt to save current project if modified
+     * @return true on success
+     */
+    bool openProject(const QString& filePath, bool askToSave = true);
+    
+    /**
+     * @brief Get the last used directory for save/open dialogs
+     */
+    QString lastUsedDirectory() const { return m_lastUsedDirectory; }
+    
+    /**
+     * @brief Set the last used directory
+     */
+    void setLastUsedDirectory(const QString& dir);
 
 public slots:
     /**
@@ -206,6 +266,30 @@ signals:
      * @param error Human-readable error message explaining what went wrong
      */
     void importFailed(const QString& error);
+    
+    /**
+     * @brief Emitted when modified state changes
+     * @param modified New modified state
+     */
+    void modifiedChanged(bool modified);
+    
+    /**
+     * @brief Emitted when current file path changes
+     * @param filePath New file path (empty for untitled)
+     */
+    void filePathChanged(const QString& filePath);
+    
+    /**
+     * @brief Emitted when a project is saved successfully
+     * @param filePath Path to the saved file
+     */
+    void projectSaved(const QString& filePath);
+    
+    /**
+     * @brief Emitted when a project is loaded successfully
+     * @param filePath Path to the loaded file
+     */
+    void projectLoaded(const QString& filePath);
 
 private:
     static Application* s_instance;
@@ -224,9 +308,20 @@ private:
     QString m_backupDirectory;
     static const int MAX_BACKUPS = 10;
     
+    // Document state
+    QString m_currentFilePath;
+    QString m_lastUsedDirectory;
+    bool m_isModified = false;
+    
     void loadBackupSettings();
     void saveBackupSettings();
     void cleanupOldBackups();
+    
+    // Document management helpers
+    void loadDocumentSettings();
+    void saveDocumentSettings();
+    bool doSaveProject(const QString& filePath);
+    bool doLoadProject(const QString& filePath);
 };
 
 } // namespace dc3d

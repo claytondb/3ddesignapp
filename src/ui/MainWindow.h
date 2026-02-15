@@ -215,6 +215,12 @@ private:
     
     // Undo history dialog (lazy-created)
     UndoHistoryDialog* m_undoHistoryDialog;
+    
+    // Document state
+    QString m_baseWindowTitle;
+    
+    // Update window title based on document state
+    void updateWindowTitle();
 };
 
 #endif // DC_MAINWINDOW_H

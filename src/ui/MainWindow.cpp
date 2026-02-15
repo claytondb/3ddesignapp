@@ -565,7 +565,8 @@ MainWindow::~MainWindow()
 void MainWindow::setupUI()
 {
     // Set window properties
-    setWindowTitle("dc-3ddesignapp - Scan-to-CAD Application");
+    m_baseWindowTitle = "dc-3ddesignapp - Scan-to-CAD Application";
+    setWindowTitle(m_baseWindowTitle);
     setMinimumSize(1024, 768);
     
     // Apply dark theme
@@ -742,6 +743,27 @@ void MainWindow::setupConnections()
             
             // Show full detailed error in dialog for user attention
             QMessageBox::warning(this, tr("Import Failed"), error);
+        });
+        
+        // Document state connections
+        connect(app, &dc3d::Application::modifiedChanged, this, [this](bool /*modified*/) {
+            updateWindowTitle();
+        });
+        
+        connect(app, &dc3d::Application::filePathChanged, this, [this](const QString& /*filePath*/) {
+            updateWindowTitle();
+        });
+        
+        connect(app, &dc3d::Application::projectSaved, this, [this](const QString& filePath) {
+            QFileInfo fileInfo(filePath);
+            m_statusBar->showSuccess(tr("Saved: %1").arg(fileInfo.fileName()));
+            addRecentFile(filePath);
+        });
+        
+        connect(app, &dc3d::Application::projectLoaded, this, [this](const QString& filePath) {
+            QFileInfo fileInfo(filePath);
+            m_statusBar->showSuccess(tr("Opened: %1").arg(fileInfo.fileName()));
+            addRecentFile(filePath);
         });
     }
     
@@ -922,6 +944,30 @@ void MainWindow::saveSettings()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    // Check for unsaved changes
+    auto* app = dc3d::Application::instance();
+    if (app && app->isModified()) {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this,
+            tr("Unsaved Changes"),
+            tr("The current project has unsaved changes.\n\nDo you want to save before closing?"),
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+            QMessageBox::Save);
+        
+        if (reply == QMessageBox::Cancel) {
+            event->ignore();
+            return;
+        }
+        
+        if (reply == QMessageBox::Save) {
+            if (!app->saveProject()) {
+                // Save was cancelled or failed, don't close
+                event->ignore();
+                return;
+            }
+        }
+    }
+    
     saveSettings();
     event->accept();
 }
@@ -999,6 +1045,9 @@ void MainWindow::onSceneChanged()
 
 void MainWindow::onOpenProjectRequested()
 {
+    auto* app = dc3d::Application::instance();
+    QString lastDir = app ? app->lastUsedDirectory() : QString();
+    
     // Build comprehensive filter with format hints
     QString filter = tr(
         "All Supported Files (*.dc3d *.stl *.obj *.ply *.step *.stp *.iges *.igs);;"
@@ -1012,32 +1061,32 @@ void MainWindow::onOpenProjectRequested()
         "All Files (*)"
     );
     
-    QString filePath = QFileDialog::getOpenFileName(this, tr("Open Project"), QString(), filter);
+    QString filePath = QFileDialog::getOpenFileName(this, tr("Open"), lastDir, filter);
     
     if (filePath.isEmpty()) {
         return;
     }
     
-    // Check if it's a mesh file and import it
+    // Check if it's a project file or mesh file
     QFileInfo fileInfo(filePath);
     QString extension = fileInfo.suffix().toLower();
     
-    if (isFormatSupported(extension)) {
-        // Import as mesh
-        auto* app = dc3d::Application::instance();
+    if (extension == "dc3d") {
+        // Open as project file
+        if (app) {
+            app->openProject(filePath, true);  // true = ask to save if modified
+        }
+    } else if (isFormatSupported(extension)) {
+        // Import as mesh (adds to current project)
         if (app) {
             if (!app->importMesh(filePath)) {
                 QMessageBox::warning(this, tr("Open Error"), 
                     tr("Failed to open file. Check the console for details."));
             } else {
                 addRecentFile(filePath);
-                setStatusMessage(QString("Opened: %1").arg(fileInfo.fileName()));
+                setStatusMessage(QString("Imported: %1").arg(fileInfo.fileName()));
             }
         }
-    } else if (extension == "dc3d") {
-        // TODO: Native project file support
-        QMessageBox::information(this, tr("Open Project"), 
-            tr("Native project file support coming soon. For now, use File > Import to load mesh files."));
     } else {
         // Show helpful error with supported formats
         QString supportedList = supportedImportFormats().join(", ").toUpper();
@@ -1584,37 +1633,28 @@ void MainWindow::onClearMeasurementsRequested()
 
 void MainWindow::onNewProjectRequested()
 {
-    // TODO: Implement full project management with native format
-    // For now, clear the scene after confirmation
     auto* app = dc3d::Application::instance();
-    if (app && app->sceneManager()) {
-        QMessageBox::StandardButton reply = QMessageBox::question(
-            this, tr("New Project"),
-            tr("This will clear the current scene. Continue?"),
-            QMessageBox::Yes | QMessageBox::No);
-        
-        if (reply == QMessageBox::Yes) {
-            // TODO: app->sceneManager()->clear();
-            setStatusMessage(tr("New project created"));
-            m_statusBar->showInfo(tr("New project - scene cleared"));
+    if (app) {
+        if (app->newProject(true)) {  // true = ask to save if modified
+            m_statusBar->showInfo(tr("New project created"));
         }
     }
 }
 
 void MainWindow::onSaveProjectRequested()
 {
-    // TODO: Implement native .dc3d project file format
-    QMessageBox::information(this, tr("Save Project"),
-        tr("Native project save (.dc3d) is not yet implemented.\n\n"
-           "Use File → Export → Mesh (STL) to export your mesh data."));
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        app->saveProject();
+    }
 }
 
 void MainWindow::onSaveProjectAsRequested()
 {
-    // TODO: Implement native .dc3d project file format
-    QMessageBox::information(this, tr("Save Project As"),
-        tr("Native project save (.dc3d) is not yet implemented.\n\n"
-           "Use File → Export → Mesh (STL) to export your mesh data."));
+    auto* app = dc3d::Application::instance();
+    if (app) {
+        app->saveProjectAs();
+    }
 }
 
 void MainWindow::onExportMeshRequested()
@@ -1853,4 +1893,37 @@ void MainWindow::onCreateSketchRequested()
 {
     // TODO: Implement 2D sketch mode
     m_statusBar->showInfo(tr("2D Sketch: not yet implemented"));
+}
+
+// ============================================================================
+// Document State Management
+// ============================================================================
+
+void MainWindow::updateWindowTitle()
+{
+    auto* app = dc3d::Application::instance();
+    if (!app) {
+        setWindowTitle(m_baseWindowTitle);
+        return;
+    }
+    
+    QString title;
+    QString filePath = app->currentFilePath();
+    
+    if (filePath.isEmpty()) {
+        title = tr("Untitled");
+    } else {
+        QFileInfo fileInfo(filePath);
+        title = fileInfo.fileName();
+    }
+    
+    // Add modified indicator
+    if (app->isModified()) {
+        title = "* " + title;
+    }
+    
+    // Append application name
+    title += " - " + m_baseWindowTitle;
+    
+    setWindowTitle(title);
 }
