@@ -495,8 +495,8 @@ void SmoothingDialog::loadSettings()
     QSettings settings;
     settings.beginGroup("SmoothingDialog");
     
-    // Algorithm
-    int algo = settings.value("algorithm", 0).toInt();
+    // Algorithm - default to Taubin (index 1) to match setupUI
+    int algo = settings.value("algorithm", 1).toInt();
     if (algo >= 0 && algo <= 2) {
         m_algorithmCombo->setCurrentIndex(algo);
     }
@@ -533,7 +533,7 @@ void SmoothingDialog::saveSettings()
 
 void SmoothingDialog::resetToDefaults()
 {
-    m_algorithmCombo->setCurrentIndex(0);  // Laplacian
+    m_algorithmCombo->setCurrentIndex(1);  // Taubin (Recommended) - matches setupUI default
     m_iterationsSpinbox->setValue(5);
     m_strengthSpinbox->setValue(0.5);
     m_strengthSlider->setValue(50);

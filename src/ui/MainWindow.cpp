@@ -819,6 +819,49 @@ void MainWindow::setupConnections()
     connect(m_toolbar, &Toolbar::measureAngleRequested, this, &MainWindow::onMeasureAngleRequested);
     connect(m_toolbar, &Toolbar::measureRadiusRequested, this, &MainWindow::onMeasureRadiusRequested);
     connect(m_toolbar, &Toolbar::clearMeasurementsRequested, this, &MainWindow::onClearMeasurementsRequested);
+    
+    // File menu connections - New, Save, Save As, Export
+    connect(m_menuBar, &MenuBar::newProjectRequested, this, &MainWindow::onNewProjectRequested);
+    connect(m_menuBar, &MenuBar::saveProjectRequested, this, &MainWindow::onSaveProjectRequested);
+    connect(m_menuBar, &MenuBar::saveProjectAsRequested, this, &MainWindow::onSaveProjectAsRequested);
+    connect(m_menuBar, &MenuBar::exportMeshRequested, this, &MainWindow::onExportMeshRequested);
+    
+    // Edit menu connections - clipboard and selection
+    connect(m_menuBar, &MenuBar::cutRequested, this, &MainWindow::onCutRequested);
+    connect(m_menuBar, &MenuBar::copyRequested, this, &MainWindow::onCopyRequested);
+    connect(m_menuBar, &MenuBar::pasteRequested, this, &MainWindow::onPasteRequested);
+    connect(m_menuBar, &MenuBar::deleteRequested, this, &MainWindow::onDeleteRequested);
+    connect(m_menuBar, &MenuBar::duplicateRequested, this, &MainWindow::onDuplicateRequested);
+    connect(m_menuBar, &MenuBar::selectAllRequested, this, &MainWindow::onSelectAllRequested);
+    connect(m_menuBar, &MenuBar::deselectAllRequested, this, &MainWindow::onDeselectAllRequested);
+    connect(m_menuBar, &MenuBar::invertSelectionRequested, this, &MainWindow::onInvertSelectionRequested);
+    
+    // Selection mode connections - toolbar
+    connect(m_toolbar, &Toolbar::selectModeRequested, this, &MainWindow::onSelectModeRequested);
+    connect(m_toolbar, &Toolbar::boxSelectModeRequested, this, &MainWindow::onBoxSelectModeRequested);
+    connect(m_toolbar, &Toolbar::lassoSelectModeRequested, this, &MainWindow::onLassoSelectModeRequested);
+    connect(m_toolbar, &Toolbar::brushSelectModeRequested, this, &MainWindow::onBrushSelectModeRequested);
+    
+    // View mode connections - toolbar
+    connect(m_toolbar, &Toolbar::shadedModeRequested, this, &MainWindow::onDisplayModeShadedRequested);
+    connect(m_toolbar, &Toolbar::wireframeModeRequested, this, &MainWindow::onDisplayModeWireframeRequested);
+    connect(m_toolbar, &Toolbar::shadedWireModeRequested, this, &MainWindow::onDisplayModeShadedWireRequested);
+    connect(m_toolbar, &Toolbar::xrayModeRequested, this, &MainWindow::onDisplayModeXRayRequested);
+    
+    // Additional view menu connections
+    connect(m_menuBar, &MenuBar::displayModeXRayRequested, this, &MainWindow::onDisplayModeXRayRequested);
+    connect(m_menuBar, &MenuBar::fullScreenRequested, this, &MainWindow::onToggleFullScreenRequested);
+    
+    // Mesh tools connections - toolbar
+    connect(m_toolbar, &Toolbar::meshRepairWizardRequested, this, &MainWindow::onMeshRepairWizardRequested);
+    connect(m_toolbar, &Toolbar::polygonReductionRequested, this, &MainWindow::onPolygonReductionRequested);
+    connect(m_toolbar, &Toolbar::smoothingRequested, this, &MainWindow::onSmoothingRequested);
+    connect(m_toolbar, &Toolbar::fillHolesRequested, this, &MainWindow::onFillHolesRequested);
+    connect(m_toolbar, &Toolbar::clippingBoxRequested, this, &MainWindow::onClippingBoxRequested);
+    
+    // Create tools connections - toolbar
+    connect(m_toolbar, &Toolbar::createSectionRequested, this, &MainWindow::onCreateSectionRequested);
+    connect(m_toolbar, &Toolbar::createSketchRequested, this, &MainWindow::onCreateSketchRequested);
 }
 
 void MainWindow::applyStylesheet()
@@ -1300,7 +1343,7 @@ void MainWindow::cancelCurrentOperation()
     }
     
     // Reset tool to default selection mode
-    if (m_toolbar) {
+    if (m_toolbar && m_toolbar->actionSelect()) {
         m_toolbar->actionSelect()->setChecked(true);
     }
     

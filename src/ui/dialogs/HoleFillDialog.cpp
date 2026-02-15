@@ -597,8 +597,8 @@ void HoleFillDialog::loadSettings()
     QSettings settings;
     settings.beginGroup("HoleFillDialog");
     
-    // Fill method
-    int method = settings.value("fillMethod", 0).toInt();
+    // Fill method - default to Smooth (index 1) to match setupUI
+    int method = settings.value("fillMethod", 1).toInt();
     if (method >= 0 && method <= 2) {
         m_fillMethodCombo->setCurrentIndex(method);
     }
@@ -627,12 +627,12 @@ void HoleFillDialog::saveSettings()
 
 void HoleFillDialog::resetToDefaults()
 {
-    m_fillMethodCombo->setCurrentIndex(0);  // Flat
+    m_fillMethodCombo->setCurrentIndex(1);  // Smooth (Recommended) - matches setupUI default
     m_maxHoleFilterCheck->setChecked(false);
     m_maxHoleSizeSpinbox->setValue(100);
     m_maxHoleSizeSpinbox->setEnabled(false);
     
-    onFillMethodChanged(0);
+    onFillMethodChanged(1);
     filterHolesBySize();
     updateHoleTable();
     updateButtonStates();

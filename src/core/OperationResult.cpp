@@ -214,6 +214,16 @@ OperationResult& OperationResult::withBeforeAfter(const QString& metric, size_t 
 OperationResult& OperationResult::withReduction(const QString& metric, size_t original, size_t final)
 {
     QLocale locale;
+    
+    // Guard against division by zero
+    if (original == 0) {
+        m_statistics.append(QString("%1: %2 → %3")
+            .arg(metric)
+            .arg(locale.toString(static_cast<qulonglong>(original)))
+            .arg(locale.toString(static_cast<qulonglong>(final))));
+        return *this;
+    }
+    
     double percent = 100.0 * (1.0 - static_cast<double>(final) / static_cast<double>(original));
     
     m_statistics.append(QString("%1: %2 → %3 (%4% reduction)")

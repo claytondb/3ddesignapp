@@ -323,6 +323,10 @@ double MeasureTool::estimateRadius(const QVector3D& clickPos) const {
     // 2. Fit a sphere/cylinder to the local surface
     // 3. Return the fitted radius
     
+    // Warn that this is a placeholder implementation
+    qWarning() << "MeasureTool::estimateRadius() - Using placeholder value. "
+                  "Proper radius fitting from mesh curvature not yet implemented.";
+    
     // Placeholder: return 10mm as default
     // Real implementation would use mesh sampling and least-squares fitting
     return 10.0;

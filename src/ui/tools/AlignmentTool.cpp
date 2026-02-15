@@ -244,7 +244,7 @@ void AlignmentTool::handleMouseMove(const QPoint& pos, Qt::MouseButtons buttons,
                 }
                 break;
                 
-            case TransformMode::Scale:
+            case TransformMode::Scale: {
                 // Scale is multiplicative from 1.0
                 QVector3D scaleOffset = deltaValue;
                 m_scale = m_dragStartValue + scaleOffset;
@@ -256,6 +256,7 @@ void AlignmentTool::handleMouseMove(const QPoint& pos, Qt::MouseButtons buttons,
                     m_scale = applySnap(m_scale, TransformMode::Scale);
                 }
                 break;
+            }
         }
         
         updatePreviewTransform();
